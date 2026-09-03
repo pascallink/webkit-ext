@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Mock-Jira</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; }
+    textarea { width: 600px; height: 160px; }
+    .ak-editor-content-area { width: 600px; margin-top: 24px; }
+    .ProseMirror {
+      min-height: 160px;
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+    #quickSearchInput { width: 200px; }
+  </style>
+</head>
+<body>
+  <h1>Mock-Jira</h1>
+
+  <!-- Darf nie als Ziel gewaehlt werden -->
+  <input id="quickSearchInput" placeholder="Suche" aria-label="Suche">
+
+  <!-- Jira Server / Wiki-Markup-Modus -->
+  <label for="description">Beschreibung</label>
+  <textarea id="description" name="description" aria-label="Beschreibung"></textarea>
+
+  <!-- Jira Cloud: stark vereinfachter ProseMirror -->
+  <div class="ak-editor-content-area">
+    <div class="ProseMirror" contenteditable="true" role="textbox" aria-label="Kommentar"></div>
+  </div>
+
+  <script>
+    // Sehr grobes ProseMirror-Verhalten: paste abfangen, Absaetze anlegen.
+    var editor = document.querySelector('.ProseMirror');
+    window.__pastes = [];
+    editor.addEventListener('paste', function (event) {
+      var text = event.clipboardData ? event.clipboardData.getData('text/plain') : '';
+      window.__pastes.push(text);
+      event.preventDefault();
+      text.split('\n').forEach(function (line) {
+        var p = document.createElement('p');
+        p.textContent = line;
+        editor.appendChild(p);
+      });
+    });
+  </script>
+</body>
+</html>

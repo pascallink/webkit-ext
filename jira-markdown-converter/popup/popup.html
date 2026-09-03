@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Markdown nach Jira</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="head">
+    <h1>Markdown nach Jira</h1>
+    <a class="head__link" href="#" id="options">Einstellungen</a>
+  </header>
+
+  <main class="body">
+    <label class="label" for="input">Markdown aus Azure DevOps</label>
+    <textarea id="input" class="area" rows="8" spellcheck="false"
+              placeholder="Markdown hier einfuegen (Strg+V) ..."></textarea>
+
+    <div class="row">
+      <button type="button" class="btn" id="from-clipboard">Aus Zwischenablage</button>
+      <button type="button" class="btn" id="clear">Leeren</button>
+    </div>
+
+    <label class="label" for="output">Jira-Markup</label>
+    <textarea id="output" class="area area--output" rows="8" spellcheck="false" readonly></textarea>
+
+    <div class="row row--main">
+      <button type="button" class="btn btn--primary" id="insert">In Jira einfuegen</button>
+      <button type="button" class="btn" id="copy">Kopieren</button>
+    </div>
+
+    <p class="status" id="status" role="status"></p>
+  </main>
+
+  <script src="../src/settings.js"></script>
+  <script src="../src/converter.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
