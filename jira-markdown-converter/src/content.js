@@ -387,6 +387,7 @@
   var BUTTON_FLAG = 'jmdButtonAttached';
 
   function attachFieldButtons() {
+    removeOrphanBars();
     var fields = Editors.findAllTargets();
     for (var i = 0; i < fields.length; i++) {
       var field = fields[i];
@@ -399,6 +400,20 @@
     }
   }
 
+  /**
+   * Jira Server baut beim Inline-Bearbeiten ganze Feldbloecke neu auf. Leisten,
+   * deren Feld verschwunden ist, muessen mit weg.
+   */
+  function removeOrphanBars() {
+    var bars = document.querySelectorAll('.jmd-fieldbar');
+    for (var i = 0; i < bars.length; i++) {
+      var field = bars[i].__jmdField;
+      if (!field || !field.isConnected) {
+        if (bars[i].parentNode) bars[i].parentNode.removeChild(bars[i]);
+      }
+    }
+  }
+
   function addButtonBar(field) {
     var host = field.closest('.ak-editor-content-area') || field;
     var parent = host.parentNode;
@@ -407,6 +422,7 @@
     var bar = document.createElement('div');
     bar.className = 'jmd-fieldbar';
     bar.dataset.jmdUi = 'fieldbar';
+    bar.__jmdField = field;
 
     var convertButton = document.createElement('button');
     convertButton.type = 'button';

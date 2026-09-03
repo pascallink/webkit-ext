@@ -108,19 +108,33 @@
     });
   }
 
-  /** Normalisiert eine Host-Eingabe ('https://jira.firma.de/browse/X' -> 'jira.firma.de'). */
+  /**
+   * Normalisiert eine Host-Eingabe:
+   *   'https://jira.firma.de/browse/ABC-1' -> 'jira.firma.de'
+   *   'http://jira:8080/'                  -> 'jira'
+   * Der Port faellt weg, weil Match-Pattern keine Ports kennen - '*://host/*'
+   * gilt ohnehin fuer jeden Port.
+   */
   function normalizeHost(input) {
     var value = String(input || '').trim();
     if (!value) return '';
     value = value.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '');
     value = value.split('/')[0].split('?')[0].split('#')[0];
     value = value.replace(/:\d+$/, '').toLowerCase();
-    return /^[a-z0-9.*-]+\.[a-z0-9*-]+$/i.test(value) ? value : '';
+    // Einzelne Namen ohne Punkt sind erlaubt (Intranet: http://jira/).
+    if (!/^[a-z0-9*]([a-z0-9.*-]*[a-z0-9*])?$/.test(value)) return '';
+    // Ein blankes '*' wuerde jede Seite freigeben.
+    if (!/[a-z0-9]/.test(value)) return '';
+    return value;
   }
 
-  /** Match-Pattern fuer chrome.scripting / chrome.permissions. */
+  /**
+   * Match-Pattern fuer chrome.scripting / chrome.permissions.
+   * Beide Schemata, weil Jira Server / Data Center im Firmennetz haeufig
+   * ueber http erreichbar ist.
+   */
   function hostPattern(host) {
-    return 'https://' + host + '/*';
+    return '*://' + host + '/*';
   }
 
   return {

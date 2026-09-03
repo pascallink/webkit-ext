@@ -4,8 +4,9 @@
   "description": "Browser-Erweiterung: wandelt Markdown aus Azure DevOps in Jira-Markup um und fuegt es ins Ticket ein.",
   "private": true,
   "scripts": {
-    "test": "node test/converter.test.js && node test/package.test.js && node test/integration.test.js",
+    "test": "node test/converter.test.js && node test/settings.test.js && node test/package.test.js && node test/integration.test.js",
     "test:unit": "node test/converter.test.js",
+    "test:settings": "node test/settings.test.js",
     "test:package": "node test/package.test.js",
     "test:integration": "node test/integration.test.js",
     "lint": "eslint src test popup options"

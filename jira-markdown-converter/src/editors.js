@@ -26,14 +26,21 @@
     '[role="textbox"][contenteditable="true"]'
   ].join(',');
 
+  // Jira Server / Data Center (9.x) benutzt ausschliesslich Textareas, die in
+  // einem Wiki-Feld mit den Reitern "Schreiben"/"Vorschau" stecken.
   var TEXTAREA_SELECTOR = [
     'textarea#description',
     'textarea#comment',
     'textarea#environment',
     'textarea.textarea',
+    'textarea.long-field',
+    '.jira-wikifield textarea',
+    '.wiki-edit textarea',
     'textarea[name="description"]',
     'textarea[name="comment"]',
+    'textarea[name="environment"]',
     'textarea[id^="customfield_"]',
+    'textarea[name^="customfield_"]',
     'textarea'
   ].join(',');
 
@@ -42,7 +49,13 @@
     '[data-jmd-ui]',
     'input[type="password"]',
     '[data-test-id="search-dialog"] *',
+    // Jira Cloud
     '#quickSearchInput',
+    // Jira Server / Data Center: Schnellsuche und JQL-Eingaben
+    '#searcher-query',
+    '#jqltext',
+    '#advanced-search',
+    '.search-entry-link',
     '[aria-label*="Suche" i]',
     '[aria-label*="search" i]',
     '[placeholder*="Suche" i]',

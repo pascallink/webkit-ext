@@ -12,6 +12,14 @@
   </header>
 
   <main class="body">
+    <div class="notice" id="grantNotice" hidden>
+      <p class="notice__text">
+        Auf <b id="grantHost"></b> ist die Erweiterung noch nicht freigegeben.
+        Das ist bei Jira Server und Data Center einmalig noetig.
+      </p>
+      <button type="button" class="btn btn--primary" id="grant">Diese Jira-Adresse freigeben</button>
+    </div>
+
     <label class="label" for="input">Markdown aus Azure DevOps</label>
     <textarea id="input" class="area" rows="8" spellcheck="false"
               placeholder="Markdown hier einfuegen (Strg+V) ..."></textarea>

@@ -39,6 +39,14 @@
         </span>
       </label>
 
+      <p class="hint">
+        <b>Jira Server / Data Center (z. B. 9.12):</b> Dort sind Beschreibung und
+        Kommentar normale Textfelder – es wird immer Jira-Markup eingefuegt, die
+        folgende Einstellung greift nicht. Damit Jira das Markup auch anzeigt,
+        muss das Feld den <i>Wiki Style Renderer</i> verwenden
+        (Administration &rarr; Vorgaenge &rarr; Feldkonfigurationen).
+      </p>
+
       <fieldset class="field">
         <legend>Rich-Text-Editor von Jira Cloud</legend>
         <label class="radio">
@@ -95,11 +103,14 @@
     </section>
 
     <section class="card">
-      <h2>Eigene Jira-Adressen</h2>
+      <h2>Eigene Jira-Adressen (Server / Data Center)</h2>
       <p class="hint">
-        Die Erweiterung laeuft von Haus aus auf <code>*.atlassian.net</code>.
-        Fuer Jira Server oder Data Center hier die Adresse eintragen, eine pro Zeile
-        (z. B. <code>jira.firma.de</code>). Der Browser fragt danach nach der Freigabe.
+        Ohne Eintrag laeuft die Erweiterung nur auf <code>*.atlassian.net</code>
+        (Jira Cloud). Fuer <b>Jira Server oder Data Center</b> hier die Adresse
+        eintragen, eine pro Zeile – z. B. <code>jira.firma.de</code>. Port und Pfad
+        koennen mit angegeben werden, sie werden abgeschnitten; <code>http</code>
+        und <code>https</code> sind beide abgedeckt. Anschliessend auf
+        <i>Zugriff erlauben</i> klicken und die Jira-Seite neu laden.
       </p>
       <textarea id="extraHosts" class="area" rows="4" spellcheck="false"
                 placeholder="jira.firma.de"></textarea>

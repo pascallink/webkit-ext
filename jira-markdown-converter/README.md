@@ -39,10 +39,21 @@ Die Erweiterung ist nicht signiert und wird als entpacktes Paket geladen:
 3. **Entpackte Erweiterung laden** und den Ordner `jira-markdown-converter`
    auswaehlen.
 
-Danach laeuft sie auf allen `*.atlassian.net`-Seiten. Fuer **Jira Server oder
-Data Center** die eigene Adresse (z. B. `jira.firma.de`) in den Einstellungen
-der Erweiterung eintragen und auf *Zugriff erlauben* klicken – der Browser
-fragt dann einmalig nach der Freigabe fuer diesen Host.
+Danach laeuft sie auf allen `*.atlassian.net`-Seiten (Jira Cloud).
+
+### Jira Server / Data Center (z. B. 9.12.2)
+
+Selbst gehostete Instanzen muessen einmalig freigegeben werden – sonst passiert
+auf der Jira-Seite gar nichts:
+
+* **Einfachster Weg:** die Jira-Seite oeffnen, auf das Symbol der Erweiterung
+  klicken und im Popup *Diese Jira-Adresse freigeben* waehlen. Die Seite wird
+  danach automatisch neu geladen.
+* **Oder** in den Einstellungen unter *Eigene Jira-Adressen* die Adresse
+  eintragen (z. B. `jira.firma.de`) und auf *Zugriff erlauben* klicken.
+
+`http` und `https` sind beide abgedeckt, ein Port spielt keine Rolle
+(`http://jira:8080/` funktioniert also ebenso wie `https://jira.firma.de/`).
 
 ## Umwandlungstabelle
 
@@ -71,6 +82,25 @@ Sprachnamen werden auf die von Jira unterstuetzten abgebildet (`js` →
 `javascript`, `yml` → `yaml`); unbekannte Sprachen fallen auf `{code}` zurueck.
 Inhalte von Code-Bloecken bleiben unangetastet, geschweifte Klammern im
 Fliesstext werden maskiert, damit Jira sie nicht als Makro liest.
+
+## Jira Server / Data Center im Detail
+
+In Jira 9.x sind Beschreibung, Kommentar und Umgebung normale Textfelder
+(`textarea`) innerhalb des Wiki-Feldes mit den Reitern *Schreiben* und
+*Vorschau*. Das ist der eindeutige Fall: dort wird immer fertiges Jira-Markup
+eingefuegt, die Einstellung zum Rich-Text-Editor greift nicht.
+
+Die Buttonleiste erscheint direkt ueber dem Textfeld, unterhalb der
+Formatierungsleiste von Jira. Beim Inline-Bearbeiten baut Jira den Feldblock neu
+auf – die Leiste wandert mit und verschwindet zusammen mit dem Feld.
+
+**Wichtig:** Jira zeigt Wiki-Markup nur an, wenn das jeweilige Feld den
+*Wiki Style Renderer* benutzt. Steht das Feld auf *Default Text Renderer*,
+erscheint `h1. Titel` woertlich im Ticket. Einzustellen unter
+Administration → Vorgaenge → Feldkonfigurationen → *Renderer*.
+
+Nach dem Einfuegen loest die Erweiterung `input` und `change` aus, damit Jiras
+Entwurfsspeicherung die Aenderung mitbekommt.
 
 ## Jira Cloud: Rich-Text-Editor
 
@@ -108,8 +138,9 @@ Erreichbar ueber das Popup („Einstellungen") oder
 | `storage` | Einstellungen speichern |
 | `contextMenus` | Eintrag im Rechtsklick-Menue |
 | `scripting` | Nachladen auf selbst eingetragenen Jira-Adressen |
+| `activeTab` | Adresse der aktuellen Seite fuer die Freigabe im Popup |
 | `https://*.atlassian.net/*` | Jira Cloud |
-| optional: weitere Hosts | nur nach ausdruecklicher Freigabe durch den Nutzer |
+| optional: `*://<eigener-host>/*` | Jira Server / Data Center, nur nach ausdruecklicher Freigabe |
 
 Es werden keine Daten an Server gesendet; die Umwandlung passiert vollstaendig
 im Browser.
@@ -130,6 +161,7 @@ jira-markdown-converter/
 ├── options/           Einstellungsseite
 ├── icons/
 └── test/
+    └── fixtures/      nachgebaute Jira-Seiten (Cloud und Server 9.x)
 ```
 
 ### Tests
@@ -137,8 +169,10 @@ jira-markdown-converter/
 ```bash
 npm test                  # alle Tests
 npm run test:unit         # Konverter (71 Faelle, ohne Abhaengigkeiten)
+npm run test:settings     # Hosterkennung, Voreinstellungen
 npm run test:package      # Manifest und Paketstruktur
-npm run test:integration  # echtes Chromium gegen eine nachgebaute Jira-Seite
+npm run test:integration  # echtes Chromium gegen nachgebaute Jira-Seiten
+                          # (Cloud-Editor und Jira Server 9.x)
 npm run lint
 ```
 

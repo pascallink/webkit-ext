@@ -261,7 +261,8 @@
 .jmd-toast {
   position: fixed;
   right: 20px;
-  bottom: 20px;
+  /* Ueber dem schwebenden Button, damit er nicht verdeckt wird. */
+  bottom: 76px;
   z-index: 2147483001;
   max-width: 320px;
   padding: 10px 14px;

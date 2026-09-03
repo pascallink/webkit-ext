@@ -93,9 +93,56 @@
     chrome.runtime.openOptionsPage();
   });
 
+  /* ---------------------------------------------------------------- *
+   * Freigabe der aktuellen Seite (Jira Server / Data Center)
+   * ---------------------------------------------------------------- */
+
+  var pendingHost = '';
+
+  /** Laeuft das Content-Script auf dem aktuellen Tab schon? */
+  function checkCurrentTab() {
+    withActiveTab(function (tab) {
+      if (!tab.url || !/^https?:/i.test(tab.url)) return;
+      var host = Settings.normalizeHost(tab.url);
+      if (!host) return;
+
+      chrome.tabs.sendMessage(tab.id, { type: 'ping' }, function () {
+        if (!chrome.runtime.lastError) return;   // laeuft bereits
+        pendingHost = host;
+        document.getElementById('grantHost').textContent = host;
+        document.getElementById('grantNotice').hidden = false;
+      });
+    });
+  }
+
+  document.getElementById('grant').addEventListener('click', function () {
+    if (!pendingHost) return;
+    var pattern = Settings.hostPattern(pendingHost);
+    chrome.permissions.request({ origins: [pattern] }, function (granted) {
+      if (chrome.runtime.lastError || !granted) {
+        say('Freigabe wurde nicht erteilt.', true);
+        return;
+      }
+      // Host merken, damit das Content-Script dauerhaft registriert wird.
+      Settings.load().then(function (stored) {
+        var hosts = (stored.extraHosts || []).slice();
+        if (hosts.indexOf(pendingHost) === -1) hosts.push(pendingHost);
+        stored.extraHosts = hosts;
+        return Settings.save(stored);
+      }).then(function () {
+        document.getElementById('grantNotice').hidden = true;
+        say('Freigegeben. Bitte die Jira-Seite neu laden.');
+        withActiveTab(function (tab) {
+          chrome.tabs.reload(tab.id);
+        });
+      });
+    });
+  });
+
   Settings.load().then(function (loaded) {
     settings = loaded;
     refresh();
     input.focus();
+    checkCurrentTab();
   });
 })();

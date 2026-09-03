@@ -82,7 +82,7 @@ test('Icons vorhanden und echte PNGs', function () {
 });
 
 test('Berechtigungen bleiben sparsam', function () {
-  var allowed = ['storage', 'contextMenus', 'scripting'];
+  var allowed = ['activeTab', 'storage', 'contextMenus', 'scripting'];
   manifest.permissions.forEach(function (permission) {
     assert.ok(allowed.indexOf(permission) !== -1, 'unerwartete Berechtigung: ' + permission);
   });

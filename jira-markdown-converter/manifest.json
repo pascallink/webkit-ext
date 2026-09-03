@@ -5,6 +5,7 @@
   "description": "Wandelt aus Azure DevOps kopiertes Markdown in Jira-Markup um und fuegt es direkt ins Ticket ein.",
   "minimum_chrome_version": "102",
   "permissions": [
+    "activeTab",
     "storage",
     "contextMenus",
     "scripting"

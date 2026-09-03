@@ -144,3 +144,16 @@ body {
 .status--error {
   color: var(--error);
 }
+
+.notice {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg-soft);
+}
+
+.notice__text {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
