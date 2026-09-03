@@ -397,6 +397,158 @@ async function run() {
     await page.close();
   });
 
+  console.log('\nRich-Text-Editor (jira.rte.enabled)');
+  var RTE = 'mock-jira-rte.html';
+
+  await test('Feld wird trotz versteckter Textarea erkannt', async function () {
+    var page = await newPage(browser, null, RTE);
+    var found = await page.evaluate(function () {
+      return window.JiraEditors.findAllTargets().map(function (element) {
+        return element.id;
+      });
+    });
+    assert.deepStrictEqual(found, ['description']);
+    var active = await page.evaluate(function () {
+      return window.JiraEditors.isRichTextActive(document.querySelector('#description'));
+    });
+    assert.strictEqual(active, true, 'Rich-Text-Modus nicht erkannt');
+    await page.close();
+  });
+
+  await test('Buttonleiste sitzt ueber dem Editor, nicht an der versteckten Textarea', async function () {
+    var page = await newPage(browser, null, RTE);
+    await page.waitForSelector('.jmd-fieldbar');
+    var ok = await page.evaluate(function () {
+      var bar = document.querySelector('.jmd-fieldbar');
+      return bar.nextElementSibling && bar.nextElementSibling.id === 'mce-container';
+    });
+    assert.strictEqual(ok, true);
+    await page.close();
+  });
+
+  await test('formatiert einfuegen: HTML statt Markup', async function () {
+    var page = await newPage(browser, null, RTE);
+    await pasteInto(page, '#description', '# Titel\n\nMit **fett** und `code`.');
+    var pastes = await page.evaluate(function () { return window.__pastes; });
+    assert.strictEqual(pastes.length, 1, 'kein Einfuegen im Editor angekommen');
+    assert.ok(/<h1>Titel<\/h1>/.test(pastes[0].html), 'HTML fehlt: ' + pastes[0].html);
+    assert.ok(/<strong>fett<\/strong>/.test(pastes[0].html), 'Fettdruck fehlt: ' + pastes[0].html);
+    // Als Rueckfalltext liegt weiterhin Jira-Markup bereit.
+    assert.ok(/^h1\. Titel/.test(pastes[0].text), 'Klartext fehlt: ' + pastes[0].text);
+    var rendered = await page.frameLocator('#description_ifr').locator('h1').textContent();
+    assert.strictEqual(rendered, 'Titel');
+    await page.close();
+  });
+
+  await test('Einstellung "Jira-Markup einfuegen" schickt kein HTML', async function () {
+    var page = await newPage(browser, { richEditorFormat: 'jira' }, RTE);
+    await pasteInto(page, '#description', '# Titel');
+    var pastes = await page.evaluate(function () { return window.__pastes; });
+    assert.strictEqual(pastes[0].html, '');
+    assert.strictEqual(pastes[0].text, 'h1. Titel');
+    await page.close();
+  });
+
+  await test('Umschalten auf Markup-Modus vor dem Einfuegen', async function () {
+    var page = await newPage(browser, { switchToMarkup: true }, RTE);
+    await pasteInto(page, '#description', '# Titel\n\n- eins');
+    await page.waitForFunction(function () {
+      return window.__mode === 'markup';
+    }, null, { timeout: 4000 });
+    await page.waitForFunction(function () {
+      return document.querySelector('#description').value.indexOf('h1. Titel') !== -1;
+    }, null, { timeout: 4000 });
+    assert.strictEqual(await page.inputValue('#description'), 'h1. Titel\n\n* eins');
+    var pastes = await page.evaluate(function () { return window.__pastes; });
+    assert.deepStrictEqual(pastes, [], 'es haette nichts im Rich-Text-Editor landen duerfen');
+    await page.close();
+  });
+
+  await test('Umschalter wird ueber die Beschriftung gefunden', async function () {
+    var page = await newPage(browser, null, RTE);
+    var label = await page.evaluate(function () {
+      var toggle = window.JiraEditors.findModeToggle(document.querySelector('#description'));
+      return toggle ? toggle.id : null;
+    });
+    assert.strictEqual(label, 'toggle');
+    await page.close();
+  });
+
+  await test('ohne Umschalter wird formatiert eingefuegt', async function () {
+    var page = await newPage(browser, { switchToMarkup: true }, RTE);
+    await page.evaluate(function () {
+      // Umschalter entfernen: Jira benennt ihn je nach Version anders.
+      document.getElementById('toggle').remove();
+    });
+    await pasteInto(page, '#description', '# Titel');
+    var pastes = await page.evaluate(function () { return window.__pastes; });
+    assert.strictEqual(pastes.length, 1, 'kein Rueckfall auf formatiertes Einfuegen');
+    assert.ok(/<h1>Titel<\/h1>/.test(pastes[0].html));
+    assert.strictEqual(await page.evaluate(function () { return window.__mode; }), 'rich');
+    await page.close();
+  });
+
+  console.log('\nGemerkte Cursorposition');
+  await test('Panel fuegt an der zuletzt gesetzten Cursorposition ein', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.fill('#description', 'oben\n\nunten');
+    // Cursor in die Leerzeile setzen, dann ins Panel wechseln.
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(5, 5);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.click('.jmd-fab');
+    await page.fill('#jmd-input', '# Titel');
+    await page.click('.jmd-panel [data-action="insert"]');
+    assert.strictEqual(await page.inputValue('#description'), 'oben\nh1. Titel\nunten');
+    await page.close();
+  });
+
+  await test('Auswahl wird durch das Einfuegen ersetzt', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.fill('#description', 'oben ERSETZEN unten');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(5, 13);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.click('.jmd-fab');
+    await page.fill('#jmd-input', '**neu**');
+    await page.click('.jmd-panel [data-action="insert"]');
+    assert.strictEqual(await page.inputValue('#description'), 'oben *neu* unten');
+    await page.close();
+  });
+
+  await test('Position im Rich-Text-Editor ueberlebt den Wechsel ins Panel', async function () {
+    var page = await newPage(browser, null, RTE);
+    // Zwei Absaetze anlegen und den Cursor in den ersten setzen.
+    await page.evaluate(function () {
+      var doc = document.querySelector('#description_ifr').contentDocument;
+      doc.body.innerHTML = '<p id="a">AAA</p><p id="b">BBB</p>';
+      var range = doc.createRange();
+      range.setStart(doc.getElementById('a').firstChild, 3);
+      range.collapse(true);
+      var selection = doc.defaultView.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      doc.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.click('.jmd-fab');
+    await page.fill('#jmd-input', '**hier**');
+    await page.click('.jmd-panel [data-action="insert"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var wasCollapsedInA = await page.evaluate(function () {
+      return window.__caretParagraph;
+    });
+    assert.strictEqual(wasCollapsedInA, 'a', 'Einfuegemarke lag nicht mehr im ersten Absatz');
+    await page.close();
+  });
+
   console.log('\nRobustheit');
   await test('kein Fehler in der Konsole beim Laden', async function () {
     var context = await browser.newContext();

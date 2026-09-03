@@ -40,27 +40,51 @@
       </label>
 
       <p class="hint">
-        <b>Jira Server / Data Center (z. B. 9.12):</b> Dort sind Beschreibung und
-        Kommentar normale Textfelder – es wird immer Jira-Markup eingefuegt, die
-        folgende Einstellung greift nicht. Damit Jira das Markup auch anzeigt,
-        muss das Feld den <i>Wiki Style Renderer</i> verwenden
+        In reine Textfelder wird immer Jira-Markup geschrieben. Damit Jira es
+        auch anzeigt, muss das Feld den <i>Wiki Style Renderer</i> verwenden
         (Administration &rarr; Vorgaenge &rarr; Feldkonfigurationen).
       </p>
 
       <fieldset class="field">
-        <legend>Rich-Text-Editor von Jira Cloud</legend>
+        <legend>Wenn das Feld ein Rich-Text-Editor ist</legend>
+
+        <p class="hint">
+          Betrifft Jira Cloud sowie Jira Server / Data Center mit aktiviertem
+          Rich-Text-Editor (<code>jira.rte.enabled</code>). Ein solcher Editor
+          zeigt Jira-Markup woertlich an, statt es zu formatieren.
+        </p>
+
+        <label class="check">
+          <input type="checkbox" id="switchToMarkup">
+          <span>
+            Vorher auf den Markup-Modus umschalten
+            <small>
+              Sucht den Umschalter des Feldes, klickt ihn und fuegt dann
+              Jira-Markup ein. Nur Jira Server / Data Center. Wird kein
+              Umschalter gefunden, greift die Einstellung darunter.
+            </small>
+          </span>
+        </label>
+
+        <label class="radio">
+          <input type="radio" name="richEditorFormat" value="html">
+          <span>
+            Formatiert einfuegen (empfohlen)
+            <small>Das Markdown wird in HTML uebersetzt und kommt fertig formatiert im Editor an, ohne Umschalten.</small>
+          </span>
+        </label>
         <label class="radio">
           <input type="radio" name="richEditorFormat" value="jira">
           <span>
-            Jira-Markup einfuegen
-            <small>Richtig fuer Textfelder und den Wiki-Markup-Modus (Jira Server/Data Center).</small>
+            Jira-Markup als Text einfuegen
+            <small>Sinnvoll, wenn das Feld doch im Markup-Modus laeuft.</small>
           </span>
         </label>
         <label class="radio">
           <input type="radio" name="richEditorFormat" value="markdown">
           <span>
             Markdown durchreichen
-            <small>Der Cloud-Editor formatiert beim Einfuegen selbst. Oft das schoenere Ergebnis, wenn das Feld kein reines Textfeld ist.</small>
+            <small>Der Editor formatiert beim Einfuegen selbst, soweit er das kann.</small>
           </span>
         </label>
       </fieldset>

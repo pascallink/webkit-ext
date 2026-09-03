@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Mock Jira Server 9.12 mit Rich-Text-Editor</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; }
+    .jira-wikifield { width: 640px; border: 1px solid #ccc; padding: 8px; }
+    .mce-tinymce { border: 1px solid #999; }
+    iframe { width: 100%; height: 160px; border: 0; display: block; }
+    textarea.textarea { width: 100%; height: 160px; }
+    .wiki-edit-toolbar { background: #f4f5f7; padding: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Mock Jira mit aktiviertem Rich-Text-Editor</h1>
+
+  <div class="field-group">
+    <label for="description">Beschreibung</label>
+    <div id="description-wiki-edit" class="jira-wikifield">
+      <div class="wiki-edit-toolbar aui-toolbar2">
+        <button type="button" id="toggle" aria-label="Bearbeitungsmodus wechseln">&lt;/&gt;</button>
+      </div>
+      <div class="mce-tinymce" id="mce-container">
+        <iframe id="description_ifr"></iframe>
+      </div>
+      <textarea class="textarea long-field" id="description" name="description" style="display:none"></textarea>
+    </div>
+  </div>
+
+  <script>
+    // Stark vereinfachter TinyMCE: contenteditable-Body im eigenen Rahmen,
+    // der eingefuegtes text/html uebernimmt.
+    var frame = document.getElementById('description_ifr');
+    var textarea = document.getElementById('description');
+    var doc = frame.contentDocument;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><body contenteditable="true"></body></html>');
+    doc.close();
+
+    window.__pastes = [];
+    doc.body.addEventListener('paste', function (event) {
+      var data = event.clipboardData;
+      var html = data ? data.getData('text/html') : '';
+      var text = data ? data.getData('text/plain') : '';
+      window.__pastes.push({ html: html, text: text });
+
+      // Festhalten, in welchem Absatz die Einfuegemarke stand - damit der
+      // Test pruefen kann, ob die gemerkte Position wiederhergestellt wurde.
+      var selection = doc.defaultView.getSelection();
+      if (selection && selection.rangeCount) {
+        var node = selection.getRangeAt(0).startContainer;
+        var element = node.nodeType === 1 ? node : node.parentNode;
+        window.__caretParagraph = element && element.id ? element.id : null;
+      } else {
+        window.__caretParagraph = null;
+      }
+      event.preventDefault();
+      if (html) {
+        doc.body.insertAdjacentHTML('beforeend', html);
+      } else {
+        text.split('\n').forEach(function (line) {
+          var p = doc.createElement('p');
+          p.textContent = line;
+          doc.body.appendChild(p);
+        });
+      }
+    });
+
+    // Umschalter Rich-Text <-> Markup, wie ihn Jira anbietet.
+    window.__mode = 'rich';
+    document.getElementById('toggle').addEventListener('click', function () {
+      if (window.__mode === 'rich') {
+        // Inhalt des Editors als Text in die Textarea uebernehmen
+        textarea.value = doc.body.textContent;
+        document.getElementById('mce-container').style.display = 'none';
+        textarea.style.display = '';
+        window.__mode = 'markup';
+      } else {
+        document.getElementById('mce-container').style.display = '';
+        textarea.style.display = 'none';
+        window.__mode = 'rich';
+      }
+    });
+  </script>
+</body>
+</html>

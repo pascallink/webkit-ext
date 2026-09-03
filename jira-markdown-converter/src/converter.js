@@ -78,6 +78,259 @@
   };
 
   /* ------------------------------------------------------------------ *
+   * Ausgabeformate
+   *
+   * Geparst wird nur einmal; die beiden Dialekte bestimmen, was dabei
+   * herauskommt:
+   *   'jira' -> Wiki-Markup fuer Textfelder (Jira Server/DC, Wiki-Modus)
+   *   'html' -> HTML fuer den Rich-Text-Editor, der Markup nicht deutet
+   * ------------------------------------------------------------------ */
+
+  function escapeHtml(text) {
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function escapeAttribute(text) {
+    return escapeHtml(text).replace(/"/g, '&quot;');
+  }
+
+  /**
+   * Nur unbedenkliche Ziele verlinken. 'javascript:' und Verwandte werden
+   * verworfen, damit aus einem kopierten Work Item kein Klickangriff wird.
+   */
+  function safeUrl(url) {
+    var value = String(url || '').trim();
+    if (!value) return '';
+    if (/^(?:https?|ftp|mailto):/i.test(value)) return value;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return '';
+    return value;
+  }
+
+  var JIRA_DIALECT = {
+    name: 'jira',
+    escapeLiteral: function (ch) {
+      return ch === '{' || ch === '}' ? '\\' + ch : ch;
+    },
+    escapeText: function (text, options) {
+      if (!options.escapeBraces) return text;
+      return text.replace(/[{}]/g, function (ch) {
+        return '\\' + ch;
+      });
+    },
+    mark: function (kind) {
+      switch (kind) {
+        case 'boldItalic': return { open: '*_', close: '_*' };
+        case 'bold': return { open: '*', close: '*' };
+        case 'italic': return { open: '_', close: '_' };
+        case 'strike': return { open: '-', close: '-' };
+        case 'highlight': return { open: '{color:#de350b}', close: '{color}' };
+        default: return { open: '', close: '' };
+      }
+    },
+    tag: function (kind) {
+      switch (kind) {
+        case 'bold': return '*';
+        case 'italic': return '_';
+        case 'underline': return '+';
+        case 'strike': return '-';
+        case 'sub': return '~';
+        case 'sup': return '^';
+        default: return '';
+      }
+    },
+    hardBreak: '\\\\',
+    htmlBreak: '\\\\',
+    code: function (text) {
+      return '{{' + text + '}}';
+    },
+    link: function (label, url) {
+      if (!label || label === url) return '[' + url + ']';
+      return '[' + label.replace(/\|/g, '\\|') + '|' + url + ']';
+    },
+    image: function (url) {
+      return '!' + url + '!';
+    },
+    heading: function (level, text) {
+      return text ? 'h' + level + '. ' + text : 'h' + level + '.';
+    },
+    rule: function () {
+      return '----';
+    },
+    paragraph: function (lines) {
+      return lines.join('\n');
+    },
+    codeBlock: function (language, body) {
+      return (language ? '{code:' + language + '}' : '{code}') + '\n' + body + '\n{code}';
+    },
+    preBlock: function (body) {
+      return '{noformat}\n' + body + '\n{noformat}';
+    },
+    quote: function (inner, title) {
+      if (title) return '{panel:title=' + title + '}\n' + inner + '\n{panel}';
+      if (inner.indexOf('\n') === -1) return 'bq. ' + inner;
+      return '{quote}\n' + inner + '\n{quote}';
+    },
+    table: function (header, rows) {
+      var out = ['||' + header.join('||') + '||'];
+      for (var i = 0; i < rows.length; i++) {
+        out.push('|' + rows[i].join('|') + '|');
+      }
+      return out.join('\n');
+    },
+    list: function (items) {
+      var out = [];
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var marker = '';
+        if (item.task === 'done') marker = '(/) ';
+        else if (item.task === 'open') marker = '(x) ';
+        out.push(item.levels.join('') + ' ' + marker + item.content);
+      }
+      return out.join('\n');
+    },
+    finish: function (text) {
+      return text
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t]+$/gm, '')
+        .replace(/^\n+|\n+$/g, '');
+    }
+  };
+
+  var HTML_DIALECT = {
+    name: 'html',
+    escapeLiteral: escapeHtml,
+    escapeText: function (text) {
+      return escapeHtml(text);
+    },
+    mark: function (kind) {
+      switch (kind) {
+        case 'boldItalic': return { open: '<strong><em>', close: '</em></strong>' };
+        case 'bold': return { open: '<strong>', close: '</strong>' };
+        case 'italic': return { open: '<em>', close: '</em>' };
+        case 'strike': return { open: '<del>', close: '</del>' };
+        case 'highlight': return { open: '<mark>', close: '</mark>' };
+        default: return { open: '', close: '' };
+      }
+    },
+    tag: function (kind, closing) {
+      var names = {
+        bold: 'strong',
+        italic: 'em',
+        underline: 'u',
+        strike: 'del',
+        sub: 'sub',
+        sup: 'sup'
+      };
+      var name = names[kind];
+      if (!name) return '';
+      return closing ? '</' + name + '>' : '<' + name + '>';
+    },
+    // Weiche Zeilenumbrueche setzt bereits paragraph(); ein zusaetzliches
+    // <br> wuerde eine Leerzeile erzeugen.
+    hardBreak: '',
+    htmlBreak: '<br>',
+    code: function (text) {
+      return '<code>' + escapeHtml(text) + '</code>';
+    },
+    link: function (label, url) {
+      var target = safeUrl(url);
+      var text = label || escapeHtml(url);
+      if (!target) return text;
+      return '<a href="' + escapeAttribute(target) + '">' + text + '</a>';
+    },
+    image: function (url, alt) {
+      var target = safeUrl(url);
+      if (!target) return escapeHtml(url);
+      return '<img src="' + escapeAttribute(target) + '" alt="' + escapeAttribute(alt || '') + '">';
+    },
+    heading: function (level, text) {
+      return '<h' + level + '>' + text + '</h' + level + '>';
+    },
+    rule: function () {
+      return '<hr>';
+    },
+    paragraph: function (lines) {
+      return '<p>' + lines.join('<br>\n') + '</p>';
+    },
+    codeBlock: function (language, body) {
+      var open = language ? '<pre><code class="language-' + escapeAttribute(language) + '">' : '<pre><code>';
+      return open + escapeHtml(body) + '</code></pre>';
+    },
+    preBlock: function (body) {
+      return '<pre>' + escapeHtml(body) + '</pre>';
+    },
+    quote: function (inner, title) {
+      var head = title ? '<p><strong>' + escapeHtml(title) + '</strong></p>\n' : '';
+      return '<blockquote>\n' + head + inner + '\n</blockquote>';
+    },
+    table: function (header, rows) {
+      var out = ['<table>', '<thead>', '<tr>'];
+      var i;
+      for (i = 0; i < header.length; i++) {
+        out.push('<th>' + header[i] + '</th>');
+      }
+      out.push('</tr>', '</thead>', '<tbody>');
+      for (i = 0; i < rows.length; i++) {
+        out.push('<tr>');
+        for (var j = 0; j < rows[i].length; j++) {
+          out.push('<td>' + rows[i][j] + '</td>');
+        }
+        out.push('</tr>');
+      }
+      out.push('</tbody>', '</table>');
+      return out.join('');
+    },
+    list: function (items) {
+      var out = [];
+      var open = [];      // 'ul' / 'ol' je Ebene
+      var itemOpen = [];  // steht auf dieser Ebene ein <li> offen?
+
+      function closeOne() {
+        if (itemOpen.pop()) out.push('</li>');
+        out.push('</' + open.pop() + '>');
+      }
+
+      for (var i = 0; i < items.length; i++) {
+        var levels = items[i].levels;
+        var depth = levels.length;
+        var tag = levels[depth - 1] === '#' ? 'ol' : 'ul';
+
+        while (open.length > depth) closeOne();
+        if (open.length === depth && open[depth - 1] !== tag) closeOne();
+        while (open.length < depth) {
+          // Eine tiefere Liste gehoert in das offene <li> der Ebene darueber.
+          var nested = levels[open.length] === '#' ? 'ol' : 'ul';
+          out.push('<' + nested + '>');
+          open.push(nested);
+          itemOpen.push(false);
+        }
+        if (itemOpen[depth - 1]) {
+          out.push('</li>');
+          itemOpen[depth - 1] = false;
+        }
+        var marker = '';
+        if (items[i].task === 'done') marker = '&#9745; ';
+        else if (items[i].task === 'open') marker = '&#9744; ';
+        out.push('<li>' + marker + items[i].content);
+        itemOpen[depth - 1] = true;
+      }
+      while (open.length) closeOne();
+      return out.join('');
+    },
+    finish: function (text) {
+      return text
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t]+$/gm, '')
+        .replace(/^\n+|\n+$/g, '');
+    }
+  };
+
+  var DIALECTS = { jira: JIRA_DIALECT, html: HTML_DIALECT };
+
+  /* ------------------------------------------------------------------ *
    * Platzhalter-Verwaltung
    * ------------------------------------------------------------------ */
 
@@ -176,10 +429,11 @@
   function convertInline(text, ctx) {
     if (!text) return '';
     var ph = ctx.placeholders;
+    var d = ctx.dialect;
 
     // 1. Markdown-Escapes (\* \_ \# ...) sichern.
     text = text.replace(/\\([\\`*_{}\[\]()#+\-.!|~>])/g, function (match, ch) {
-      return ph.add(ch === '{' || ch === '}' ? '\\' + ch : ch);
+      return ph.add(d.escapeLiteral(ch));
     });
 
     // 2. Inline-Code sichern -> {{...}}
@@ -188,31 +442,37 @@
       if (inner.trim() !== '' && /^ [\s\S]* $/.test(inner)) {
         inner = inner.slice(1, -1);
       }
-      return ph.add('{{' + inner + '}}');
+      return ph.add(d.code(inner));
     });
 
     // 3. Einfaches Inline-HTML.
     if (ctx.options.convertHtml) {
+      var tag = function (kind) {
+        return function (match) {
+          return ph.add(d.tag(kind, match.charAt(1) === '/'));
+        };
+      };
       text = text
         .replace(/<code>([\s\S]*?)<\/code>/gi, function (match, code) {
-          return ph.add('{{' + code + '}}');
+          return ph.add(d.code(code));
         })
-        .replace(/<br\s*\/?>/gi, function () { return ph.add('\\\\'); })
-        .replace(/<\/?(?:b|strong)>/gi, function () { return ph.add('*'); })
-        .replace(/<\/?(?:i|em)>/gi, function () { return ph.add('_'); })
-        .replace(/<\/?u>/gi, function () { return ph.add('+'); })
-        .replace(/<\/?(?:s|del|strike)>/gi, function () { return ph.add('-'); })
-        .replace(/<\/?sub>/gi, function () { return ph.add('~'); })
-        .replace(/<\/?sup>/gi, function () { return ph.add('^'); });
+        .replace(/<br\s*\/?>/gi, function () { return ph.add(d.htmlBreak); })
+        .replace(/<\/?(?:b|strong)>/gi, tag('bold'))
+        .replace(/<\/?(?:i|em)>/gi, tag('italic'))
+        .replace(/<\/?u>/gi, tag('underline'))
+        .replace(/<\/?(?:s|del|strike)>/gi, tag('strike'))
+        .replace(/<\/?sub>/gi, tag('sub'))
+        .replace(/<\/?sup>/gi, tag('sup'));
     }
 
     // 4. Bilder: ![alt](url) -> !url!
-    text = text.replace(/!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g, function (match, alt, url) {
-      return ph.add('!' + url + '!');
+    text = text.replace(/!\[([^\]]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?\s*\)/g, function (match, alt, url) {
+      return ph.add(d.image(url, alt));
     });
 
     // 5. Links: [text](url) -> [text|url]
-    text = text.replace(/\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g, function (match, label, url) {
+    //    Ein Klammerpaar in der URL ist erlaubt (.../Foo_(Bar)).
+    text = text.replace(/\[([^\]]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?\s*\)/g, function (match, label, url) {
       return ph.add(buildLink(label, url, ctx));
     });
 
@@ -233,48 +493,50 @@
 
     // 8. Autolinks: <https://...> und <mail@example.com>
     text = text.replace(/<((?:https?|ftp):\/\/[^>\s]+)>/gi, function (match, url) {
-      return ph.add('[' + url + ']');
+      return ph.add(d.link('', url));
     });
     text = text.replace(/<([^@<>\s]+@[^@<>\s]+\.[^@<>\s]+)>/g, function (match, mail) {
-      return ph.add('[mailto:' + mail + ']');
+      return ph.add(d.link('', 'mailto:' + mail));
     });
 
     // 9. Textauszeichnungen. Die erzeugten Jira-Zeichen werden als Platzhalter
     //    eingesetzt, damit die folgenden Regeln sie nicht erneut anfassen
     //    (aus **fett** wuerde sonst _fett_ statt *fett*).
+    var wrap = function (kind, inner) {
+      var marks = d.mark(kind);
+      return ph.add(marks.open) + inner + ph.add(marks.close);
+    };
     text = text.replace(/(\*\*\*|___)(?=\S)([\s\S]*?\S)\1/g, function (match, marker, inner) {
-      return ph.add('*_') + inner + ph.add('_*');
+      return wrap('boldItalic', inner);
     });
     text = text.replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, function (match, inner) {
-      return ph.add('*') + inner + ph.add('*');
+      return wrap('bold', inner);
     });
     text = text.replace(/(^|[\s([{,;:!?])__(?=\S)([\s\S]*?\S)__(?=$|[\s)\]}.,;:!?])/g, function (match, before, inner) {
-      return before + ph.add('*') + inner + ph.add('*');
+      return before + wrap('bold', inner);
     });
     text = text.replace(/(^|[^\w*\\])\*(?=[^\s*])([^*\n]*?[^\s*])\*(?!\*)/g, function (match, before, inner) {
-      return before + ph.add('_') + inner + ph.add('_');
+      return before + wrap('italic', inner);
     });
     text = text.replace(/(^|[\s([{,;:!?"'])_(?=\S)([^_\n]*?\S)_(?=$|[\s)\]}.,;:!?"'])/g, function (match, before, inner) {
-      return before + ph.add('_') + inner + ph.add('_');
+      return before + wrap('italic', inner);
     });
     text = text.replace(/~~(?=\S)([\s\S]*?\S)~~/g, function (match, inner) {
-      return ph.add('-') + inner + ph.add('-');
+      return wrap('strike', inner);
     });
     text = text.replace(/==(?=\S)([^=\n]*?\S)==/g, function (match, inner) {
-      return ph.add('{color:#de350b}') + inner + ph.add('{color}');
+      return wrap('highlight', inner);
     });
 
-    // 10. Restliche geschweifte Klammern maskieren (Jira liest sie als Makro).
-    //     Bereits erzeugtes Jira-Markup steckt in Platzhaltern und bleibt
-    //     davon unberuehrt.
-    if (ctx.options.escapeBraces) {
-      text = text.replace(/[{}]/g, function (ch) {
-        return '\\' + ch;
-      });
-    }
+    // 10. Was jetzt noch als Klartext dasteht, wird fuer das Zielformat
+    //     maskiert: Jira sieht sonst Makros, HTML sieht sonst Tags. Bereits
+    //     erzeugtes Markup steckt in Platzhaltern und bleibt unberuehrt.
+    text = d.escapeText(text, ctx.options);
 
-    // 11. Harter Umbruch: zwei Leerzeichen am Zeilenende -> \\
-    text = text.replace(/[ \t]{2,}$/, function () { return ph.add('\\\\'); });
+    // 11. Harter Umbruch: zwei Leerzeichen am Zeilenende.
+    if (d.hardBreak) {
+      text = text.replace(/[ \t]{2,}$/, function () { return ph.add(d.hardBreak); });
+    }
 
     return ph.restore(text);
   }
@@ -286,11 +548,10 @@
     if (!hasScheme && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(target)) target = 'mailto:' + target;
     var text = String(label == null ? '' : label).trim();
     if (!text || text === url.trim()) {
-      return '[' + target + ']';
+      return ctx.dialect.link('', target);
     }
     // Das Label kann selbst Markup enthalten (z. B. **fett**).
-    var inner = convertInline(text, ctx).replace(/\|/g, '\\|');
-    return '[' + inner + '|' + target + ']';
+    return ctx.dialect.link(convertInline(text, ctx), target);
   }
 
   /* ------------------------------------------------------------------ *
@@ -350,8 +611,7 @@
         out.push(open[0]);
         continue;
       }
-      var openTag = language ? '{code:' + language + '}' : '{code}';
-      out.push(ph.add(openTag + '\n' + body.join('\n') + '\n{code}'));
+      out.push(ph.add(ctx.dialect.codeBlock(language, body.join('\n'))));
     }
 
     return out.join('\n');
@@ -381,7 +641,7 @@
           }
           break;
         }
-        out.push(ctx.placeholders.add('{noformat}\n' + body.join('\n') + '\n{noformat}'));
+        out.push(ctx.placeholders.add(ctx.dialect.preBlock(body.join('\n'))));
       } else {
         out.push(lines[i]);
         i++;
@@ -411,7 +671,7 @@
       }
 
       if (isHorizontalRule(line)) {
-        out.push('----');
+        out.push(ctx.dialect.rule());
         i++;
         continue;
       }
@@ -419,13 +679,13 @@
       // ATX-Ueberschrift: # ... ###### -> h1. ... h6.
       var heading = /^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
       if (heading) {
-        out.push('h' + heading[1].length + '. ' + convertInline(heading[2], ctx));
+        out.push(ctx.dialect.heading(heading[1].length, convertInline(heading[2], ctx)));
         i++;
         continue;
       }
       var emptyHeading = /^ {0,3}(#{1,6})[ \t]*$/.exec(line);
       if (emptyHeading) {
-        out.push('h' + emptyHeading[1].length + '.');
+        out.push(ctx.dialect.heading(emptyHeading[1].length, ''));
         i++;
         continue;
       }
@@ -434,12 +694,12 @@
       var next = lines[i + 1];
       if (next !== undefined && !isListStart(line)) {
         if (/^ {0,3}={2,}\s*$/.test(next)) {
-          out.push('h1. ' + convertInline(line.trim(), ctx));
+          out.push(ctx.dialect.heading(1, convertInline(line.trim(), ctx)));
           i += 2;
           continue;
         }
         if (/^ {0,3}-{2,}\s*$/.test(next) && line.indexOf('|') === -1 && !/^ {0,3}>/.test(line)) {
-          out.push('h2. ' + convertInline(line.trim(), ctx));
+          out.push(ctx.dialect.heading(2, convertInline(line.trim(), ctx)));
           i += 2;
           continue;
         }
@@ -448,7 +708,7 @@
       // Tabelle
       if (line.indexOf('|') !== -1 && lines[i + 1] !== undefined && isTableDelimiter(lines[i + 1])) {
         var table = readTable(lines, i, ctx);
-        out.push.apply(out, table.rows);
+        out.push(table.text);
         i = table.next;
         continue;
       }
@@ -456,7 +716,7 @@
       // Zitat / Alert
       if (/^ {0,3}>/.test(line)) {
         var quote = readQuote(lines, i, ctx);
-        out.push.apply(out, quote.rows);
+        out.push(quote.text);
         i = quote.next;
         continue;
       }
@@ -464,7 +724,7 @@
       // Listen
       if (isListStart(line)) {
         var list = readList(lines, i, ctx);
-        out.push.apply(out, list.rows);
+        out.push(list.text);
         i = list.next;
         continue;
       }
@@ -486,10 +746,10 @@
         i++;
       }
       if (paragraph.length) {
-        out.push(paragraph.join('\n'));
+        out.push(ctx.dialect.paragraph(paragraph));
       } else {
         // Sicherheitsnetz gegen Endlosschleifen.
-        out.push(convertInline(lines[i], ctx));
+        out.push(ctx.dialect.paragraph([convertInline(lines[i], ctx)]));
         i++;
       }
     }
@@ -502,16 +762,16 @@
       return convertInline(value, ctx) || ' ';
     }
 
-    var header = splitTableRow(lines[start]);
-    var rows = ['||' + header.map(cell).join('||') + '||'];
+    var header = splitTableRow(lines[start]).map(cell);
+    var rows = [];
 
     var i = start + 2;
     while (i < lines.length && lines[i].indexOf('|') !== -1 && !isBlank(lines[i])) {
-      rows.push('|' + splitTableRow(lines[i]).map(cell).join('|') + '|');
+      rows.push(splitTableRow(lines[i]).map(cell));
       i++;
     }
 
-    return { rows: rows, next: i };
+    return { text: ctx.dialect.table(header, rows), next: i };
   }
 
   function readQuote(lines, start, ctx) {
@@ -539,22 +799,14 @@
       }
     }
 
-    var inner = convert(body.join('\n'), ctx.options);
+    var inner = convertWith(body.join('\n'), ctx.options, ctx.dialect);
 
-    var rows;
-    if (title) {
-      rows = ['{panel:title=' + title + '}', inner, '{panel}'];
-    } else if (inner.indexOf('\n') === -1) {
-      rows = ['bq. ' + inner];
-    } else {
-      rows = ['{quote}', inner, '{quote}'];
-    }
-
-    return { rows: rows, next: i };
+    return { text: ctx.dialect.quote(inner, title), next: i };
   }
 
   function readList(lines, start, ctx) {
-    var rows = [];
+    var items = [];
+    var extra = [];   // Codebloecke, die zwischen den Eintraegen stehen
     var stack = []; // [{ indent: number, type: '*' | '#' }]
     var i = start;
 
@@ -589,32 +841,36 @@
 
         var prefix = stack.map(function (level) {
           return level.type;
-        }).join('');
+        });
 
         var content = item[3];
         var task = /^\[([ xX])\][ \t]+(.*)$/.exec(content);
-        var marker = '';
+        var state = null;
         if (task) {
-          marker = task[1].toLowerCase() === 'x' ? '(/) ' : '(x) ';
+          state = task[1].toLowerCase() === 'x' ? 'done' : 'open';
           content = task[2];
         }
 
-        rows.push(prefix + ' ' + marker + convertInline(content, ctx));
+        items.push({
+          levels: prefix.slice(),
+          task: state,
+          content: convertInline(content, ctx)
+        });
         i++;
         continue;
       }
 
       // Codeblock-Platzhalter innerhalb einer Liste.
       if (PLACEHOLDER_LINE_RE.test(line)) {
-        rows.push(line.trim());
+        extra.push(line.trim());
         i++;
         continue;
       }
 
       // Fortsetzung eines Listeneintrags (eingerueckter Text ohne Marker).
       var continuation = /^(\s+)(\S[\s\S]*)$/.exec(line);
-      if (continuation && rows.length) {
-        rows[rows.length - 1] += ' ' + convertInline(continuation[2], ctx);
+      if (continuation && items.length) {
+        items[items.length - 1].content += ' ' + convertInline(continuation[2], ctx);
         i++;
         continue;
       }
@@ -622,7 +878,11 @@
       break;
     }
 
-    return { rows: rows, next: i };
+    var text = ctx.dialect.list(items);
+    if (extra.length) {
+      text += '\n' + extra.join('\n');
+    }
+    return { text: text, next: i };
   }
 
   /* ------------------------------------------------------------------ *
@@ -647,10 +907,10 @@
     return options;
   }
 
-  function convert(markdown, userOptions) {
-    var options = mergeOptions(userOptions);
+  function convertWith(markdown, options, dialect) {
     var ctx = {
       options: options,
+      dialect: dialect,
       placeholders: new Placeholders(),
       references: Object.create(null)
     };
@@ -665,11 +925,30 @@
     lines = protectIndentedCode(lines, ctx);
 
     var result = ctx.placeholders.restore(convertBlocks(lines, ctx).join('\n'));
+    return dialect.finish(result);
+  }
 
-    return result
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/[ \t]+$/gm, '')
-      .replace(/^\n+|\n+$/g, '');
+  /** Markdown -> Jira-Wiki-Markup (fuer Textfelder und den Wiki-Modus). */
+  function convert(markdown, userOptions) {
+    return convertWith(markdown, mergeOptions(userOptions), JIRA_DIALECT);
+  }
+
+  /**
+   * Markdown -> HTML. Gedacht fuer den Rich-Text-Editor, der Wiki-Markup
+   * woertlich stehen lassen wuerde: das HTML wird beim Einfuegen direkt als
+   * formatierter Text uebernommen.
+   */
+  function convertToHtml(markdown, userOptions) {
+    return convertWith(markdown, mergeOptions(userOptions), HTML_DIALECT);
+  }
+
+  /** Beides auf einmal - so wird nur einmal geparst. */
+  function convertBoth(markdown, userOptions) {
+    var options = mergeOptions(userOptions);
+    return {
+      jira: convertWith(markdown, options, JIRA_DIALECT),
+      html: convertWith(markdown, options, HTML_DIALECT)
+    };
   }
 
   /**
@@ -698,8 +977,12 @@
 
   return {
     convert: convert,
+    convertToHtml: convertToHtml,
+    convertBoth: convertBoth,
     markdownToJira: convert,
+    markdownToHtml: convertToHtml,
     looksLikeMarkdown: looksLikeMarkdown,
-    defaultOptions: DEFAULT_OPTIONS
+    defaultOptions: DEFAULT_OPTIONS,
+    dialects: DIALECTS
   };
 });

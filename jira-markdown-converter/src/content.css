@@ -216,6 +216,20 @@
   cursor: pointer;
 }
 
+.jmd-check--wide {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.jmd-select {
+  padding: 3px 6px;
+  border: 1px solid #dfe1e6;
+  border-radius: 3px;
+  background: #fff;
+  color: #42526e;
+  font-size: 12px;
+}
+
 /* Buttonleiste direkt am Feld ---------------------------------------- */
 
 .jmd-fieldbar {

@@ -288,6 +288,110 @@ test('looksLikeMarkdown ignoriert Klartext', function () {
   assert.ok(!jira.looksLikeMarkdown(null));
 });
 
+console.log('\nHTML fuer den Rich-Text-Editor');
+
+function html(markdown, expected, message) {
+  var actual = jira.convertToHtml(markdown);
+  assert.strictEqual(actual, expected, (message || '') +
+    '\n  Eingabe:   ' + JSON.stringify(markdown) +
+    '\n  Erwartet:  ' + JSON.stringify(expected) +
+    '\n  Erhalten:  ' + JSON.stringify(actual));
+}
+
+test('Ueberschriften', function () {
+  html('# Eins', '<h1>Eins</h1>');
+  html('###### Sechs', '<h6>Sechs</h6>');
+});
+test('Absatz mit Auszeichnungen', function () {
+  html('Ein **fetter** und *kursiver* Text.',
+       '<p>Ein <strong>fetter</strong> und <em>kursiver</em> Text.</p>');
+  html('~~weg~~', '<p><del>weg</del></p>');
+  html('***beides***', '<p><strong><em>beides</em></strong></p>');
+});
+test('Inline-Code wird escaped', function () {
+  html('`a < b && c`', '<p><code>a &lt; b &amp;&amp; c</code></p>');
+});
+test('Klartext wird escaped', function () {
+  html('5 < 6 & 7 > 2', '<p>5 &lt; 6 &amp; 7 &gt; 2</p>');
+});
+test('Codeblock mit Sprache', function () {
+  html('```java\nif (a < b) {}\n```',
+       '<pre><code class="language-java">if (a &lt; b) {}</code></pre>');
+});
+test('Liste', function () {
+  html('- a\n- b', '<ul><li>a</li><li>b</li></ul>');
+});
+test('verschachtelte Liste', function () {
+  html('- a\n  - b\n- c', '<ul><li>a<ul><li>b</li></ul></li><li>c</li></ul>');
+});
+test('numerierte Liste', function () {
+  html('1. eins\n2. zwei', '<ol><li>eins</li><li>zwei</li></ol>');
+});
+test('gemischte Verschachtelung', function () {
+  html('- a\n  1. b\n- c', '<ul><li>a<ol><li>b</li></ol></li><li>c</li></ul>');
+});
+test('Aufgabenliste', function () {
+  html('- [x] fertig\n- [ ] offen',
+       '<ul><li>&#9745; fertig</li><li>&#9744; offen</li></ul>');
+});
+test('Tabelle', function () {
+  html('| A | B |\n| --- | --- |\n| 1 | 2 |',
+       '<table><thead><tr><th>A</th><th>B</th></tr></thead>' +
+       '<tbody><tr><td>1</td><td>2</td></tr></tbody></table>');
+});
+test('Zitat', function () {
+  html('> Zitat', '<blockquote>\n<p>Zitat</p>\n</blockquote>');
+});
+test('Hinweisblock wird Zitat mit Ueberschrift', function () {
+  html('> [!WARNING]\n> Vorsicht',
+       '<blockquote>\n<p><strong>Warnung</strong></p>\n<p>Vorsicht</p>\n</blockquote>');
+});
+test('Trennlinie', function () {
+  html('---', '<hr>');
+});
+test('Link', function () {
+  html('[Doku](https://example.com)', '<p><a href="https://example.com">Doku</a></p>');
+});
+test('Bild', function () {
+  html('![Screen](https://example.com/a.png)',
+       '<p><img src="https://example.com/a.png" alt="Screen"></p>');
+});
+test('javascript-Links werden verworfen', function () {
+  // Das HTML wandert in einen laufenden Editor - dort darf kein Skript-Ziel
+  // ankommen, auch nicht aus einem kopierten Work Item.
+  html('[klick](javascript:alert(1))', '<p>klick</p>');
+  html('![x](javascript:alert(1))', '<p>javascript:alert(1)</p>');
+});
+test('Anfuehrungszeichen in URLs brechen das Attribut nicht', function () {
+  html('[x](https://example.com/"onx)', '<p><a href="https://example.com/&quot;onx">x</a></p>');
+});
+test('roher HTML-Text wird nicht durchgereicht', function () {
+  html('<div onclick="boese()">Text</div>',
+       '<p>&lt;div onclick="boese()"&gt;Text&lt;/div&gt;</p>');
+});
+test('erlaubte Inline-Tags werden uebersetzt', function () {
+  html('Ein <b>fett</b> und <br> Umbruch',
+       '<p>Ein <strong>fett</strong> und <br> Umbruch</p>');
+});
+test('weiche Zeilenumbrueche werden zu <br>', function () {
+  html('Zeile eins\nZeile zwei', '<p>Zeile eins<br>\nZeile zwei</p>');
+});
+test('leere Eingabe', function () {
+  html('', '');
+});
+
+console.log('\nBeide Formate auf einmal');
+test('convertBoth liefert Markup und HTML', function () {
+  var both = jira.convertBoth('# Titel\n\n- **a**');
+  assert.strictEqual(both.jira, 'h1. Titel\n\n* *a*');
+  assert.strictEqual(both.html, '<h1>Titel</h1>\n\n<ul><li><strong>a</strong></li></ul>');
+});
+test('Optionen wirken auf beide Formate', function () {
+  var both = jira.convertBoth('```js\na\n```', { keepCodeLanguage: false });
+  assert.strictEqual(both.jira, '{code}\na\n{code}');
+  assert.strictEqual(both.html, '<pre><code>a</code></pre>');
+});
+
 console.log('\nGesamtdokument (Azure DevOps Work Item)');
 test('vollstaendiges Dokument', function () {
   var markdown = [

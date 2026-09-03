@@ -14,11 +14,16 @@
   'use strict';
 
   var DEFAULTS = {
-    // Was wird in den Rich-Text-Editor (Jira Cloud) eingefuegt?
-    //   'jira'     -> fertiges Jira-Markup (Textfelder, Wiki-Modus, Jira Server)
-    //   'markdown' -> das Markdown selbst; der Cloud-Editor formatiert beim
-    //                 Einfuegen mit, was dort oft das schoenere Ergebnis ist.
-    richEditorFormat: 'jira',
+    // Was passiert, wenn das Feld kein reines Textfeld ist, sondern ein
+    // Rich-Text-Editor (Jira Server mit jira.rte.enabled, Jira Cloud)?
+    //   'html'     -> aus dem Markdown erzeugtes HTML einfuegen; der Text
+    //                 kommt fertig formatiert an (Standard)
+    //   'jira'     -> Jira-Markup als Text einfuegen
+    //   'markdown' -> das Markdown unveraendert durchreichen
+    richEditorFormat: 'html',
+    // Ist der Rich-Text-Editor aktiv: vorher auf den Markup-Modus umschalten
+    // und dann Jira-Markup einfuegen (nur Jira Server / Data Center).
+    switchToMarkup: false,
     // Einfuegen (Strg+V) in einem Jira-Editor automatisch konvertieren.
     convertOnPaste: true,
     // Schwebenden Button auf Jira-Seiten anzeigen.
@@ -54,8 +59,8 @@
     if (!Array.isArray(result.extraHosts)) {
       result.extraHosts = [];
     }
-    if (result.richEditorFormat !== 'markdown') {
-      result.richEditorFormat = 'jira';
+    if (['html', 'jira', 'markdown'].indexOf(result.richEditorFormat) === -1) {
+      result.richEditorFormat = 'html';
     }
     return result;
   }

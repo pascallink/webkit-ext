@@ -6,6 +6,7 @@
 
   var CHECKBOXES = [
     'convertOnPaste',
+    'switchToMarkup',
     'showFloatingButton',
     'showToast',
     'keepCodeLanguage',
@@ -64,7 +65,7 @@
       next[key] = document.getElementById(key).checked;
     });
     var format = document.querySelector('input[name="richEditorFormat"]:checked');
-    next.richEditorFormat = format ? format.value : 'jira';
+    next.richEditorFormat = format ? format.value : 'html';
     next.extraHosts = parseHosts(hostsField.value);
     return Settings.withDefaults(next);
   }

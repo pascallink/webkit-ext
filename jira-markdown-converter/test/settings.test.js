@@ -71,7 +71,9 @@ console.log('\nVoreinstellungen');
 test('Standardwerte sind vollstaendig', function () {
   var defaults = Settings.withDefaults(null);
   assert.strictEqual(defaults.convertOnPaste, true);
-  assert.strictEqual(defaults.richEditorFormat, 'jira');
+  // Im Rich-Text-Editor kommt der Text formatiert an statt als Markup.
+  assert.strictEqual(defaults.richEditorFormat, 'html');
+  assert.strictEqual(defaults.switchToMarkup, false);
   assert.deepStrictEqual(defaults.extraHosts, []);
 });
 test('gespeicherte Werte gewinnen', function () {
@@ -80,8 +82,13 @@ test('gespeicherte Werte gewinnen', function () {
   assert.deepStrictEqual(merged.extraHosts, ['jira.firma.de']);
   assert.strictEqual(merged.showFloatingButton, true, 'nicht gesetzte Werte bleiben Standard');
 });
-test('unbekanntes Zielformat faellt auf jira zurueck', function () {
-  assert.strictEqual(Settings.withDefaults({ richEditorFormat: 'quatsch' }).richEditorFormat, 'jira');
+test('alle drei Zielformate bleiben erhalten', function () {
+  assert.strictEqual(Settings.withDefaults({ richEditorFormat: 'html' }).richEditorFormat, 'html');
+  assert.strictEqual(Settings.withDefaults({ richEditorFormat: 'jira' }).richEditorFormat, 'jira');
+  assert.strictEqual(Settings.withDefaults({ richEditorFormat: 'markdown' }).richEditorFormat, 'markdown');
+});
+test('unbekanntes Zielformat faellt auf html zurueck', function () {
+  assert.strictEqual(Settings.withDefaults({ richEditorFormat: 'quatsch' }).richEditorFormat, 'html');
 });
 test('kaputte extraHosts werden abgefangen', function () {
   assert.deepStrictEqual(Settings.withDefaults({ extraHosts: 'jira.firma.de' }).extraHosts, []);

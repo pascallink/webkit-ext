@@ -62,6 +62,144 @@
     '[placeholder*="search" i]'
   ].join(',');
 
+  /* ------------------------------------------------------------------ *
+   * Rich-Text-Editor von Jira Server / Data Center
+   *
+   * Ist 'jira.rte.enabled' gesetzt, blendet Jira die Textarea aus und legt
+   * einen TinyMCE-Editor darueber. Geschrieben wird dann nicht in die
+   * Textarea, sondern in den Body des Editor-Rahmens.
+   * ------------------------------------------------------------------ */
+
+  var RICH_TEXT_FRAME_SELECTOR = [
+    'iframe.tox-edit-area__iframe',
+    'iframe.mce-edit-area iframe',
+    'iframe[id$="_ifr"]'
+  ].join(',');
+
+  var FIELD_CONTAINER_SELECTOR = '.jira-wikifield, .wiki-edit, .field-group, .aui-field-wikiedit';
+
+  function fieldContainer(element) {
+    try {
+      return element.closest(FIELD_CONTAINER_SELECTOR) || element.parentNode || element.ownerDocument;
+    } catch (error) {
+      return element.ownerDocument;
+    }
+  }
+
+  /** Der TinyMCE-Rahmen, der zu diesem Feld gehoert. */
+  function richTextFrame(field) {
+    if (!field || field.tagName !== 'TEXTAREA') return null;
+    var doc = field.ownerDocument;
+    var frame = field.id ? doc.getElementById(field.id + '_ifr') : null;
+    if (!frame) {
+      var container = fieldContainer(field);
+      frame = container.querySelector ? container.querySelector(RICH_TEXT_FRAME_SELECTOR) : null;
+    }
+    return frame && frame.tagName === 'IFRAME' ? frame : null;
+  }
+
+  /** Der beschreibbare Body im Editor-Rahmen (gleiche Herkunft, sonst null). */
+  function richTextBody(field) {
+    var frame = richTextFrame(field);
+    if (!frame) return null;
+    try {
+      var doc = frame.contentDocument;
+      if (!doc || !doc.body) return null;
+      return doc.body.isContentEditable ? doc.body : null;
+    } catch (error) {
+      return null;   // fremde Herkunft - nicht unser Editor
+    }
+  }
+
+  /** Laeuft dieses Feld gerade im Rich-Text-Modus? */
+  function isRichTextActive(field) {
+    var body = richTextBody(field);
+    if (!body) return false;
+    var frame = richTextFrame(field);
+    return !!frame && frame.getClientRects().length > 0;
+  }
+
+  /**
+   * Die Flaeche, in die tatsaechlich geschrieben wird. Nur solange der
+   * Rich-Text-Editor sichtbar ist - nach dem Umschalten auf den Markup-Modus
+   * bleibt der Rahmen im DOM stehen, ist aber nicht mehr das Ziel.
+   */
+  function editingSurface(field) {
+    return isRichTextActive(field) ? richTextBody(field) : field;
+  }
+
+  // Umschalter zwischen Rich-Text und Markup. Jira benennt ihn je nach
+  // Version anders, darum erst bekannte Selektoren, dann Beschriftungen.
+  var MODE_TOGGLE_SELECTOR = [
+    '.jira-wikifield .rte-toggle',
+    '.wiki-edit .rte-toggle',
+    'button.rte-button-source',
+    'a.switch-to-source',
+    '[data-mode="source"]',
+    '[data-editor-mode]'
+  ].join(',');
+
+  var MODE_TOGGLE_TEXT = /markup|quelltext|source|klartext|plain\s*text|text-?modus|bearbeitungsmodus|wysiwyg|visual/i;
+
+  function findModeToggle(field) {
+    var container = fieldContainer(field);
+    if (!container.querySelector) return null;
+
+    var direct = container.querySelector(MODE_TOGGLE_SELECTOR);
+    if (direct && !isIgnored(direct)) return direct;
+
+    var candidates = container.querySelectorAll('button, a, [role="button"]');
+    for (var i = 0; i < candidates.length; i++) {
+      var element = candidates[i];
+      if (isIgnored(element)) continue;      // nie unsere eigenen Buttons
+      var label = [
+        element.getAttribute('aria-label') || '',
+        element.getAttribute('title') || '',
+        element.getAttribute('data-mode') || '',
+        typeof element.className === 'string' ? element.className : '',
+        (element.textContent || '').slice(0, 60)
+      ].join(' ');
+      if (MODE_TOGGLE_TEXT.test(label)) return element;
+    }
+    return null;
+  }
+
+  function waitUntil(check, timeout) {
+    return new Promise(function (resolve) {
+      var deadline = Date.now() + (timeout || 1500);
+      (function poll() {
+        if (check()) {
+          resolve(true);
+          return;
+        }
+        if (Date.now() > deadline) {
+          resolve(false);
+          return;
+        }
+        setTimeout(poll, 50);
+      })();
+    });
+  }
+
+  /**
+   * Schaltet das Feld vom Rich-Text- in den Markup-Modus, damit fertiges
+   * Jira-Markup eingefuegt werden kann. Liefert false, wenn kein Umschalter
+   * gefunden wurde oder er nicht gegriffen hat.
+   */
+  function switchToMarkup(field) {
+    if (!isRichTextActive(field)) return Promise.resolve(true);
+    var toggle = findModeToggle(field);
+    if (!toggle) return Promise.resolve(false);
+    try {
+      toggle.click();
+    } catch (error) {
+      return Promise.resolve(false);
+    }
+    return waitUntil(function () {
+      return !isRichTextActive(field) && isVisible(field);
+    }, 2000);
+  }
+
   function isVisible(element) {
     if (!element || !element.isConnected) return false;
     if (element.disabled || element.readOnly) return false;
@@ -69,6 +207,14 @@
     if (!rects.length) return false;
     var style = element.ownerDocument.defaultView.getComputedStyle(element);
     return style.visibility !== 'hidden' && style.display !== 'none';
+  }
+
+  /**
+   * Bedienbar ist ein Feld auch dann, wenn die Textarea selbst versteckt ist,
+   * der Rich-Text-Editor darueber aber sichtbar ist.
+   */
+  function isUsable(element) {
+    return isVisible(element) || isRichTextActive(element);
   }
 
   function isIgnored(element) {
@@ -101,6 +247,9 @@
     }
     if (!element) return null;
     if (isTextarea(element) && !isIgnored(element)) return element;
+    // Klick im Rich-Text-Rahmen: das zugehoerige Feld ist die Textarea.
+    var owner = fieldForSurface(element);
+    if (owner) return owner;
     if (element.isContentEditable) {
       var host = element.closest('.ProseMirror') || element.closest('[contenteditable="true"]') || element;
       return isIgnored(host) ? null : host;
@@ -116,7 +265,7 @@
       active = active.shadowRoot.activeElement;
     }
     var editable = editableFrom(active);
-    return editable && isVisible(editable) ? editable : null;
+    return editable && isUsable(editable) ? editable : null;
   }
 
   /**
@@ -132,9 +281,10 @@
     var nodes = document_.querySelectorAll(RICH_SELECTOR + ',' + TEXTAREA_SELECTOR);
     for (var i = 0; i < nodes.length; i++) {
       var node = nodes[i];
-      if (!isVisible(node) || isIgnored(node)) continue;
+      if (!isUsable(node) || isIgnored(node)) continue;
       if (!isTextarea(node) && !isRich(node)) continue;
-      var rect = node.getBoundingClientRect();
+      var box = isRichTextActive(node) ? richTextFrame(node) : node;
+      var rect = box.getBoundingClientRect();
       candidates.push({ element: node, area: rect.width * rect.height });
     }
     if (!candidates.length) return null;
@@ -151,7 +301,7 @@
     var result = [];
     for (var i = 0; i < nodes.length; i++) {
       var node = nodes[i];
-      if (!isVisible(node) || isIgnored(node)) continue;
+      if (!isUsable(node) || isIgnored(node)) continue;
       if (!isTextarea(node) && !isRich(node)) continue;
       if (result.indexOf(node) === -1) result.push(node);
     }
@@ -166,7 +316,10 @@
       element.getAttribute('data-testid') ||
       element.getAttribute('name') ||
       element.id;
-    var kind = isTextarea(element) ? 'Textfeld' : 'Rich-Text-Editor';
+    var kind = 'Rich-Text-Editor';
+    if (isTextarea(element)) {
+      kind = isRichTextActive(element) ? 'Rich-Text-Editor' : 'Textfeld';
+    }
     return label ? kind + ' (' + String(label).slice(0, 40) + ')' : kind;
   }
 
@@ -219,6 +372,110 @@
     return text;
   }
 
+  /**
+   * Zu einer Schreibflaeche (Body eines Editor-Rahmens) das Feld finden,
+   * unter dem sie haengt.
+   */
+  function fieldForSurface(element) {
+    var doc = element.ownerDocument;
+    if (!doc || doc === document) return null;
+    var frame = doc.defaultView && doc.defaultView.frameElement;
+    if (!frame) return null;
+    var id = String(frame.id || '').replace(/_ifr$/, '');
+    if (!id) return null;
+    var field = document.getElementById(id);
+    return field && field.tagName === 'TEXTAREA' ? field : null;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Cursorposition merken
+   *
+   * Sobald der Nutzer ins Panel klickt, ist die Auswahl im Jira-Feld weg.
+   * Darum wird sie vorher gesichert und vor dem Einfuegen wiederhergestellt.
+   * ------------------------------------------------------------------ */
+
+  var carets = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+  function rememberCaret(element) {
+    if (!carets || !element) return false;
+    var surface = editingSurface(element);
+
+    if (isTextarea(surface) || surface.tagName === 'INPUT') {
+      if (surface.selectionStart === null || surface.selectionStart === undefined) return false;
+      carets.set(element, {
+        type: 'text',
+        start: surface.selectionStart,
+        end: surface.selectionEnd
+      });
+      return true;
+    }
+
+    if (surface.isContentEditable) {
+      var view = surface.ownerDocument.defaultView;
+      var selection = view && view.getSelection();
+      if (!selection || !selection.rangeCount) return false;
+      var range = selection.getRangeAt(0);
+      if (!surface.contains(range.commonAncestorContainer)) return false;
+      carets.set(element, { type: 'range', range: range.cloneRange() });
+      return true;
+    }
+    return false;
+  }
+
+  /** Liefert true, wenn eine gemerkte Position wiederhergestellt wurde. */
+  function restoreCaret(element) {
+    if (!carets || !element) return false;
+    var saved = carets.get(element);
+    if (!saved) return false;
+    var surface = editingSurface(element);
+
+    if (saved.type === 'text') {
+      if (!isTextarea(surface) && surface.tagName !== 'INPUT') return false;
+      var length = String(surface.value || '').length;
+      try {
+        surface.setSelectionRange(Math.min(saved.start, length), Math.min(saved.end, length));
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    if (!surface.isContentEditable) return false;
+    try {
+      // Der Bereich kann durch zwischenzeitlichen DOM-Umbau ungueltig sein.
+      if (!surface.contains(saved.range.commonAncestorContainer)) return false;
+      var view = surface.ownerDocument.defaultView;
+      var selection = view && view.getSelection();
+      if (!selection) return false;
+      selection.removeAllRanges();
+      selection.addRange(saved.range);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function forgetCaret(element) {
+    if (carets && element) carets.delete(element);
+  }
+
+  /**
+   * Liegt der Fokus gerade wirklich auf dieser Schreibflaeche? Nur wenn nicht,
+   * darf die gemerkte Position wieder eingesetzt werden - sonst wuerde eine
+   * alte Marke die Auswahl ueberschreiben, die der Nutzer eben gesetzt hat.
+   */
+  function surfaceHasFocus(surface) {
+    var doc = surface.ownerDocument;
+    if (doc.activeElement !== surface && !surface.contains(doc.activeElement)) return false;
+    var view = doc.defaultView;
+    var frame = view && view.frameElement;
+    if (frame) {
+      // Im Editor-Rahmen zaehlt zusaetzlich, ob die Seite den Rahmen fokussiert.
+      return frame.ownerDocument.activeElement === frame;
+    }
+    return true;
+  }
+
   /* ------------------------------------------------------------------ *
    * Schreiben
    * ------------------------------------------------------------------ */
@@ -245,7 +502,11 @@
 
   /** Fuegt Text an der Cursorposition einer Textarea ein. */
   function insertIntoTextarea(element, text, mode) {
+    // Steht der Cursor noch im Feld, gilt die aktuelle Auswahl. Erst wenn der
+    // Fokus weg ist (Panel, Popup), kommt die gemerkte Position zum Zug.
+    var live = surfaceHasFocus(element);
     element.focus();
+    if (!live) restoreCaret(element);
     var value = String(element.value || '');
     var start = element.selectionStart;
     var end = element.selectionEnd;
@@ -270,15 +531,26 @@
    * paste-Event: der Editor verarbeitet es wie eine echte Einfuege-Aktion,
    * inklusive Undo-Historie.
    */
-  function insertIntoRich(element, text, mode) {
-    element.focus();
+  function insertIntoRich(element, text, html, mode) {
+    var live = surfaceHasFocus(element);
+    focusSurface(element);
+    if (!live) restoreCaret(element);
     var view = element.ownerDocument.defaultView;
 
     if (mode === 'replace') {
       selectAll(element);
     }
 
-    if (dispatchPaste(element, text)) return true;
+    if (dispatchPaste(element, text, html)) return true;
+
+    // Fallback 0: formatiert einfuegen, wenn HTML gewuenscht ist.
+    if (html) {
+      try {
+        if (element.ownerDocument.execCommand('insertHTML', false, html)) return true;
+      } catch (error) {
+        /* weiter zum naechsten Fallback */
+      }
+    }
 
     // Fallback 1: execCommand fuellt den Editor ueber beforeinput/input.
     try {
@@ -306,12 +578,17 @@
 
   var SYNTHETIC = '__jiraMdSynthetic';
 
-  function dispatchPaste(element, text) {
-    if (typeof DataTransfer === 'undefined' || typeof ClipboardEvent === 'undefined') return false;
+  function dispatchPaste(element, text, html) {
+    var view = element.ownerDocument.defaultView || window;
+    var Transfer = view.DataTransfer || DataTransfer;
+    var Clipboard = view.ClipboardEvent || ClipboardEvent;
+    if (typeof Transfer === 'undefined' || typeof Clipboard === 'undefined') return false;
     try {
-      var data = new DataTransfer();
+      var data = new Transfer();
       data.setData('text/plain', text);
-      var event = new ClipboardEvent('paste', {
+      // Editoren bevorzugen text/html - damit kommt der Text formatiert an.
+      if (html) data.setData('text/html', html);
+      var event = new Clipboard('paste', {
         clipboardData: data,
         bubbles: true,
         cancelable: true
@@ -333,6 +610,16 @@
     return !!(event && event[SYNTHETIC]);
   }
 
+  function focusSurface(element) {
+    var view = element.ownerDocument.defaultView;
+    try {
+      if (view && view.frameElement) view.focus();
+    } catch (error) {
+      /* Rahmen nicht fokussierbar - egal */
+    }
+    element.focus();
+  }
+
   function selectAll(element) {
     var view = element.ownerDocument.defaultView;
     var selection = view.getSelection();
@@ -348,12 +635,29 @@
    * mode: 'insert' (an der Cursorposition) oder 'replace' (Feldinhalt ersetzen).
    */
   function insert(element, text, mode) {
-    if (!element || !text) return false;
-    if (isTextarea(element) || element.tagName === 'INPUT') {
-      return insertIntoTextarea(element, text, mode || 'insert');
+    return insertFormatted(element, text, null, mode);
+  }
+
+  /**
+   * Schreibt in ein Zielfeld. Ist html gesetzt und die Schreibflaeche ein
+   * Rich-Text-Editor, kommt der Text dort formatiert an statt als Markup.
+   * mode: 'insert' (an der Cursorposition) oder 'replace' (Feld ersetzen).
+   */
+  function insertFormatted(element, text, html, mode) {
+    if (!element || (!text && !html)) return false;
+    var surface = editingSurface(element);
+    var where = mode || 'insert';
+
+    if (isTextarea(surface) || surface.tagName === 'INPUT') {
+      // Reines Textfeld: immer Markup, HTML waere hier sinnlos.
+      return insertIntoTextarea(surface, text, where);
     }
-    if (element.isContentEditable) {
-      return insertIntoRich(element, text, mode || 'insert');
+    if (surface.isContentEditable) {
+      // Position wurde am Feld gemerkt, geschrieben wird auf der Flaeche.
+      if (surface !== element && carets && carets.has(element) && !carets.has(surface)) {
+        carets.set(surface, carets.get(element));
+      }
+      return insertIntoRich(surface, text, html, where);
     }
     return false;
   }
@@ -361,6 +665,17 @@
   return {
     RICH_SELECTOR: RICH_SELECTOR,
     TEXTAREA_SELECTOR: TEXTAREA_SELECTOR,
+    richTextFrame: richTextFrame,
+    richTextBody: richTextBody,
+    isRichTextActive: isRichTextActive,
+    editingSurface: editingSurface,
+    findModeToggle: findModeToggle,
+    switchToMarkup: switchToMarkup,
+    rememberCaret: rememberCaret,
+    restoreCaret: restoreCaret,
+    forgetCaret: forgetCaret,
+    insertFormatted: insertFormatted,
+    isUsable: isUsable,
     activeEditor: activeEditor,
     editableFrom: editableFrom,
     findTarget: findTarget,

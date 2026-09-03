@@ -28,18 +28,69 @@
   }
 
   /**
-   * Welcher Text soll in dieses Feld? In den Rich-Text-Editor von Jira Cloud
-   * kann wahlweise das Markdown selbst wandern (der Editor formatiert beim
-   * Einfuegen mit) oder fertiges Jira-Markup.
+   * Ist dieses Feld gerade ein reines Textfeld? Nur dann ist Jira-Markup
+   * ohne Umwege richtig.
    */
+  function isPlainField(element) {
+    return Editors.isTextarea(element) && !Editors.isRichTextActive(element);
+  }
+
+  /** Was fuer die Vorschau angezeigt wird: immer das Jira-Markup. */
   function outputFor(element, markdown) {
-    if (Editors.isTextarea(element)) return convert(markdown);
+    if (isPlainField(element)) return convert(markdown);
     if (settings.richEditorFormat === 'markdown') return markdown;
     return convert(markdown);
   }
 
+  /**
+   * Schreibt Markdown in ein Feld - je nach Feldtyp und Einstellung als
+   * Jira-Markup, als formatiertes HTML oder unveraendert.
+   *
+   * Reihenfolge bei aktivem Rich-Text-Editor (Jira Server, jira.rte.enabled):
+   *   1. Wenn gewuenscht: auf den Markup-Modus umschalten, dann Markup einfuegen.
+   *   2. Sonst je nach Einstellung formatiert (HTML), als Markup oder als
+   *      Markdown einfuegen.
+   */
+  function deliver(field, markdown, mode) {
+    if (!field) return Promise.resolve('');
+
+    if (isPlainField(field)) {
+      return Promise.resolve(Editors.insert(field, convert(markdown), mode) ? 'markup' : '');
+    }
+
+    var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
+      ? Editors.switchToMarkup(field)
+      : Promise.resolve(false);
+
+    return switching.then(function (switched) {
+      if (switched) {
+        return Editors.insert(field, convert(markdown), mode) ? 'switched' : '';
+      }
+      if (settings.richEditorFormat === 'markdown') {
+        return Editors.insert(field, markdown, mode) ? 'markdown' : '';
+      }
+      if (settings.richEditorFormat === 'jira') {
+        return Editors.insert(field, convert(markdown), mode) ? 'markup' : '';
+      }
+      // Standard: formatiert einfuegen, damit der Editor kein Markup anzeigt.
+      var both = Converter.convertBoth(markdown, Settings.converterOptions(settings));
+      return Editors.insertFormatted(field, both.jira, both.html, mode) ? 'formatted' : '';
+    });
+  }
+
+  /** Rueckmeldung passend zu dem Weg, den deliver() genommen hat. */
+  function insertMessage(how) {
+    switch (how) {
+      case 'formatted': return 'Formatiert eingefuegt.';
+      case 'switched': return 'Auf Markup-Modus umgeschaltet und eingefuegt.';
+      case 'markdown': return 'Markdown eingefuegt.';
+      case 'markup': return 'In Jira-Markup umgewandelt.';
+      default: return '';
+    }
+  }
+
   function currentTarget() {
-    if (target && Editors.isVisible(target)) return target;
+    if (target && Editors.isUsable(target)) return target;
     target = Editors.findTarget();
     return target;
   }
@@ -59,21 +110,26 @@
       return false;
     }
 
-    var output = outputFor(field, source);
-    if (output === source) {
-      toast('Nichts zu konvertieren.', true);
-      return false;
+    if (isPlainField(field)) {
+      var output = convert(source);
+      if (output === source) {
+        toast('Nichts zu konvertieren.', true);
+        return false;
+      }
+      if (selected) {
+        // Der Konverter schneidet Rand-Leerzeichen ab. Bei einer Auswahl mitten
+        // im Text muessen sie erhalten bleiben, sonst kleben Zeilen zusammen.
+        output = /^\s*/.exec(source)[0] + output + /\s*$/.exec(source)[0];
+      }
+      var done = Editors.insert(field, output, selected ? 'insert' : 'replace');
+      toast(done ? 'In Jira-Markup umgewandelt.' : 'Einfuegen nicht moeglich.', !done);
+      return done;
     }
 
-    if (selected) {
-      // Der Konverter schneidet Rand-Leerzeichen ab. Bei einer Auswahl mitten
-      // im Text muessen sie erhalten bleiben, sonst kleben Zeilen zusammen.
-      output = /^\s*/.exec(source)[0] + output + /\s*$/.exec(source)[0];
-    }
-
-    var done = Editors.insert(field, output, selected ? 'insert' : 'replace');
-    toast(done ? 'In Jira-Markup umgewandelt.' : 'Einfuegen nicht moeglich.', !done);
-    return done;
+    deliver(field, source, selected ? 'insert' : 'replace').then(function (how) {
+      toast(how ? insertMessage(how) : 'Einfuegen nicht moeglich.', !how);
+    });
+    return true;
   }
 
   /* ------------------------------------------------------------------ *
@@ -92,15 +148,21 @@
     var text = clipboard.getData('text/plain');
     if (!text || !Converter.looksLikeMarkdown(text)) return;
 
-    var output = outputFor(field, text);
-    if (output === text) return;
+    // Markdown durchreichen heisst: nichts tun, der Editor macht den Rest.
+    if (!isPlainField(field) && settings.richEditorFormat === 'markdown' &&
+        !settings.switchToMarkup) {
+      return;
+    }
+    if (isPlainField(field) && convert(text) === text) return;
 
     event.preventDefault();
     event.stopPropagation();
     target = field;
-    if (Editors.insert(field, output, 'insert')) {
-      toast('Markdown in Jira-Markup umgewandelt.');
-    }
+    // Die Position steht noch - der Nutzer hat gerade in das Feld getippt.
+    Editors.rememberCaret(field);
+    deliver(field, text, 'insert').then(function (how) {
+      if (how) toast(insertMessage(how));
+    });
   }
 
   /* ------------------------------------------------------------------ *
@@ -169,7 +231,14 @@
     '  </div>',
     '  <div class="jmd-options">',
     '    <label class="jmd-check"><input type="checkbox" data-option="convertOnPaste"> Beim Einfuegen automatisch umwandeln</label>',
-    '    <label class="jmd-check"><input type="checkbox" data-option="richEditorFormat"> Im Rich-Text-Editor Markdown durchreichen</label>',
+    '    <label class="jmd-check"><input type="checkbox" data-option="switchToMarkup"> Rich-Text vorher auf Markup-Modus umschalten</label>',
+    '    <label class="jmd-check jmd-check--wide">Im Rich-Text-Editor:',
+    '      <select class="jmd-select" data-option="richEditorFormat">',
+    '        <option value="html">formatiert einfuegen</option>',
+    '        <option value="jira">Jira-Markup einfuegen</option>',
+    '        <option value="markdown">Markdown durchreichen</option>',
+    '      </select>',
+    '    </label>',
     '  </div>',
     '</div>'
   ].join('\n');
@@ -203,11 +272,7 @@
       var option = event.target.getAttribute && event.target.getAttribute('data-option');
       if (!option) return;
       var update = {};
-      if (option === 'richEditorFormat') {
-        update.richEditorFormat = event.target.checked ? 'markdown' : 'jira';
-      } else {
-        update[option] = event.target.checked;
-      }
+      update[option] = event.target.tagName === 'SELECT' ? event.target.value : event.target.checked;
       settings = Settings.withDefaults(Object.assign({}, settings, update));
       Settings.save(settings);
       refreshPreview();
@@ -259,18 +324,18 @@
         copyText(output.value);
         break;
       case 'insert':
-        insertFromPanel(output.value, 'insert');
+        insertFromPanel(input.value, 'insert');
         break;
       case 'replace':
-        insertFromPanel(output.value, 'replace');
+        insertFromPanel(input.value, 'replace');
         break;
       default:
         break;
     }
   }
 
-  function insertFromPanel(text, mode) {
-    if (!text) {
+  function insertFromPanel(markdown, mode) {
+    if (!markdown) {
       toast('Es gibt noch nichts einzufuegen.', true);
       return;
     }
@@ -279,11 +344,13 @@
       toast('Kein Jira-Eingabefeld gefunden. Bitte Feld waehlen.', true);
       return;
     }
-    if (Editors.insert(field, text, mode)) {
-      toast(mode === 'replace' ? 'Feldinhalt ersetzt.' : 'In Jira eingefuegt.');
-    } else {
-      toast('Einfuegen nicht moeglich - bitte Text kopieren.', true);
-    }
+    deliver(field, markdown, mode).then(function (how) {
+      if (how) {
+        toast(mode === 'replace' ? 'Feldinhalt ersetzt.' : insertMessage(how));
+      } else {
+        toast('Einfuegen nicht moeglich - bitte Text kopieren.', true);
+      }
+    });
   }
 
   function refreshPreview() {
@@ -305,9 +372,11 @@
   function syncPanelState() {
     if (!panel) return;
     var paste = panel.querySelector('[data-option="convertOnPaste"]');
+    var markup = panel.querySelector('[data-option="switchToMarkup"]');
     var rich = panel.querySelector('[data-option="richEditorFormat"]');
     if (paste) paste.checked = !!settings.convertOnPaste;
-    if (rich) rich.checked = settings.richEditorFormat === 'markdown';
+    if (markup) markup.checked = !!settings.switchToMarkup;
+    if (rich) rich.value = settings.richEditorFormat;
     updateTargetLabel();
   }
 
@@ -392,7 +461,8 @@
     for (var i = 0; i < fields.length; i++) {
       var field = fields[i];
       if (field.dataset[BUTTON_FLAG]) continue;
-      var rect = field.getBoundingClientRect();
+      var box = Editors.isRichTextActive(field) ? Editors.richTextFrame(field) : field;
+      var rect = box.getBoundingClientRect();
       // Nur an echte Eingabebereiche, nicht an winzige Einzeiler.
       if (rect.height < 48) continue;
       field.dataset[BUTTON_FLAG] = '1';
@@ -415,7 +485,14 @@
   }
 
   function addButtonBar(field) {
-    var host = field.closest('.ak-editor-content-area') || field;
+    // Bei aktivem Rich-Text-Editor ist die Textarea versteckt - die Leiste
+    // gehoert dann ueber den sichtbaren Editor.
+    var host = field.closest('.ak-editor-content-area');
+    if (!host && Editors.isRichTextActive(field)) {
+      var frame = Editors.richTextFrame(field);
+      host = frame && frame.closest('.mce-tinymce, .tox-tinymce, .jira-wikifield') || frame;
+    }
+    if (!host) host = field;
     var parent = host.parentNode;
     if (!parent) return;
 
@@ -448,12 +525,9 @@
           toast('Zwischenablage ist leer oder nicht lesbar.', true);
           return;
         }
-        var output = outputFor(field, text);
-        if (Editors.insert(field, output, 'insert')) {
-          toast('Aus der Zwischenablage eingefuegt.');
-        } else {
-          toast('Einfuegen nicht moeglich.', true);
-        }
+        return deliver(field, text, 'insert').then(function (how) {
+          toast(how ? 'Aus der Zwischenablage eingefuegt.' : 'Einfuegen nicht moeglich.', !how);
+        });
       });
     });
 
@@ -568,6 +642,43 @@
    * Start
    * ------------------------------------------------------------------ */
 
+  /** Merkt sich die Auswahl des gerade bearbeiteten Jira-Feldes. */
+  function trackCaret() {
+    var field = Editors.activeEditor();
+    if (!field) return;
+    target = field;
+    Editors.rememberCaret(field);
+  }
+
+  /**
+   * Der Rich-Text-Editor lebt in einem eigenen Rahmen mit eigenem Dokument -
+   * dort muss die Cursorposition getrennt mitgeschrieben werden.
+   */
+  function watchRichTextFrames() {
+    var fields = Editors.findAllTargets();
+    for (var i = 0; i < fields.length; i++) {
+      var field = fields[i];
+      var frame = Editors.richTextFrame(field);
+      if (!frame || frame.dataset.jmdWatched) continue;
+      var body = Editors.richTextBody(field);
+      if (!body) continue;
+      frame.dataset.jmdWatched = '1';
+      wireRichTextFrame(frame, field, body);
+    }
+  }
+
+  function wireRichTextFrame(frame, field, body) {
+    var doc = body.ownerDocument;
+    var remember = function () {
+      target = field;
+      Editors.rememberCaret(field);
+    };
+    doc.addEventListener('selectionchange', remember, true);
+    doc.addEventListener('mouseup', remember, true);
+    doc.addEventListener('keyup', remember, true);
+    doc.addEventListener('paste', onPaste, true);
+  }
+
   var scanTimer = null;
 
   function scheduleScan() {
@@ -576,6 +687,7 @@
       scanTimer = null;
       try {
         attachFieldButtons();
+        watchRichTextFrames();
         if (panel && panel.classList.contains('jmd-panel--open')) {
           updateTargetLabel();
         }
@@ -592,8 +704,19 @@
       if (field) target = field;
     }, true);
 
+    // Cursorposition festhalten, solange das Feld sie noch kennt. Sobald der
+    // Nutzer ins Panel klickt, ist sie sonst verloren.
+    document.addEventListener('selectionchange', trackCaret, true);
+    document.addEventListener('mouseup', trackCaret, true);
+    document.addEventListener('keyup', trackCaret, true);
+    document.addEventListener('focusout', function (event) {
+      var field = Editors.editableFrom(event.target);
+      if (field) Editors.rememberCaret(field);
+    }, true);
+
     createFab();
     attachFieldButtons();
+    watchRichTextFrames();
 
     var observer = new MutationObserver(scheduleScan);
     observer.observe(document.documentElement, { childList: true, subtree: true });

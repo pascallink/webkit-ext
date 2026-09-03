@@ -26,6 +26,11 @@ Auf Jira-Seiten kommen drei Bedienelemente dazu:
    beim Einfuegen um. `Strg+Z` macht das rueckgaengig; abschaltbar in den
    Einstellungen.
 
+Eingefuegt wird immer an der Cursorposition im Jira-Feld, auch wenn der Text
+vorher im Panel getippt wurde. Ist im Feld ein Rich-Text-Editor aktiv, kommt
+der Text formatiert an; auf Wunsch schaltet die Erweiterung stattdessen vorher
+auf den Markup-Modus um.
+
 Dazu kommen ein Symbolleisten-Popup (Konverter ohne Jira-Seite), ein
 Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`
 (macOS: `Cmd+Umschalt+M`), das die aktuelle Auswahl im Editor umwandelt.
@@ -88,35 +93,70 @@ Fliesstext werden maskiert, damit Jira sie nicht als Makro liest.
 In Jira 9.x sind Beschreibung, Kommentar und Umgebung normale Textfelder
 (`textarea`) innerhalb des Wiki-Feldes mit den Reitern *Schreiben* und
 *Vorschau*. Das ist der eindeutige Fall: dort wird immer fertiges Jira-Markup
-eingefuegt, die Einstellung zum Rich-Text-Editor greift nicht.
+eingefuegt.
 
 Die Buttonleiste erscheint direkt ueber dem Textfeld, unterhalb der
 Formatierungsleiste von Jira. Beim Inline-Bearbeiten baut Jira den Feldblock neu
-auf – die Leiste wandert mit und verschwindet zusammen mit dem Feld.
+auf - die Leiste wandert mit und verschwindet zusammen mit dem Feld.
 
 **Wichtig:** Jira zeigt Wiki-Markup nur an, wenn das jeweilige Feld den
 *Wiki Style Renderer* benutzt. Steht das Feld auf *Default Text Renderer*,
 erscheint `h1. Titel` woertlich im Ticket. Einzustellen unter
-Administration → Vorgaenge → Feldkonfigurationen → *Renderer*.
+Administration -> Vorgaenge -> Feldkonfigurationen -> *Renderer*.
 
 Nach dem Einfuegen loest die Erweiterung `input` und `change` aus, damit Jiras
 Entwurfsspeicherung die Aenderung mitbekommt.
 
-## Jira Cloud: Rich-Text-Editor
+## Aktivierter Rich-Text-Editor
 
-Jira Cloud benutzt fuer Beschreibung und Kommentar einen Rich-Text-Editor, kein
-reines Textfeld. Dort gibt es zwei sinnvolle Wege, zwischen denen die
-Einstellung *Rich-Text-Editor von Jira Cloud* umschaltet:
+Ist in Jira Server / Data Center der Rich-Text-Editor eingeschaltet
+(`jira.rte.enabled`), blendet Jira die Textarea aus und legt einen
+TinyMCE-Editor darueber. Ein solcher Editor wuerde `h1. Titel` woertlich
+anzeigen, statt es als Ueberschrift zu setzen. Dasselbe gilt fuer den Editor
+von Jira Cloud. Dafuer gibt es zwei Wege, die sich kombinieren lassen:
 
-* **Jira-Markup einfuegen** (Voreinstellung) – es wird fertiges Jira-Markup
-  eingefuegt. Richtig fuer Textfelder, den Wiki-Markup-Modus und Jira
-  Server/Data Center.
-* **Markdown durchreichen** – das Markdown wandert unveraendert in den Editor,
-  der es beim Einfuegen selbst in formatierten Text umsetzt. Wenn das Feld ein
-  echter Rich-Text-Editor ist, ist das oft das schoenere Ergebnis.
+### Formatiert einfuegen (Voreinstellung)
 
-In reine Textfelder (`textarea`) wird immer Jira-Markup geschrieben,
-unabhaengig von dieser Einstellung.
+Das Markdown wird zusaetzlich nach HTML uebersetzt und als solches eingefuegt.
+Der Editor uebernimmt es als echte Formatierung: aus `# Titel` wird eine
+Ueberschrift, aus `**fett**` fetter Text, aus einer Markdown-Tabelle eine
+Tabelle. Es muss nichts umgeschaltet werden.
+
+Technisch wird ein Einfuege-Vorgang mit `text/html` **und** `text/plain`
+ausgeloest. Editoren bevorzugen `text/html`; wo das nicht greift, liegt als
+Rueckfallebene weiterhin das Jira-Markup bereit. Geparst wird dabei nur einmal
+(`convertBoth`), beide Formate stammen aus demselben Durchlauf.
+
+Aus Sicherheitsgruenden erzeugt der HTML-Zweig nur eine feste Menge an Tags:
+alles andere wird maskiert, und Links mit `javascript:` und aehnlichen Zielen
+verlieren ihr Ziel. Rohes HTML aus dem Markdown wird nicht durchgereicht.
+
+### Vorher auf den Markup-Modus umschalten
+
+Alternativ (Einstellung *Vorher auf den Markup-Modus umschalten*) sucht die
+Erweiterung den Umschalter des Feldes, klickt ihn, wartet bis die Textarea da
+ist, und fuegt dann Jira-Markup ein.
+
+Den Umschalter erkennt sie an bekannten Selektoren und andernfalls an der
+Beschriftung (*Markup*, *Quelltext*, *Bearbeitungsmodus*, *Visual*, *Source*
+...), weil Jira ihn je nach Version anders benennt. Wird keiner gefunden oder
+greift der Klick nicht, faellt die Erweiterung auf das formatierte Einfuegen
+zurueck - es geht also nichts verloren.
+
+## Cursorposition
+
+Eingefuegt wird an der Stelle, an der die Schreibmarke zuletzt im Jira-Feld
+stand - auch dann, wenn der Text vorher im Panel der Erweiterung getippt wurde.
+Sobald man dort hineinklickt, verliert das Jira-Feld die Auswahl; deshalb wird
+sie waehrend des Tippens laufend mitgeschrieben (`selectionchange`, `mouseup`,
+`keyup`, `focusout`) und vor dem Einfuegen wiederhergestellt. Eine markierte
+Passage wird dabei ersetzt.
+
+Liegt der Fokus noch im Feld, gilt immer die aktuelle Auswahl - die gemerkte
+Position kommt nur zum Zug, wenn der Fokus das Feld verlassen hat. Im
+Rich-Text-Editor wird der Bereich innerhalb des Editor-Rahmens gemerkt; ist er
+durch zwischenzeitliches Umbauen ungueltig geworden, faellt die Erweiterung auf
+die aktuelle Position zurueck.
 
 ## Einstellungen
 
@@ -125,7 +165,9 @@ Erreichbar ueber das Popup („Einstellungen") oder
 
 * Automatik beim Einfuegen an/aus
 * Schwebenden Button und Bestaetigungen an/aus
-* Zielformat fuer den Rich-Text-Editor
+* Verhalten im Rich-Text-Editor: formatiert einfuegen, Jira-Markup als Text
+  einfuegen oder Markdown durchreichen; dazu das Umschalten auf den
+  Markup-Modus
 * Konvertierung: Codesprache uebernehmen, Hinweisbloecke als Panel, einfaches
   HTML uebersetzen, geschweifte Klammern maskieren
 * Eigene Jira-Adressen (Jira Server / Data Center)
@@ -161,18 +203,19 @@ jira-markdown-converter/
 ├── options/           Einstellungsseite
 ├── icons/
 └── test/
-    └── fixtures/      nachgebaute Jira-Seiten (Cloud und Server 9.x)
+    └── fixtures/      nachgebaute Jira-Seiten (Cloud, Server 9.x,
+                       Server mit Rich-Text-Editor)
 ```
 
 ### Tests
 
 ```bash
 npm test                  # alle Tests
-npm run test:unit         # Konverter (71 Faelle, ohne Abhaengigkeiten)
+npm run test:unit         # Konverter, Jira-Markup und HTML (ohne Abhaengigkeiten)
 npm run test:settings     # Hosterkennung, Voreinstellungen
 npm run test:package      # Manifest und Paketstruktur
 npm run test:integration  # echtes Chromium gegen nachgebaute Jira-Seiten
-                          # (Cloud-Editor und Jira Server 9.x)
+                          # (Cloud-Editor, Jira Server 9.x, Rich-Text-Editor)
 npm run lint
 ```
 
@@ -184,6 +227,16 @@ Test uebersprungen statt fehlzuschlagen.
 einzeln verwenden:
 
 ```js
-const { convert } = require('./src/converter.js');
-convert('# Titel\n\n- **a**');   // "h1. Titel\n\n* *a*"
+const { convert, convertToHtml, convertBoth } = require('./src/converter.js');
+
+convert('# Titel\n\n- **a**');
+// "h1. Titel\n\n* *a*"
+
+convertToHtml('# Titel\n\n- **a**');
+// "<h1>Titel</h1>\n\n<ul><li><strong>a</strong></li></ul>"
+
+convertBoth('# Titel');   // { jira: "h1. Titel", html: "<h1>Titel</h1>" }
 ```
+
+Beide Formate entstehen aus demselben Parser; die Ausgabe bestimmt ein
+Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`.
