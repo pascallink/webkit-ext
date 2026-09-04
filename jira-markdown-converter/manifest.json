@@ -17,8 +17,7 @@
     "https://*.atlassian.net/*"
   ],
   "optional_host_permissions": [
-    "http://*/*",
-    "https://*/*"
+    "*://*/*"
   ],
   "background": {
     "service_worker": "src/background.js"
