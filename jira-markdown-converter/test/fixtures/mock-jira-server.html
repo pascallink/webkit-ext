@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Mock Jira Server 9.12</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; }
+    .jira-wikifield { width: 640px; border: 1px solid #ccc; padding: 8px; margin-bottom: 24px; }
+    .tabs-menu { list-style: none; display: flex; gap: 12px; padding: 0; margin: 0 0 8px; }
+    .wiki-edit-toolbar { background: #f4f5f7; padding: 4px; margin-bottom: 4px; }
+    textarea.textarea { width: 100%; height: 140px; }
+    #searcher-query { width: 200px; }
+  </style>
+</head>
+<body>
+  <h1>Mock Jira Server 9.12.2</h1>
+
+  <!-- Schnellsuche: darf nie Ziel sein -->
+  <input id="searcher-query" name="searcher-query" placeholder="Suche">
+
+  <!-- Beschreibung im Bearbeiten-Dialog: Wiki-Feld mit Schreiben/Vorschau -->
+  <div class="field-group">
+    <label for="description">Beschreibung</label>
+    <div id="description-wiki-edit" class="jira-wikifield">
+      <div class="aui-tabs horizontal-tabs">
+        <ul class="tabs-menu">
+          <li class="menu-item active-tab"><a href="#description-wiki-edit-tab"><strong>Schreiben</strong></a></li>
+          <li class="menu-item"><a href="#description-preview-tab"><strong>Vorschau</strong></a></li>
+        </ul>
+        <div class="tabs-pane active-pane" id="description-wiki-edit-tab">
+          <div class="wiki-edit-toolbar aui-toolbar2">Formatierungsleiste</div>
+          <textarea class="textarea long-field" id="description" name="description" rows="8"></textarea>
+        </div>
+        <div class="tabs-pane" id="description-preview-tab" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kommentarfeld unter dem Vorgang -->
+  <div class="field-group">
+    <label for="comment">Kommentar</label>
+    <div id="comment-wiki-edit" class="jira-wikifield">
+      <div class="tabs-pane active-pane">
+        <div class="wiki-edit-toolbar aui-toolbar2">Formatierungsleiste</div>
+        <textarea class="textarea long-field" id="comment" name="comment" rows="6"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stelle, an der Jira beim Inline-Bearbeiten ein Feld nachtraeglich einhaengt -->
+  <div id="environment-slot"></div>
+
+  <script>
+    // Simuliert Jiras Inline-Bearbeitung: Feld wird spaeter erzeugt und
+    // spaeter wieder entfernt.
+    window.__addInlineField = function () {
+      var slot = document.getElementById('environment-slot');
+      slot.innerHTML =
+        '<div id="environment-wiki-edit" class="jira-wikifield">' +
+        '  <div class="tabs-pane active-pane">' +
+        '    <textarea class="textarea long-field" id="environment" name="environment" rows="6"></textarea>' +
+        '  </div>' +
+        '</div>';
+    };
+    window.__removeInlineField = function () {
+      document.getElementById('environment-slot').innerHTML = '';
+    };
+  </script>
+</body>
+</html>

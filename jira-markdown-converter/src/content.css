@@ -1,0 +1,339 @@
+/*
+ * Oberflaeche des Content-Scripts. Alle Klassen sind mit "jmd-" praefixiert,
+ * damit nichts mit Jiras eigenem CSS kollidiert.
+ */
+
+.jmd-fab,
+.jmd-panel,
+.jmd-toast,
+.jmd-fieldbar {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #172b4d;
+}
+
+.jmd-fab *,
+.jmd-panel *,
+.jmd-fieldbar * {
+  box-sizing: border-box;
+}
+
+/* Schwebender Button ------------------------------------------------- */
+
+.jmd-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483000;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: #0052cc;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(9, 30, 66, 0.28);
+}
+
+.jmd-fab:hover {
+  background: #0065ff;
+}
+
+.jmd-fab:focus-visible {
+  outline: 2px solid #4c9aff;
+  outline-offset: 2px;
+}
+
+/* Panel -------------------------------------------------------------- */
+
+.jmd-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 76px;
+  z-index: 2147483000;
+  display: none;
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  border: 1px solid #dfe1e6;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(9, 30, 66, 0.25);
+}
+
+.jmd-panel--open {
+  display: block;
+}
+
+.jmd-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #dfe1e6;
+  background: #f4f5f7;
+}
+
+.jmd-panel__title {
+  font-weight: 600;
+}
+
+.jmd-panel__body {
+  padding: 12px;
+}
+
+.jmd-icon-btn {
+  border: none;
+  background: transparent;
+  color: #42526e;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+
+.jmd-icon-btn:hover {
+  background: #ebecf0;
+}
+
+.jmd-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b778c;
+}
+
+.jmd-textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #dfe1e6;
+  border-radius: 3px;
+  background: #fafbfc;
+  color: #172b4d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.jmd-textarea:focus {
+  border-color: #4c9aff;
+  background: #fff;
+  outline: none;
+}
+
+.jmd-textarea--output {
+  background: #f4f5f7;
+  color: #253858;
+}
+
+.jmd-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.jmd-row--main {
+  margin-top: 10px;
+}
+
+.jmd-btn {
+  padding: 6px 10px;
+  border: 1px solid #dfe1e6;
+  border-radius: 3px;
+  background: #fff;
+  color: #42526e;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.jmd-btn:hover {
+  background: #f4f5f7;
+}
+
+.jmd-btn--primary {
+  border-color: #0052cc;
+  background: #0052cc;
+  color: #fff;
+  font-weight: 600;
+}
+
+.jmd-btn--primary:hover {
+  background: #0065ff;
+}
+
+.jmd-link-btn {
+  border: none;
+  background: transparent;
+  color: #0052cc;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.jmd-target {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: #f4f5f7;
+  font-size: 12px;
+  color: #42526e;
+}
+
+.jmd-target__text b {
+  font-weight: 600;
+}
+
+.jmd-options {
+  margin-top: 10px;
+  border-top: 1px solid #dfe1e6;
+  padding-top: 8px;
+}
+
+.jmd-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #42526e;
+  cursor: pointer;
+}
+
+.jmd-check--wide {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.jmd-select {
+  padding: 3px 6px;
+  border: 1px solid #dfe1e6;
+  border-radius: 3px;
+  background: #fff;
+  color: #42526e;
+  font-size: 12px;
+}
+
+/* Buttonleiste direkt am Feld ---------------------------------------- */
+
+.jmd-fieldbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 6px;
+}
+
+.jmd-fieldbar__btn {
+  padding: 4px 8px;
+  border: 1px solid #dfe1e6;
+  border-radius: 3px;
+  background: #f4f5f7;
+  color: #42526e;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.jmd-fieldbar__btn:hover {
+  background: #ebecf0;
+  border-color: #c1c7d0;
+}
+
+.jmd-fieldbar__btn--ghost {
+  background: transparent;
+}
+
+/* Feldauswahl -------------------------------------------------------- */
+
+.jmd-picking,
+.jmd-picking * {
+  cursor: crosshair !important;
+}
+
+.jmd-pick-candidate {
+  outline: 2px dashed #0052cc !important;
+  outline-offset: 2px !important;
+}
+
+/* Hinweis ------------------------------------------------------------ */
+
+.jmd-toast {
+  position: fixed;
+  right: 20px;
+  /* Ueber dem schwebenden Button, damit er nicht verdeckt wird. */
+  bottom: 76px;
+  z-index: 2147483001;
+  max-width: 320px;
+  padding: 10px 14px;
+  border-radius: 3px;
+  background: #172b4d;
+  color: #fff;
+  font-size: 12px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+
+.jmd-toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.jmd-toast--error {
+  background: #de350b;
+}
+
+/* Dunkles Jira-Theme ------------------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+  .jmd-panel {
+    background: #1d2125;
+    border-color: #333b43;
+    color: #c7d1db;
+  }
+
+  .jmd-panel__head {
+    background: #22272b;
+    border-color: #333b43;
+  }
+
+  .jmd-textarea {
+    background: #22272b;
+    border-color: #333b43;
+    color: #c7d1db;
+  }
+
+  .jmd-textarea--output {
+    background: #161a1d;
+  }
+
+  .jmd-btn,
+  .jmd-fieldbar__btn {
+    background: #22272b;
+    border-color: #333b43;
+    color: #c7d1db;
+  }
+
+  .jmd-target,
+  .jmd-options {
+    background: #22272b;
+    border-color: #333b43;
+    color: #c7d1db;
+  }
+}

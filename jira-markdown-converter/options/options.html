@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Markdown nach Jira - Einstellungen</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="page">
+    <h1>Markdown nach Jira</h1>
+    <p class="intro">
+      Wandelt Markdown aus Azure DevOps in Jira-Markup um und fuegt es direkt
+      in das Ticket ein.
+    </p>
+
+    <section class="card">
+      <h2>Verhalten</h2>
+
+      <label class="check">
+        <input type="checkbox" id="convertOnPaste">
+        <span>
+          Beim Einfuegen (Strg+V) in ein Jira-Feld automatisch umwandeln
+          <small>Erkennt Markdown und ersetzt es durch Jira-Markup. Strg+Z macht es rueckgaengig.</small>
+        </span>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" id="showFloatingButton">
+        <span>
+          Schwebenden Button unten rechts anzeigen
+          <small>Oeffnet das Eingabefeld mit Vorschau.</small>
+        </span>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" id="showToast">
+        <span>
+          Kurze Bestaetigung nach dem Umwandeln einblenden
+        </span>
+      </label>
+
+      <p class="hint">
+        In reine Textfelder wird immer Jira-Markup geschrieben. Damit Jira es
+        auch anzeigt, muss das Feld den <i>Wiki Style Renderer</i> verwenden
+        (Administration &rarr; Vorgaenge &rarr; Feldkonfigurationen).
+      </p>
+
+      <fieldset class="field">
+        <legend>Wenn das Feld ein Rich-Text-Editor ist</legend>
+
+        <p class="hint">
+          Betrifft Jira Cloud sowie Jira Server / Data Center mit aktiviertem
+          Rich-Text-Editor (<code>jira.rte.enabled</code>). Ein solcher Editor
+          zeigt Jira-Markup woertlich an, statt es zu formatieren.
+        </p>
+
+        <label class="check">
+          <input type="checkbox" id="switchToMarkup">
+          <span>
+            Vorher auf den Markup-Modus umschalten
+            <small>
+              Sucht den Umschalter des Feldes, klickt ihn und fuegt dann
+              Jira-Markup ein. Nur Jira Server / Data Center. Wird kein
+              Umschalter gefunden, greift die Einstellung darunter.
+            </small>
+          </span>
+        </label>
+
+        <label class="radio">
+          <input type="radio" name="richEditorFormat" value="html">
+          <span>
+            Formatiert einfuegen (empfohlen)
+            <small>Das Markdown wird in HTML uebersetzt und kommt fertig formatiert im Editor an, ohne Umschalten.</small>
+          </span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="richEditorFormat" value="jira">
+          <span>
+            Jira-Markup als Text einfuegen
+            <small>Sinnvoll, wenn das Feld doch im Markup-Modus laeuft.</small>
+          </span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="richEditorFormat" value="markdown">
+          <span>
+            Markdown durchreichen
+            <small>Der Editor formatiert beim Einfuegen selbst, soweit er das kann.</small>
+          </span>
+        </label>
+      </fieldset>
+    </section>
+
+    <section class="card">
+      <h2>Konvertierung</h2>
+
+      <label class="check">
+        <input type="checkbox" id="keepCodeLanguage">
+        <span>
+          Sprache von Codebloecken uebernehmen
+          <small>Aus ```java wird {code:java}.</small>
+        </span>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" id="convertAlerts">
+        <span>
+          Hinweisbloecke in Panels umwandeln
+          <small>Aus &gt; [!NOTE] wird {panel:title=Hinweis}.</small>
+        </span>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" id="convertHtml">
+        <span>
+          Einfaches HTML uebersetzen
+          <small>&lt;br&gt;, &lt;b&gt;, &lt;i&gt;, &lt;code&gt; ...</small>
+        </span>
+      </label>
+
+      <label class="check">
+        <input type="checkbox" id="escapeBraces">
+        <span>
+          Geschweifte Klammern maskieren
+          <small>Verhindert, dass Jira {text} als Makro liest.</small>
+        </span>
+      </label>
+    </section>
+
+    <section class="card">
+      <h2>Eigene Jira-Adressen (Server / Data Center)</h2>
+      <p class="hint">
+        Ohne Eintrag laeuft die Erweiterung nur auf <code>*.atlassian.net</code>
+        (Jira Cloud). Fuer <b>Jira Server oder Data Center</b> hier die Adresse
+        eintragen, eine pro Zeile – z. B. <code>jira.firma.de</code>. Port und Pfad
+        koennen mit angegeben werden, sie werden abgeschnitten; <code>http</code>
+        und <code>https</code> sind beide abgedeckt. Anschliessend auf
+        <i>Zugriff erlauben</i> klicken und die Jira-Seite neu laden.
+      </p>
+      <textarea id="extraHosts" class="area" rows="4" spellcheck="false"
+                placeholder="jira.firma.de"></textarea>
+      <div class="row">
+        <button type="button" class="btn" id="grant">Zugriff erlauben</button>
+        <span class="hint" id="hostStatus"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Ausprobieren</h2>
+      <div class="try">
+        <div>
+          <label class="label" for="tryInput">Markdown</label>
+          <textarea id="tryInput" class="area area--mono" rows="10" spellcheck="false"></textarea>
+        </div>
+        <div>
+          <label class="label" for="tryOutput">Jira-Markup</label>
+          <textarea id="tryOutput" class="area area--mono area--output" rows="10" spellcheck="false" readonly></textarea>
+        </div>
+      </div>
+    </section>
+
+    <p class="status" id="status" role="status"></p>
+  </main>
+
+  <script src="../src/settings.js"></script>
+  <script src="../src/converter.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
