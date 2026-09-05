@@ -28,13 +28,18 @@ Workflow. Voraussetzung:
   `package.json`, `package-lock.json`, `eslint.config.mjs` und `CLAUDE.md`
   werden beim Packen automatisch ausgeschlossen.
 
-Jedes Release traegt je Erweiterung zwei Dateien: `foo-1.3.0.zip` als
-archivierte Fassung und `foo.zip` mit identischem Inhalt unter festem Namen.
-Der dauerhafte Download-Link lautet deshalb
-`https://github.com/pascallink/webkit-ext/releases/latest/download/foo.zip` -
-er zeigt immer auf das neueste Release. Die frueher genutzte rollierende
-Release `latest` faellt weg; sie ist immutable und laesst sich nicht mehr
-aktualisieren.
+Jedes Release traegt je Erweiterung ein `foo-1.3.0.zip` - die Version steht
+im Dateinamen. Wer zusaetzlich einen Direktlink ohne Version braucht, setzt
+in seiner `package.json` `"stableZipAlias": true`; dann entsteht derselbe
+Inhalt noch einmal als `foo.zip` und
+`https://github.com/pascallink/webkit-ext/releases/latest/download/foo.zip`
+zeigt dauerhaft auf das neueste Release. Ohne das Flag gibt es nur die
+versionierte Datei, verlinkt wird dann die
+[Release-Uebersicht](https://github.com/pascallink/webkit-ext/releases/latest).
+
+`jira-markdown-converter` hat das Flag gesetzt, weil Links dieser Form bereits
+im Umlauf sind. Die frueher genutzte rollierende Release `latest` faellt weg;
+sie ist immutable und laesst sich nicht mehr aktualisieren.
 
 ## Versionierung
 

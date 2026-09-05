@@ -62,9 +62,12 @@ haelt alle drei synchron - nie einzeln von Hand anfassen.
   deren Dateien der Push beruehrt hat. Der Bump-Commit traegt `[skip ci]`.
   Hat der Push die Version selbst geaendert, bumpt nichts nach.
 - **Minor (`y`)**: von Hand auf `x.y.0` setzen, taggen, Release anlegen. Erst
-  das erzeugt ZIPs - `<projekt>-<version>.zip` plus eine namensgleiche Kopie
-  `<projekt>.zip`, damit `/releases/latest/download/<projekt>.zip` stabil
-  bleibt.
+  das erzeugt ZIPs, und zwar als `<projekt>-<version>.zip`.
+- **Direktlink ohne Version** ist die Ausnahme, nicht die Regel: nur Projekte
+  mit `"stableZipAlias": true` in ihrer `package.json` bekommen zusaetzlich
+  ein `<projekt>.zip`, das `/releases/latest/download/<projekt>.zip` bedient.
+  Gesetzt ist das aktuell nur bei `jira-markdown-converter`, dessen alte Links
+  im Umlauf sind. Neue Projekte verlinken die Release-Uebersicht.
 - Die rollierende Release `latest` ist Geschichte: sie ist immutable, ihre
   Assets lassen sich nicht mehr ersetzen. Deshalb `/releases/latest/download/`
   statt `/releases/download/latest/`.

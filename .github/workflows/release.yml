@@ -4,11 +4,10 @@ name: Release ZIPs
 # Minor-Version (x.y.0) veroeffentlicht wird. Patch-Releases und beliebige
 # Tags laufen bewusst ins Leere.
 #
-# Jedes Release bekommt zwei Dateien je Erweiterung:
-#   <ordner>-<version>.zip  - die archivierte, eindeutige Fassung
-#   <ordner>.zip            - gleicher Inhalt, fester Name, damit
-#                             /releases/latest/download/<ordner>.zip
-#                             dauerhaft auf die neueste Version zeigt.
+# Regel: je Erweiterung entsteht <ordner>-<version>.zip.
+# Ausnahme: wer in seiner package.json "stableZipAlias": true setzt, bekommt
+# denselben Inhalt zusaetzlich als <ordner>.zip. Nur damit funktioniert
+# /releases/latest/download/<ordner>.zip als dauerhafter Direktlink.
 # Die frueher genutzte rollierende Release "latest" faellt weg: sie ist
 # immutable, ihre Assets lassen sich nicht mehr ersetzen.
 
@@ -81,8 +80,15 @@ jobs:
             rm -f "$stage"/.eslintrc*
 
             (cd stage && zip -rq "$GITHUB_WORKSPACE/release/$dir-$version.zip" "$dir")
-            # Gleicher Inhalt unter festem Namen - haelt die README-Links stabil.
-            cp "release/$dir-$version.zip" "release/$dir.zip"
+
+            # Ausnahme: Erweiterungen mit "stableZipAlias": true in ihrer
+            # package.json bekommen denselben Inhalt zusaetzlich unter festem
+            # Namen. Nur das macht /releases/latest/download/<ordner>.zip
+            # moeglich - noetig, solange Links dieser Form im Umlauf sind.
+            if jq -e '.stableZipAlias == true' "$dir/package.json" >/dev/null 2>&1; then
+              cp "release/$dir-$version.zip" "release/$dir.zip"
+              echo "$dir: Alias $dir.zip mitgebaut."
+            fi
 
             echo "::endgroup::"
           done
