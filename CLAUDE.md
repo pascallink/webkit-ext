@@ -11,7 +11,7 @@ Projektdetails stehen dort.
 | Pfad | Scope | Zweck |
 | --- | --- | --- |
 | `jira-markdown-converter/` | `jira` | PowerEdit for Jira - Markdown, Vorlagen und Codebloecke in der Ticket-Bearbeitung. |
-| `.github/workflows/` | `ci` | Lint + Test je Projekt, ZIPs in die Release `latest`; Commit-Pruefung. |
+| `.github/workflows/` | `ci` | Lint + Test je Projekt, ZIPs pro Release; Commit-Pruefung. |
 | Root | `repo` | Metadaten und commitlint, kein Produktivcode. |
 
 ## Workspace-Befehle
@@ -35,7 +35,9 @@ Projektdetails stehen dort.
 
 | Workflow | Trigger | Zweck |
 | --- | --- | --- |
-| `build-extension.yml` | Push auf `main`, jeder PR | Lint, Test, ZIP je Projekt; auf `main` zusaetzlich Release `latest` |
+| `build-extension.yml` | Push auf `main`, jeder PR | Install, Lint, Test je Projekt - **keine ZIPs** |
+| `version-bump.yml` | Push auf `main` | Hebt die Patch-Stelle beruehrter Projekte an und schreibt sie zurueck |
+| `release.yml` | Release `published` | Baut die ZIPs, aber nur bei einer neuen Minor-Version `x.y.0` |
 | `commitlint.yml` | Jeder PR | Prueft die Commit-Konvention |
 | `ai-build-checker.yml` | `workflow_run` nach rotem `Build Extensions` | Baut nichts selbst: analysiert das Log des fehlgeschlagenen Jobs und postet es als PR-Kommentar |
 | `haiku-pr-summary.yml` | PR `opened`/`reopened`/`ready_for_review` | Schreibt eine generierte Zusammenfassung in den PR-Body |
@@ -50,13 +52,32 @@ wenn sie auf `main` liegen (GitHub nimmt bei `workflow_run` immer die Version
 des Default-Branch), und der Lauf traegt ein Token mit Schreibrecht, weshalb
 der Kommentar auch bei Fork-PRs funktioniert.
 
+### Versionen und Releases
+
+Die Version steht je Projekt doppelt: `manifest.json` **und** `package.json`
+(plus `package-lock.json`, dort an zwei Stellen). `scripts/bump-patch.js`
+haelt alle drei synchron - nie einzeln von Hand anfassen.
+
+- **Patch (`z`)**: automatisch nach jedem Merge auf `main`, nur fuer Projekte,
+  deren Dateien der Push beruehrt hat. Der Bump-Commit traegt `[skip ci]`.
+  Hat der Push die Version selbst geaendert, bumpt nichts nach.
+- **Minor (`y`)**: von Hand auf `x.y.0` setzen, taggen, Release anlegen. Erst
+  das erzeugt ZIPs - `<projekt>-<version>.zip` plus eine namensgleiche Kopie
+  `<projekt>.zip`, damit `/releases/latest/download/<projekt>.zip` stabil
+  bleibt.
+- Die rollierende Release `latest` ist Geschichte: sie ist immutable, ihre
+  Assets lassen sich nicht mehr ersetzen. Deshalb `/releases/latest/download/`
+  statt `/releases/download/latest/`.
+
 ### Action-Versionen
 
 Der Node-20-Runtime entkommt man nicht pauschal ueber eine Major-Nummer:
 `upload-artifact@v5` laeuft noch auf Node 20, `checkout@v5` und
 `setup-node@v5` nicht. Massgeblich ist `runs.using` in der `action.yml` des
 Tags; die Warnung am Ende des Job-Logs nennt die Nachzuegler namentlich.
-Stand jetzt: `checkout@v5`, `setup-node@v5`, `upload-artifact@v6`.
+Stand jetzt in Benutzung: `checkout@v5`, `setup-node@v5`,
+`softprops/action-gh-release@v2` (laeuft bereits auf Node 24). Fuer
+`upload-artifact` waere `v6` der erste taugliche Major - `v5` nicht.
 
 ## Repo-Regeln
 

@@ -248,7 +248,7 @@ Auf der Einstellungsseite sitzt derselbe Schalter im Abschnitt *Verhalten*:
 
 Die Erweiterung ist nicht signiert und wird als entpacktes Paket geladen:
 
-1. [**jira-markdown-converter.zip** herunterladen](https://github.com/pascallink/webkit-ext/releases/download/latest/jira-markdown-converter.zip)
+1. [**jira-markdown-converter.zip** herunterladen](https://github.com/pascallink/webkit-ext/releases/latest/download/jira-markdown-converter.zip)
    (immer die neueste, per GitHub Actions gebaute Version) und entpacken.
 2. `chrome://extensions` oeffnen (Edge: `edge://extensions`).
 3. **Entwicklermodus** einschalten.
