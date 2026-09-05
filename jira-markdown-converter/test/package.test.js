@@ -183,6 +183,8 @@ test('Code einfuegen ist an Feldleiste und Panel vorhanden', function () {
   assert.ok(/openCodeDialog\(field\)/.test(content), 'Feldleiste hat keinen Knopf fuer Code');
   var dialog = fs.readFileSync(abs('src/codedialog.js'), 'utf8');
   assert.ok(/codeLanguages/.test(dialog), 'Sprachliste wird nicht aus dem Konverter geholt');
+  assert.ok(/data-code-action="copy-jira"/.test(dialog), 'kein Knopf zum Kopieren des Markups');
+  assert.ok(/data-code-action="copy-html"/.test(dialog), 'kein Knopf zum formatierten Kopieren');
   assert.ok(!/actionscript/.test(dialog), 'Sprachliste ist im Dialog dupliziert');
 });
 
