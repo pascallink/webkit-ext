@@ -31,10 +31,12 @@
         "src/settings.js",
         "src/converter.js",
         "src/editors.js",
+        "src/codedialog.js",
         "src/content.js"
       ],
       "css": [
-        "src/content.css"
+        "src/content.css",
+        "src/codedialog.css"
       ],
       "run_at": "document_idle",
       "all_frames": true

@@ -63,6 +63,8 @@ test('Content-Script laedt Abhaengigkeiten in richtiger Reihenfolge', function (
   assert.ok(js.indexOf('src/settings.js') < js.indexOf('src/content.js'), 'settings vor content');
   assert.ok(js.indexOf('src/converter.js') < js.indexOf('src/content.js'), 'converter vor content');
   assert.ok(js.indexOf('src/editors.js') < js.indexOf('src/content.js'), 'editors vor content');
+  assert.ok(js.indexOf('src/codedialog.js') < js.indexOf('src/content.js'), 'codedialog vor content');
+  assert.ok(js.indexOf('src/converter.js') < js.indexOf('src/codedialog.js'), 'converter vor codedialog');
 });
 
 test('Popup und Optionsseite vorhanden', function () {
@@ -137,17 +139,20 @@ test('Content-Dateien im Service-Worker stimmen mit dem Manifest ueberein', func
 
 console.log('\nQuellcode');
 test('keine console-Ausgaben im Auslieferungscode', function () {
-  ['src/content.js', 'src/editors.js', 'src/converter.js', 'src/settings.js', 'src/background.js'].forEach(function (file) {
+  ['src/content.js', 'src/editors.js', 'src/converter.js', 'src/codedialog.js', 'src/settings.js', 'src/background.js'].forEach(function (file) {
     var source = fs.readFileSync(abs(file), 'utf8');
     assert.ok(!/console\.(log|debug|info)\(/.test(source), file + ' enthaelt console-Ausgaben');
   });
 });
 
 test('kein innerHTML mit Fremddaten', function () {
-  var source = fs.readFileSync(abs('src/content.js'), 'utf8');
-  var matches = source.match(/\.innerHTML\s*=\s*([^;]+);/g) || [];
-  matches.forEach(function (line) {
-    assert.ok(/PANEL_HTML/.test(line), 'innerHTML nur mit fester Vorlage erlaubt: ' + line);
+  var templates = { 'src/content.js': /PANEL_HTML/, 'src/codedialog.js': /DIALOG_HTML/ };
+  Object.keys(templates).forEach(function (file) {
+    var source = fs.readFileSync(abs(file), 'utf8');
+    var matches = source.match(/\.innerHTML\s*=\s*([^;]+);/g) || [];
+    matches.forEach(function (line) {
+      assert.ok(templates[file].test(line), file + ': innerHTML nur mit fester Vorlage erlaubt: ' + line);
+    });
   });
 });
 
@@ -170,6 +175,15 @@ test('Schalter sitzt auch am Erweiterungssymbol', function () {
   assert.ok(/type:\s*'checkbox'/.test(source), 'Eintrag ist kein Haken-Eintrag');
   assert.ok(/setBadgeText/.test(source), 'kein Badge am Symbol');
   assert.ok(/setBadgeBackgroundColor/.test(source), 'Badge ohne Farbe');
+});
+
+test('Code einfuegen ist an Feldleiste und Panel vorhanden', function () {
+  var content = fs.readFileSync(abs('src/content.js'), 'utf8');
+  assert.ok(/data-action="code"/.test(content), 'Panel hat keinen Knopf fuer Code');
+  assert.ok(/openCodeDialog\(field\)/.test(content), 'Feldleiste hat keinen Knopf fuer Code');
+  var dialog = fs.readFileSync(abs('src/codedialog.js'), 'utf8');
+  assert.ok(/codeLanguages/.test(dialog), 'Sprachliste wird nicht aus dem Konverter geholt');
+  assert.ok(!/actionscript/.test(dialog), 'Sprachliste ist im Dialog dupliziert');
 });
 
 console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');
