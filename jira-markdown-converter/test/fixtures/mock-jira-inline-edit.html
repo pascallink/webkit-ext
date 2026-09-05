@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Mock Jira Server 9.12 mit Inline-Bearbeitung</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; }
+    .jira-wikifield { width: 640px; border: 1px solid #ccc; padding: 8px; }
+    .wiki-edit-toolbar { background: #f4f5f7; padding: 4px; margin-bottom: 4px; }
+    textarea.textarea { width: 100%; height: 140px; }
+    #description-val { width: 640px; min-height: 60px; border: 1px dashed #ccc; padding: 8px; }
+    #daneben { margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Mock Jira mit Inline-Bearbeitung</h1>
+
+  <!--
+    Nachbau des Inline-Bearbeitens von Jira Server: die Leseansicht wird beim
+    Klick zum Wiki-Feld, und ein Handler am Dokument (Bubble-Phase, so wie es
+    jQuery macht) beendet das Bearbeiten wieder, sobald man daneben klickt
+    oder Escape drueckt.
+  -->
+  <div class="field-group" id="description-field">
+    <label for="description-val">Beschreibung</label>
+    <div id="description-val" tabindex="0">Klick zum Bearbeiten</div>
+  </div>
+
+  <p id="daneben">Irgendwo daneben klicken.</p>
+  <button type="button" id="fremder-knopf">Fremder Knopf</button>
+
+  <script>
+    var field = document.getElementById('description-field');
+    var stored = 'Beschreibung aus Jira';
+
+    window.__closed = [];   // wie oft und wodurch Jira das Feld geschlossen hat
+    window.__saved = null;
+    window.__fremdeKlicks = 0;
+
+    document.getElementById('fremder-knopf').addEventListener('click', function () {
+      window.__fremdeKlicks++;
+    });
+
+    function readView() {
+      field.innerHTML = '<label for="description-val">Beschreibung</label>' +
+        '<div id="description-val" tabindex="0"></div>';
+      document.getElementById('description-val').textContent = stored;
+    }
+
+    function editView() {
+      field.innerHTML = [
+        '<label for="description">Beschreibung</label>',
+        '<div id="description-wiki-edit" class="jira-wikifield">',
+        '  <div class="wiki-edit-toolbar aui-toolbar2">Formatierungsleiste</div>',
+        '  <textarea class="textarea long-field" id="description" name="description" rows="8"></textarea>',
+        '  <button type="button" id="speichern">Speichern</button>',
+        '  <button type="button" id="abbrechen">Abbrechen</button>',
+        '</div>'
+      ].join('');
+      var textarea = document.getElementById('description');
+      textarea.value = stored;
+      textarea.focus();
+      document.getElementById('speichern').addEventListener('click', function () {
+        stored = textarea.value;
+        window.__saved = stored;
+        readView();
+      });
+      document.getElementById('abbrechen').addEventListener('click', function () {
+        close('abbrechen');
+      });
+    }
+
+    function editing() {
+      return !!document.getElementById('description-wiki-edit');
+    }
+
+    /** Jira verwirft beim Schliessen, was im Feld stand. */
+    function close(reason) {
+      if (!editing()) return;
+      window.__closed.push(reason);
+      readView();
+    }
+
+    document.addEventListener('click', function (event) {
+      if (!editing()) {
+        if (event.target.id === 'description-val') editView();
+        return;
+      }
+      var box = document.getElementById('description-wiki-edit');
+      if (!box.contains(event.target)) close('klick-daneben');
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') close('escape');
+    });
+
+    readView();
+  </script>
+</body>
+</html>

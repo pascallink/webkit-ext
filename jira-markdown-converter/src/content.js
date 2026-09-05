@@ -12,6 +12,7 @@
   var Editors = window.JiraEditors;
   var Settings = window.JiraMdSettings;
   var CodeDialog = window.JiraCodeDialog;
+  var EditLock = window.JiraEditLock;
 
   var settings = Settings.DEFAULTS;
   var panel = null;
@@ -959,11 +960,16 @@
       openPanel();
     });
 
+    // Schloss: haelt das Feld offen, wenn Jira es sonst beim Klick daneben
+    // schliessen wuerde.
+    var lockButton = EditLock.createButton(field);
+
     bar.appendChild(convertButton);
     bar.appendChild(pasteButton);
     bar.appendChild(codeButton);
     bar.appendChild(templateButton);
     bar.appendChild(panelButton);
+    bar.appendChild(lockButton);
     parent.insertBefore(bar, host);
   }
 
@@ -1107,6 +1113,7 @@
       try {
         attachFieldButtons();
         watchRichTextFrames();
+        EditLock.cleanup();
         if (panel && panel.classList.contains('jmd-panel--open')) {
           updateTargetLabel();
         }
@@ -1120,7 +1127,10 @@
     document.addEventListener('paste', onPaste, true);
     document.addEventListener('focusin', function (event) {
       var field = Editors.editableFrom(event.target);
-      if (field) target = field;
+      if (!field) return;
+      target = field;
+      // Sobald im Feld gearbeitet wird, friert der Bearbeitungsmodus ein.
+      EditLock.lock(field);
     }, true);
 
     // Cursorposition festhalten, solange das Feld sie noch kennt. Sobald der
@@ -1146,6 +1156,7 @@
 
     Settings.onChange(function (next) {
       settings = next;
+      EditLock.configure({ enabled: settings.freezeEditMode });
       if (settings.showFloatingButton) {
         createFab();
       } else {
@@ -1159,6 +1170,7 @@
 
   Settings.load().then(function (loaded) {
     settings = loaded;
+    EditLock.configure({ enabled: settings.freezeEditMode });
     if (document.body) {
       start();
     } else {

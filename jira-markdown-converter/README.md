@@ -20,6 +20,8 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    * *Panel aus Vorlage* – stellt vier farbige Panels zur Auswahl und fuegt
      das gewaehlte an der Cursorposition ein.
    * *Editor oeffnen* – oeffnet das Eingabefeld mit Vorschau.
+   * *Schloss* – haelt das bearbeitete Feld offen, statt es von Jira beim
+     Klick daneben schliessen zu lassen.
 2. **Eingabefeld mit Vorschau** (schwebender `MD`-Button unten rechts) –
    links Markdown einfuegen, rechts das fertige Jira-Markup sehen, dann
    *Ins Ticket einfuegen*, *Feld ersetzen*, *Markup kopieren* oder
@@ -148,6 +150,38 @@ Titel, Platzhalter und Farben stehen an einer Stelle – `PANEL_TEMPLATES` in
 `src/settings.js`. Die Ausgabe erzeugen `panelMarkup` und `panelHtml` in
 `src/converter.js` aus derselben Vorlage, damit Markup- und HTML-Zweig nicht
 auseinanderlaufen.
+
+## Bearbeitung einfrieren
+
+Jira beendet das Inline-Bearbeiten, sobald man neben das Feld klickt. Was im
+Feld stand, ist danach entweder weg oder liegt ungewollt als Entwurf am
+Vorgang. Deshalb friert die Erweiterung den Bearbeitungsmodus ein, sobald man
+in einem Beschreibungs-, Kommentar- oder Umgebungsfeld zu arbeiten beginnt:
+das Schloss in der Buttonleiste ist zu, und das Feld bleibt offen.
+
+| Schloss zu (eingefroren) | Schloss offen (Jira wie gewohnt) |
+| --- | --- |
+| ![Buttonleiste mit geschlossenem Schloss und der Beschriftung "Bearbeitung eingefroren"](docs/images/schloss-zu.png) | ![Dieselbe Leiste mit geoeffnetem Schloss und der Beschriftung "Bearbeitung einfrieren"](docs/images/schloss-auf.png) |
+
+Solange das Schloss zu ist:
+
+* Ein Klick neben das Feld schliesst es nicht mehr – und die Seite reagiert
+  daneben auch sonst nicht auf Klicks. Genau das ist das Einfrieren: der
+  Vorgang bleibt so stehen, wie er ist.
+* `Escape` bricht das Bearbeiten nicht ab.
+* Wer die Seite verlaesst oder neu laedt, wird vom Browser gefragt, ob er das
+  wirklich will.
+* *Speichern* und *Abbrechen* im Feld selbst funktionieren normal – sie
+  gehoeren zum Feld, nicht zu „daneben". Danach gibt das Feld seine Sperre
+  von selbst wieder ab.
+
+Ein Klick auf das Schloss oeffnet es: dann gilt wieder Jiras eigenes
+Verhalten, und dieses Feld friert auch nicht von selbst wieder ein. Beim
+naechsten Bearbeiten faengt alles von vorn an.
+
+Abschalten laesst sich das Ganze in den Einstellungen unter *Verhalten*
+(*Bearbeitetes Feld offen halten*); dann verschwindet auch das Schloss aus
+der Buttonleiste.
 
 ## Automatik ein- und ausschalten
 
@@ -318,6 +352,7 @@ Erreichbar ueber das Popup („Einstellungen") oder
 
 * Automatik beim Einfuegen an/aus (derselbe Schalter wie im Popup)
 * Schwebenden Button und Bestaetigungen an/aus
+* Bearbeitetes Feld offen halten (das Schloss an der Buttonleiste)
 * Verhalten im Rich-Text-Editor: formatiert einfuegen, Jira-Markup als Text
   einfuegen oder Markdown durchreichen; dazu das Umschalten auf den
   Markup-Modus
@@ -349,6 +384,7 @@ jira-markdown-converter/
 │   ├── converter.js   Markdown -> Jira (ohne DOM, auch in Node nutzbar)
 │   ├── editors.js     Jira-Felder finden, lesen, beschreiben
 │   ├── codedialog.js  Dialog "Code einfuegen"
+│   ├── editlock.js    Bearbeitungsmodus einfrieren (Schloss)
 │   ├── content.js     Bedienelemente, Einfuege-Automatik
 │   ├── settings.js    gemeinsame Einstellungen
 │   ├── background.js  Tastenkuerzel, Kontextmenue, eigene Hosts
@@ -359,7 +395,7 @@ jira-markdown-converter/
 ├── icons/
 └── test/
     └── fixtures/      nachgebaute Jira-Seiten (Cloud, Server 9.x,
-                       Server mit Rich-Text-Editor)
+                       Server mit Rich-Text-Editor, Inline-Bearbeitung)
 ```
 
 ### Tests

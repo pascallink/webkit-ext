@@ -30,6 +30,9 @@
     showFloatingButton: true,
     // Kurze Bestaetigung nach einer Konvertierung einblenden.
     showToast: true,
+    // Bearbeitetes Jira-Feld offen halten, statt es von Jira beim Klick
+    // daneben schliessen zu lassen (Schloss in der Buttonleiste).
+    freezeEditMode: true,
     // Konverter-Optionen
     escapeBraces: true,
     keepCodeLanguage: true,

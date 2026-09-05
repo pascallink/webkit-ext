@@ -9,6 +9,7 @@
     'switchToMarkup',
     'showFloatingButton',
     'showToast',
+    'freezeEditMode',
     'keepCodeLanguage',
     'convertAlerts',
     'convertHtml',
