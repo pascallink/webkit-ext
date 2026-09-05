@@ -300,6 +300,11 @@ sie waehrend des Tippens laufend mitgeschrieben (`selectionchange`, `mouseup`,
 `keyup`, `focusout`) und vor dem Einfuegen wiederhergestellt. Eine markierte
 Passage wird dabei ersetzt.
 
+Blockmakros wie `{code}` und `{panel}` deutet Jira nur am Zeilenanfang. Steht
+der Cursor mitten in einer Zeile, ruecken sie darum auf eine eigene Zeile, und
+der Text dahinter beginnt ebenfalls neu. Fliesstext wird weiterhin genau an der
+Cursorposition eingesetzt.
+
 Liegt der Fokus noch im Feld, gilt immer die aktuelle Auswahl - die gemerkte
 Position kommt nur zum Zug, wenn der Fokus das Feld verlassen hat. Im
 Rich-Text-Editor wird der Bereich innerhalb des Editor-Rahmens gemerkt; ist er

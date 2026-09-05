@@ -519,11 +519,25 @@
 
     var before = value.slice(0, start);
     var after = value.slice(end);
-    var next = before + text + after;
+    var payload = mode === 'block' ? asOwnLines(text, before, after) : text;
+    var next = before + payload + after;
     setTextareaValue(element, next);
-    var caret = start + text.length;
+    var caret = start + payload.length;
     element.setSelectionRange(caret, caret);
     return true;
+  }
+
+  /**
+   * Blockmakros ({code}, {panel} ...) deutet Jira nur, wenn sie am
+   * Zeilenanfang stehen und die naechste Zeile nicht angehaengt ist. Steht
+   * links vom Cursor schon Text, kommt darum ein Zeilenumbruch davor; folgt
+   * rechts direkt Text, einer dahinter.
+   */
+  function asOwnLines(text, before, after) {
+    var out = text;
+    if (before && !/\n$/.test(before)) out = '\n' + out;
+    if (after && !/^\n/.test(after)) out += '\n';
+    return out;
   }
 
   /**
@@ -632,7 +646,8 @@
 
   /**
    * Schreibt Text in ein beliebiges Zielfeld.
-   * mode: 'insert' (an der Cursorposition) oder 'replace' (Feldinhalt ersetzen).
+   * mode: 'insert' (an der Cursorposition), 'block' (wie 'insert', aber auf
+   * eigenen Zeilen) oder 'replace' (Feldinhalt ersetzen).
    */
   function insert(element, text, mode) {
     return insertFormatted(element, text, null, mode);
@@ -641,7 +656,8 @@
   /**
    * Schreibt in ein Zielfeld. Ist html gesetzt und die Schreibflaeche ein
    * Rich-Text-Editor, kommt der Text dort formatiert an statt als Markup.
-   * mode: 'insert' (an der Cursorposition) oder 'replace' (Feld ersetzen).
+   * mode: 'insert' (an der Cursorposition), 'block' (Blockmakro auf eigenen
+   * Zeilen) oder 'replace' (Feld ersetzen).
    */
   function insertFormatted(element, text, html, mode) {
     if (!element || (!text && !html)) return false;

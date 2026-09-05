@@ -442,9 +442,11 @@
 
     return switching.then(function (switched) {
       var markupOnly = switched || isPlainField(field) || settings.richEditorFormat === 'jira';
+      // 'block': {code} muss am Zeilenanfang stehen, sonst zeigt Jira es
+      // woertlich an.
       var ok = markupOnly
-        ? Editors.insert(field, result.jira, 'insert')
-        : Editors.insertFormatted(field, result.jira, result.html, 'insert');
+        ? Editors.insert(field, result.jira, 'block')
+        : Editors.insertFormatted(field, result.jira, result.html, 'block');
       toast(ok ? 'Codeblock eingefuegt.' : 'Einfuegen nicht moeglich - bitte Text kopieren.', !ok);
       return ok;
     });
@@ -725,7 +727,8 @@
     switching.then(function () {
       var markup = Converter.panelMarkup(template);
       var html = isPlainField(field) ? null : Converter.panelHtml(template);
-      if (!Editors.insertFormatted(field, markup, html, 'insert')) {
+      // 'block': auch {panel} deutet Jira nur am Zeilenanfang.
+      if (!Editors.insertFormatted(field, markup, html, 'block')) {
         toast('Einfuegen nicht moeglich.', true);
         return;
       }

@@ -135,6 +135,16 @@ async function stubClipboard(page) {
   });
 }
 
+/** Setzt den Cursor an eine feste Stelle im Beschreibungsfeld. */
+async function setCaret(page, index) {
+  await page.evaluate(function (at) {
+    var element = document.querySelector('#description');
+    element.focus();
+    element.setSelectionRange(at, at);
+    document.dispatchEvent(new Event('selectionchange'));
+  }, index);
+}
+
 async function run() {
   var browser = await chromium.launch();
 
@@ -1151,6 +1161,80 @@ async function run() {
     }, null, { timeout: 4000 });
     var pastes = await page.evaluate(function () { return window.__pastes; });
     assert.deepStrictEqual(pastes, [], 'es haette nichts im Rich-Text-Editor landen duerfen');
+    await page.close();
+  });
+
+  console.log('\nBlockmakros am Zeilenanfang');
+  await test('Codeblock hinter Text beginnt auf einer neuen Zeile', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.fill('#description', 'Fehlerbild:');
+    await setCaret(page, 11);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.selectOption('#jmd-code-language', 'java');
+    await page.fill('#jmd-code-input', 'int a = 1;');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    assert.strictEqual(await page.inputValue('#description'),
+      'Fehlerbild:\n{code:java}\nint a = 1;\n{code}');
+    await page.close();
+  });
+
+  await test('folgt Text, endet der Codeblock mit einem Zeilenumbruch', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.fill('#description', 'davor danach');
+    await setCaret(page, 6);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    assert.strictEqual(await page.inputValue('#description'),
+      'davor \n{code}\nx\n{code}\ndanach');
+    await page.close();
+  });
+
+  await test('am Zeilenanfang kommt kein zusaetzlicher Umbruch dazu', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.fill('#description', 'oben\n\nunten');
+    await setCaret(page, 5);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    assert.strictEqual(await page.inputValue('#description'), 'oben\n{code}\nx\n{code}\nunten');
+    await page.close();
+  });
+
+  await test('Panel-Vorlage hinter Text beginnt auf einer neuen Zeile', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.fill('#description', 'Achtung:');
+    await setCaret(page, 8);
+    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.click('.jmd-panelmenu__item[data-template="warning"]');
+    assert.strictEqual(await page.inputValue('#description'),
+      'Achtung:\n{panel:title=Warnung|borderColor=#de350b|bgColor=#ffebe6}\n' +
+      'Hier die Warnung eintragen.\n{panel}');
+    await page.close();
+  });
+
+  await test('der Platzhalter bleibt trotz Umbruch markiert', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.fill('#description', 'Achtung:');
+    await setCaret(page, 8);
+    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.click('.jmd-panelmenu__item[data-template="info"]');
+    var selected = await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      return element.value.slice(element.selectionStart, element.selectionEnd);
+    });
+    assert.strictEqual(selected, 'Hier die Information eintragen.');
+    await page.close();
+  });
+
+  await test('umgewandeltes Markdown wird weiterhin an Ort und Stelle eingesetzt', async function () {
+    // Gegenprobe: nur Blockmakros bekommen eigene Zeilen, das Einfuegen von
+    // Fliesstext bleibt unveraendert.
+    var page = await newPage(browser, null, SERVER);
+    await page.fill('#description', 'AB');
+    await setCaret(page, 1);
+    await pasteInto(page, '#description', '**x**');
+    assert.strictEqual(await page.inputValue('#description'), 'A*x*B');
     await page.close();
   });
 
