@@ -12,6 +12,9 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
 
 1. **Buttonleiste direkt am Feld** – ueber jedem Beschreibungs- und
    Kommentarfeld:
+   * *Automatik ist an / aus* – Schalter fuer die Einfuege-Automatik, mit
+     Punkt in Gruen bzw. Grau. Dieselbe Einstellung wie im Popup, im Panel und
+     am Symbol; ein Umschalten schlaegt sofort ueberall durch.
    * *Umwandeln* – wandelt den Feldinhalt (oder die Auswahl darin) an Ort und
      Stelle um.
    * *Einfuegen* – holt das Markdown aus der Zwischenablage, konvertiert es
@@ -215,6 +218,7 @@ ueberall dort abschalten, wo man gerade ist:
 | Rechtsklick auf das Symbol | Haken-Eintrag *Beim Einfuegen automatisch umwandeln* |
 | Popup (Klick auf das Symbol) | Schalter ganz oben |
 | Panel auf der Jira-Seite | derselbe Schalter ganz oben |
+| Buttonleiste am Feld | Schalter ganz links: Punkt gruen bzw. grau, daneben *Automatik ist an* / *aus* |
 | Schwebender Button | kleiner Punkt: gruen an, grau aus |
 | Einstellungsseite | Schalter im Abschnitt *Verhalten* |
 
@@ -224,8 +228,10 @@ Buttonleiste am Feld, das Panel, das Kontextmenue und das Tastenkuerzel
 wandeln weiterhin auf Zuruf um.
 
 Der Schalter ist eine echte Checkbox unter der Optik: mit Tabulator erreichbar,
-mit Leertaste schaltbar. Beschriftung und Farbe wechseln gemeinsam, der Zustand
-haengt also nicht allein an der Farbe.
+mit Leertaste schaltbar. In der Buttonleiste am Feld ist es ein Knopf, der
+seinen Zustand ueber `aria-pressed` meldet – ebenso mit Tabulator erreichbar.
+Beschriftung und Farbe wechseln ueberall gemeinsam, der Zustand haengt also
+nicht allein an der Farbe.
 
 | Im Popup | Im Panel auf der Jira-Seite |
 | --- | --- |
@@ -377,7 +383,8 @@ die aktuelle Position zurueck.
 Erreichbar ueber das Popup („Einstellungen") oder
 `chrome://extensions` → *Details* → *Erweiterungsoptionen*:
 
-* Automatik beim Einfuegen an/aus (derselbe Schalter wie im Popup)
+* Automatik beim Einfuegen an/aus (derselbe Schalter wie im Popup, im Panel
+  und in der Buttonleiste am Feld)
 * Schwebenden Button und Bestaetigungen an/aus
 * Bearbeitetes Feld automatisch offen halten (das Schloss an der Buttonleiste)
 * Verhalten im Rich-Text-Editor: formatiert einfuegen, Jira-Markup als Text

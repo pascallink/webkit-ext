@@ -739,6 +739,84 @@ async function run() {
     await page.close();
   });
 
+  /** Zustand aller Schalter, die in Leisten am Feld haengen. */
+  function barToggles(page) {
+    return page.evaluate(function () {
+      var buttons = document.querySelectorAll('.jmd-fieldbar__btn--auto');
+      return Array.prototype.map.call(buttons, function (button) {
+        return {
+          label: button.querySelector('.jmd-fieldbar__caption').textContent,
+          color: button.querySelector('.jmd-fieldbar__dot').style.background,
+          pressed: button.getAttribute('aria-pressed')
+        };
+      });
+    });
+  }
+
+  await test('Schalter sitzt auch in der Leiste am Feld', async function () {
+    var page = await newPage(browser, null, SERVER);
+    var view = await barToggles(page);
+    assert.ok(view.length >= 2, 'nicht an jeder Leiste ein Schalter: ' + view.length);
+    view.forEach(function (button) {
+      assert.ok(/an$/.test(button.label), 'Beschriftung: ' + button.label);
+      assert.ok(/54, 179, 126/.test(button.color), 'aktiv nicht gruen: ' + button.color);
+      assert.strictEqual(button.pressed, 'true');
+    });
+    await page.close();
+  });
+
+  await test('Umschalten in der Leiste zieht alle Leisten nach', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.locator('.jmd-fieldbar__btn--auto').first().click();
+    var view = await barToggles(page);
+    view.forEach(function (button) {
+      assert.ok(/aus$/.test(button.label), 'Beschriftung: ' + button.label);
+      assert.ok(/137, 147, 164/.test(button.color), 'inaktiv nicht grau: ' + button.color);
+      assert.strictEqual(button.pressed, 'false');
+    });
+    assert.strictEqual(await page.evaluate(function () { return window.__settings.convertOnPaste; }),
+      false, 'Einstellung wurde nicht gespeichert');
+    await page.close();
+  });
+
+  await test('in der Leiste ausgeschaltet wird beim Einfuegen nichts umgewandelt', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.locator('.jmd-fieldbar__btn--auto').first().click();
+    await pasteInto(page, '#description', '# Titel');
+    assert.strictEqual(await page.inputValue('#description'), '',
+      'das Einfuegen wurde weiterhin abgefangen');
+
+    // Gegenprobe: wieder an, und die Automatik greift erneut.
+    await page.locator('.jmd-fieldbar__btn--auto').first().click();
+    await pasteInto(page, '#description', '# Titel');
+    assert.strictEqual(await page.inputValue('#description'), 'h1. Titel');
+    await page.close();
+  });
+
+  await test('Umschalten im Panel zieht in der Leiste nach', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.click('.jmd-fab');
+    await page.click('.jmd-panel .jmd-switch__track');
+    var view = await barToggles(page);
+    view.forEach(function (button) {
+      assert.ok(/aus$/.test(button.label), 'Beschriftung: ' + button.label);
+      assert.strictEqual(button.pressed, 'false');
+    });
+    await page.close();
+  });
+
+  await test('auch im Rich-Text-Editor hat die Leiste den Schalter', async function () {
+    var page = await newPage(browser, null, RTE);
+    var before = await barToggles(page);
+    assert.ok(before.length >= 1, 'kein Schalter an der Leiste');
+    assert.ok(/an$/.test(before[0].label), 'Beschriftung: ' + before[0].label);
+    await page.locator('.jmd-fieldbar__btn--auto').first().click();
+    var after = await barToggles(page);
+    assert.ok(/aus$/.test(after[0].label), 'Beschriftung: ' + after[0].label);
+    assert.notStrictEqual(before[0].color, after[0].color, 'der Punkt aendert seine Farbe nicht');
+    await page.close();
+  });
+
   console.log('\nCode einfuegen');
   var CODE_BUTTON = '.jmd-fieldbar__btn:text-is("Code")';
 
