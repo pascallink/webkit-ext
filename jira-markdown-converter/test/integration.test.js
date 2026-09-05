@@ -145,6 +145,25 @@ async function setCaret(page, index) {
   }, index);
 }
 
+/**
+ * Setzt den Cursor im Rich-Text-Editor: Inhalt setzen, dann die Marke in den
+ * Absatz mit dieser Kennung stellen.
+ */
+async function setRichCaret(page, html, id, offset) {
+  await page.evaluate(function (args) {
+    var doc = document.querySelector('#description_ifr').contentDocument;
+    doc.body.innerHTML = args.html;
+    var node = doc.getElementById(args.id).firstChild;
+    var range = doc.createRange();
+    range.setStart(node, args.offset);
+    range.collapse(true);
+    var selection = doc.defaultView.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    doc.dispatchEvent(new Event('selectionchange'));
+  }, { html: html, id: id, offset: offset });
+}
+
 async function run() {
   var browser = await chromium.launch();
 
@@ -1224,6 +1243,71 @@ async function run() {
       return element.value.slice(element.selectionStart, element.selectionEnd);
     });
     assert.strictEqual(selected, 'Hier die Information eintragen.');
+    await page.close();
+  });
+
+  await test('im Rich-Text-Editor bekommt der Codeblock einen eigenen Block', async function () {
+    // Ohne Trenner zieht ein ProseMirror-Editor den Codeblock in den Absatz,
+    // in dem die Marke steht - heraus kaeme Text mit Code-Auszeichnung statt
+    // eines Codeblocks.
+    var page = await newPage(browser, null, RTE);
+    await setRichCaret(page, '<p id="a">davor danach</p>', 'a', 6);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.selectOption('#jmd-code-language', 'java');
+    await page.fill('#jmd-code-input', 'int a = 1;');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.strictEqual(paste.html,
+      '<p></p><pre><code class="language-java">int a = 1;</code></pre><p></p>');
+    assert.strictEqual(paste.text, '\n{code:java}\nint a = 1;\n{code}\n');
+    await page.close();
+  });
+
+  await test('am Ende des Absatzes reicht ein Trenner davor', async function () {
+    var page = await newPage(browser, null, RTE);
+    await setRichCaret(page, '<p id="a">Fehlerbild:</p>', 'a', 11);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.strictEqual(paste.html, '<p></p><pre><code>x</code></pre>');
+    assert.strictEqual(paste.text, '\n{code}\nx\n{code}');
+    await page.close();
+  });
+
+  await test('im leeren Absatz kommt kein Trenner dazu', async function () {
+    var page = await newPage(browser, null, RTE);
+    await setRichCaret(page, '<p id="a">&nbsp;</p>', 'a', 0);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.strictEqual(paste.html, '<pre><code>x</code></pre>');
+    assert.strictEqual(paste.text, '{code}\nx\n{code}');
+    await page.close();
+  });
+
+  await test('auch die Panel-Vorlage bekommt im Editor einen eigenen Block', async function () {
+    var page = await newPage(browser, null, RTE);
+    await setRichCaret(page, '<p id="a">davor danach</p>', 'a', 6);
+    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.click('.jmd-panelmenu__item[data-template="warning"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.ok(/^<p><\/p><table/.test(paste.html) || /^<p><\/p></.test(paste.html),
+      'kein Trenner vor dem Panel: ' + paste.html);
+    assert.ok(/<p><\/p>$/.test(paste.html), 'kein Trenner hinter dem Panel: ' + paste.html);
     await page.close();
   });
 
