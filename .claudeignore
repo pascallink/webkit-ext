@@ -1,0 +1,112 @@
+# Kontext-Ausschluesse fuer Claude Code (Token-Budget).
+# Alles hier ist generiert, binaer oder reproduzierbar.
+#
+# Monorepo-Aufbau: jeder Top-Level-Ordner mit manifest.json ist ein eigenes
+# Projekt mit eigenem package.json. Alle Regeln greifen daher rekursiv (**/),
+# damit ein neues Projekt nichts nachtragen muss.
+
+# --- Abhaengigkeiten ---
+**/node_modules/
+**/bower_components/
+**/vendor/
+**/.pnpm-store/
+**/.npm/
+**/.yarn/
+!**/.yarn/patches/
+
+# --- Lockfiles ---
+**/package-lock.json
+**/npm-shrinkwrap.json
+**/yarn.lock
+**/pnpm-lock.yaml
+**/bun.lockb
+**/poetry.lock
+**/uv.lock
+**/Cargo.lock
+
+# --- Build- und Release-Artefakte ---
+**/dist/
+**/build/
+**/out/
+**/release/
+**/stage/
+**/.output/
+**/*.zip
+**/*.crx
+**/*.xpi
+**/*.pem
+**/*.tgz
+**/*.map
+extensions.txt
+
+# --- Framework- und Task-Runner-Caches ---
+**/.next/
+**/.nuxt/
+**/.svelte-kit/
+**/.astro/
+**/.turbo/
+**/.nx/
+**/.parcel-cache/
+**/.vite/
+**/.cache/
+**/.eslintcache
+**/.stylelintcache
+
+# --- Typgenerierte / codegenerierte Artefakte ---
+**/*.tsbuildinfo
+**/generated/
+**/__generated__/
+**/*.gen.ts
+**/*.generated.*
+**/*.d.ts.map
+**/schema.graphql.d.ts
+
+# --- Test- und Tool-Ausgaben ---
+**/coverage/
+**/.nyc_output/
+**/test-results/
+**/playwright-report/
+**/blob-report/
+**/.playwright/
+
+# --- Python (Vorrat) ---
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# --- Binaerdateien / Assets ---
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.ico
+**/*.svg
+**/*.pdf
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.eot
+**/*.mp4
+**/*.mov
+**/*.gz
+
+# --- Logs und temporaere Dateien ---
+**/*.log
+**/logs/
+**/npm-debug.log*
+**/yarn-error.log*
+**/*.tmp
+**/*.swp
+**/*.bak
+**/.DS_Store
+**/Thumbs.db
+
+# --- Editor / VCS ---
+.git/
+**/.idea/
+**/.vscode/

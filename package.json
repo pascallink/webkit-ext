@@ -4,7 +4,7 @@
   "description": "Browser Erweiterungen",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint:commits": "commitlint --from origin/main --to HEAD --verbose"
   },
   "repository": {
     "type": "git",
@@ -16,5 +16,9 @@
   "bugs": {
     "url": "https://github.com/pascallink/webkit-ext/issues"
   },
-  "homepage": "https://github.com/pascallink/webkit-ext#readme"
+  "homepage": "https://github.com/pascallink/webkit-ext#readme",
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2"
+  }
 }
