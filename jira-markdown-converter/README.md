@@ -339,6 +339,15 @@ der Cursor mitten in einer Zeile, ruecken sie darum auf eine eigene Zeile, und
 der Text dahinter beginnt ebenfalls neu. Fliesstext wird weiterhin genau an der
 Cursorposition eingesetzt.
 
+Im Rich-Text-Editor gilt dasselbe, nur eine Ebene hoeher: dort braucht der
+Codeblock einen eigenen Block statt einer eigenen Zeile. Steht die Schreibmarke
+mitten in einem Absatz, legt die Erweiterung darum einen leeren Absatz davor
+und dahinter. Ohne diesen Trenner zieht der Editor den eingefuegten Block in
+den laufenden Absatz hinein - aus dem Codeblock wuerde eine Zeile mit
+geschweiften Klammern bzw. Text mit Code-Auszeichnung, aber kein Codeblock.
+Steht die Marke schon am Anfang oder am Ende ihres Absatzes, entfaellt der
+Trenner auf dieser Seite; im leeren Absatz kommt gar keiner dazu.
+
 Liegt der Fokus noch im Feld, gilt immer die aktuelle Auswahl - die gemerkte
 Position kommt nur zum Zug, wenn der Fokus das Feld verlassen hat. Im
 Rich-Text-Editor wird der Bereich innerhalb des Editor-Rahmens gemerkt; ist er

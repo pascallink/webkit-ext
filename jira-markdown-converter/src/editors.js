@@ -540,6 +540,73 @@
     return out;
   }
 
+  // Blockelemente, die im Rich-Text-Editor eine eigene Zeile bilden.
+  var BLOCK_TAGS = /^(?:P|DIV|LI|TD|TH|PRE|BLOCKQUOTE|H[1-6]|SECTION|ARTICLE|BODY|DD|DT|FIGCAPTION)$/;
+
+  // Leerer Absatz als Trenner: er sorgt dafuer, dass der Editor den Block
+  // wirklich als Block uebernimmt, verschwindet beim Einfuegen aber im
+  // umgebenden Absatz.
+  var BLOCK_SEPARATOR = '<p></p>';
+
+  /** Der Block (Absatz, Listenpunkt, Zelle ...), in dem dieser Knoten steckt. */
+  function blockAround(node, surface) {
+    var element = node && node.nodeType === 1 ? node : node && node.parentNode;
+    while (element && element !== surface) {
+      if (BLOCK_TAGS.test(element.tagName || '')) return element;
+      element = element.parentNode;
+    }
+    return surface;
+  }
+
+  /**
+   * Steht die Einfuegemarke am Anfang bzw. am Ende ihres Blocks? Nur dann
+   * darf ein Blockmakro ohne Trenner eingefuegt werden.
+   */
+  function blockEdges(surface) {
+    var edges = { start: true, end: true };
+    try {
+      var doc = surface.ownerDocument;
+      var view = doc.defaultView;
+      var selection = view && view.getSelection();
+      if (!selection || !selection.rangeCount) return edges;
+      var range = selection.getRangeAt(0);
+      if (!surface.contains(range.commonAncestorContainer)) return edges;
+
+      var block = blockAround(range.startContainer, surface);
+      var before = doc.createRange();
+      before.selectNodeContents(block);
+      before.setEnd(range.startContainer, range.startOffset);
+
+      block = blockAround(range.endContainer, surface);
+      var after = doc.createRange();
+      after.selectNodeContents(block);
+      after.setStart(range.endContainer, range.endOffset);
+
+      edges.start = !before.toString().trim();
+      edges.end = !after.toString().trim();
+    } catch (error) {
+      /* Bereich nicht auswertbar - lieber ohne Trenner einfuegen */
+    }
+    return edges;
+  }
+
+  /**
+   * Blockmakros im Rich-Text-Editor: steht die Marke mitten in einem Absatz,
+   * zieht der Editor den eingefuegten Block in diesen Absatz hinein - aus dem
+   * Codeblock wird dann eine Zeile mit geschweiften Klammern bzw. Text mit
+   * Code-Auszeichnung. Ein leerer Absatz davor und dahinter schliesst den
+   * Block ab, damit er als eigener Block ankommt.
+   */
+  function asOwnBlocks(surface, text, html) {
+    var edges = blockEdges(surface);
+    return {
+      text: (edges.start ? '' : '\n') + text + (edges.end ? '' : '\n'),
+      html: html
+        ? (edges.start ? '' : BLOCK_SEPARATOR) + html + (edges.end ? '' : BLOCK_SEPARATOR)
+        : html
+    };
+  }
+
   /**
    * Fuegt Text in einen ProseMirror-Editor ein. Wir schicken ein synthetisches
    * paste-Event: der Editor verarbeitet es wie eine echte Einfuege-Aktion,
@@ -555,12 +622,15 @@
       selectAll(element);
     }
 
-    if (dispatchPaste(element, text, html)) return true;
+    // Blockmakros brauchen einen eigenen Block, sonst landen sie im Absatz.
+    var payload = mode === 'block' ? asOwnBlocks(element, text, html) : { text: text, html: html };
+
+    if (dispatchPaste(element, payload.text, payload.html)) return true;
 
     // Fallback 0: formatiert einfuegen, wenn HTML gewuenscht ist.
-    if (html) {
+    if (payload.html) {
       try {
-        if (element.ownerDocument.execCommand('insertHTML', false, html)) return true;
+        if (element.ownerDocument.execCommand('insertHTML', false, payload.html)) return true;
       } catch (error) {
         /* weiter zum naechsten Fallback */
       }
@@ -568,7 +638,7 @@
 
     // Fallback 1: execCommand fuellt den Editor ueber beforeinput/input.
     try {
-      if (element.ownerDocument.execCommand('insertText', false, text)) return true;
+      if (element.ownerDocument.execCommand('insertText', false, payload.text)) return true;
     } catch (error) {
       /* weiter zum naechsten Fallback */
     }
@@ -579,7 +649,7 @@
       if (selection && selection.rangeCount) {
         var range = selection.getRangeAt(0);
         range.deleteContents();
-        range.insertNode(element.ownerDocument.createTextNode(text));
+        range.insertNode(element.ownerDocument.createTextNode(payload.text));
         selection.collapseToEnd();
         element.dispatchEvent(new Event('input', { bubbles: true }));
         return true;

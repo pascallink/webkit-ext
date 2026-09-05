@@ -1,0 +1,20 @@
+{
+  "name": "webkit-ext",
+  "version": "1.0.0",
+  "description": "Browser Erweiterungen",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pascallink/webkit-ext.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pascallink/webkit-ext/issues"
+  },
+  "homepage": "https://github.com/pascallink/webkit-ext#readme"
+}
