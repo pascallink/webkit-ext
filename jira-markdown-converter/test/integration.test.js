@@ -369,7 +369,7 @@ async function run() {
   await test('Buttonleiste wandelt den Feldinhalt um', async function () {
     var page = await newPage(browser);
     await page.fill('#description', '# Titel\n\n**fett**');
-    await page.locator('.jmd-fieldbar').first().getByText('Markdown in Jira-Markup umwandeln').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Umwandeln').click();
     assert.strictEqual(await page.inputValue('#description'), 'h1. Titel\n\n*fett*');
     await page.close();
   });
@@ -740,7 +740,7 @@ async function run() {
   });
 
   console.log('\nCode einfuegen');
-  var CODE_BUTTON = '.jmd-fieldbar__btn:has-text("Code einfuegen")';
+  var CODE_BUTTON = '.jmd-fieldbar__btn:text-is("Code")';
 
   await test('Knopf an der Feldleiste oeffnet den Dialog', async function () {
     var page = await newPage(browser, null, SERVER);
@@ -1032,7 +1032,7 @@ async function run() {
   await test('Buttonleiste bietet vier Vorlagen an', async function () {
     var page = await newPage(browser, null, SERVER);
     await page.waitForSelector('.jmd-fieldbar');
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.waitForSelector('.jmd-panelmenu');
     var labels = await page.evaluate(function () {
       return Array.prototype.map.call(document.querySelectorAll('.jmd-panelmenu__item'), function (item) {
@@ -1046,7 +1046,7 @@ async function run() {
   await test('jede Vorlage zeigt ihre Farbe', async function () {
     var page = await newPage(browser, null, SERVER);
     await page.waitForSelector('.jmd-fieldbar');
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.waitForSelector('.jmd-panelmenu');
     var colors = await page.evaluate(function () {
       return Array.prototype.map.call(document.querySelectorAll('.jmd-panelmenu__item'), function (item) {
@@ -1067,7 +1067,7 @@ async function run() {
   await test('Textfeld bekommt {panel} mit Farben', async function () {
     var page = await newPage(browser, null, SERVER);
     await page.waitForSelector('.jmd-fieldbar');
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.click('.jmd-panelmenu__item[data-template="warning"]');
     assert.strictEqual(await page.inputValue('#description'),
       '{panel:title=Warnung|borderColor=#de350b|bgColor=#ffebe6}\n' +
@@ -1078,7 +1078,7 @@ async function run() {
   await test('Cursor steht anschliessend im Textbereich des Panels', async function () {
     var page = await newPage(browser, null, SERVER);
     await page.waitForSelector('.jmd-fieldbar');
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.click('.jmd-panelmenu__item[data-template="info"]');
     var selected = await page.evaluate(function () {
       var element = document.querySelector('#description');
@@ -1101,7 +1101,7 @@ async function run() {
       element.setSelectionRange(5, 5);
       document.dispatchEvent(new Event('selectionchange'));
     });
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.click('.jmd-panelmenu__item[data-template="plain"]');
     assert.strictEqual(await page.inputValue('#description'),
       'oben\n{panel:title=Titel|borderColor=#dfe1e6|bgColor=#f4f5f7}\n' +
@@ -1112,7 +1112,7 @@ async function run() {
   await test('Menue schliesst mit Escape und beim Klick daneben', async function () {
     var page = await newPage(browser, null, SERVER);
     await page.waitForSelector('.jmd-fieldbar');
-    var button = page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage');
+    var button = page.locator('.jmd-fieldbar').first().getByText('Panel');
     await button.click();
     await page.waitForSelector('.jmd-panelmenu');
     await page.keyboard.press('Escape');
@@ -1143,7 +1143,7 @@ async function run() {
   await test('Rich-Text-Editor bekommt HTML mit denselben Farben', async function () {
     var page = await newPage(browser, null, RTE);
     await page.waitForSelector('.jmd-fieldbar');
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.click('.jmd-panelmenu__item[data-template="info"]');
     var pastes = await page.evaluate(function () { return window.__pastes; });
     assert.strictEqual(pastes.length, 1, 'kein Einfuegen im Editor angekommen');
@@ -1161,7 +1161,7 @@ async function run() {
   await test('im Rich-Text-Editor steht der Cursor im Panel-Text', async function () {
     var page = await newPage(browser, null, RTE);
     await page.waitForSelector('.jmd-fieldbar');
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.click('.jmd-panelmenu__item[data-template="warning"]');
     await page.waitForFunction(function () {
       var doc = document.querySelector('#description_ifr').contentDocument;
@@ -1174,7 +1174,7 @@ async function run() {
   await test('mit "vorher umschalten" kommt Markup statt HTML', async function () {
     var page = await newPage(browser, { switchToMarkup: true }, RTE);
     await page.waitForSelector('.jmd-fieldbar');
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.click('.jmd-panelmenu__item[data-template="info"]');
     await page.waitForFunction(function () {
       return document.querySelector('#description').value.indexOf('{panel:title=Info') !== -1;
@@ -1225,7 +1225,7 @@ async function run() {
     var page = await newPage(browser, null, SERVER);
     await page.fill('#description', 'Achtung:');
     await setCaret(page, 8);
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.click('.jmd-panelmenu__item[data-template="warning"]');
     assert.strictEqual(await page.inputValue('#description'),
       'Achtung:\n{panel:title=Warnung|borderColor=#de350b|bgColor=#ffebe6}\n' +
@@ -1237,7 +1237,7 @@ async function run() {
     var page = await newPage(browser, null, SERVER);
     await page.fill('#description', 'Achtung:');
     await setCaret(page, 8);
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.click('.jmd-panelmenu__item[data-template="info"]');
     var selected = await page.evaluate(function () {
       var element = document.querySelector('#description');
@@ -1300,7 +1300,7 @@ async function run() {
   await test('auch die Panel-Vorlage bekommt im Editor einen eigenen Block', async function () {
     var page = await newPage(browser, null, RTE);
     await setRichCaret(page, '<p id="a">davor danach</p>', 'a', 6);
-    await page.locator('.jmd-fieldbar').first().getByText('Panel aus Vorlage').click();
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
     await page.click('.jmd-panelmenu__item[data-template="warning"]');
     await page.waitForFunction(function () {
       return window.__pastes.length === 1;
@@ -1381,7 +1381,7 @@ async function run() {
     });
     assert.strictEqual(view.hidden, false);
     assert.strictEqual(view.pressed, 'true');
-    assert.ok(/eingefroren/.test(view.text), 'Beschriftung: ' + view.text);
+    assert.ok(/Eingefroren/.test(view.text), 'Beschriftung: ' + view.text);
     await page.close();
   });
 
@@ -1394,7 +1394,7 @@ async function run() {
       return { pressed: button.getAttribute('aria-pressed'), text: button.textContent };
     });
     assert.strictEqual(view.pressed, 'false');
-    assert.ok(/einfrieren/.test(view.text), 'Beschriftung: ' + view.text);
+    assert.ok(/Einfrieren/.test(view.text), 'Beschriftung: ' + view.text);
     await clickBeside(page);
     assert.strictEqual(await editing(page), false, 'Jira haette schliessen duerfen');
     await page.close();
@@ -1492,6 +1492,162 @@ async function run() {
     await page.click('#fremder-knopf');
     await page.waitForTimeout(100);
     assert.strictEqual(await page.evaluate(function () { return window.__fremdeKlicks; }), 1);
+    await page.close();
+  });
+
+  console.log('\nEinfrieren im Beschreibungsfeld des Vorgangs');
+  var ISSUE = 'mock-jira-issue-description.html';
+
+  /** Beschreibungsfeld oeffnen und warten, bis unsere Leiste dranhaengt. */
+  async function openDescription(page) {
+    await page.click('#description-val');
+    await page.waitForSelector('.jmd-fieldbar', { timeout: 4000 });
+  }
+
+  function locked(page) {
+    return page.evaluate(function () { return window.JiraEditLock.isActive(); });
+  }
+
+  function open(page) {
+    return page.evaluate(function () {
+      return document.getElementById('description-val').classList.contains('active');
+    });
+  }
+
+  function closedBy(page) {
+    return page.evaluate(function () { return window.__closed; });
+  }
+
+  await test('Textmodus: das Feld bleibt beim Klick daneben offen', async function () {
+    // Jira schliesst hier in der Erfassungsphase am Dokument - vor unserem
+    // eigenen Wachposten, wenn der nur am Dokument haengt.
+    var page = await newPage(browser, null, ISSUE);
+    await openDescription(page);
+    await page.waitForFunction(function () {
+      return window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
+    await page.fill('#description', 'Wichtige Aenderung');
+    await page.click('#daneben');
+    await page.waitForTimeout(150);
+    assert.deepStrictEqual(await closedBy(page), [], 'Jira hat das Feld geschlossen');
+    assert.strictEqual(await open(page), true, 'das Feld wurde geschlossen');
+    assert.strictEqual(await page.inputValue('#description'), 'Wichtige Aenderung');
+    await page.close();
+  });
+
+  await test('Speichern neben dem Wiki-Feld funktioniert weiter', async function () {
+    // Die Knoepfe liegen im Feldblock, aber ausserhalb des Wiki-Felds.
+    var page = await newPage(browser, null, ISSUE);
+    await openDescription(page);
+    await page.fill('#description', 'Neuer Stand');
+    await page.click('#speichern');
+    await page.waitForTimeout(150);
+    assert.strictEqual(await page.evaluate(function () { return window.__saved; }), 'Neuer Stand');
+    await page.waitForFunction(function () {
+      return !window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
+    await page.close();
+  });
+
+  await test('Abbrechen funktioniert weiter', async function () {
+    var page = await newPage(browser, null, ISSUE);
+    await openDescription(page);
+    await page.click('#abbrechen');
+    await page.waitForTimeout(150);
+    assert.deepStrictEqual(await closedBy(page), ['abbrechen']);
+    await page.waitForFunction(function () {
+      return !window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
+    await page.close();
+  });
+
+  await test('nach dem Moduswechsel bleibt das Feld eingefroren', async function () {
+    // Jira baut den Feldblock beim Wechsel neu auf - die Sperre muss auf die
+    // neue Textarea uebergehen.
+    var page = await newPage(browser, null, ISSUE);
+    await openDescription(page);
+    await page.click('#visuell');
+    await page.waitForTimeout(300);
+    await page.click('#textmodus');
+    await page.waitForTimeout(300);
+    assert.strictEqual(await locked(page), true, 'die Sperre ist beim Umbau verloren gegangen');
+    assert.strictEqual(await page.evaluate(function () {
+      return document.querySelector('.jmd-fieldbar__btn--lock').getAttribute('aria-pressed');
+    }), 'true', 'das Schloss an der neuen Leiste zeigt den falschen Zustand');
+    await page.click('#daneben');
+    await page.waitForTimeout(150);
+    assert.deepStrictEqual(await closedBy(page), [], 'Jira hat das Feld geschlossen');
+    await page.close();
+  });
+
+  await test('visueller Modus: auch der Editorrahmen friert das Feld ein', async function () {
+    var page = await newPage(browser, null, ISSUE);
+    await openDescription(page);
+    await page.click('#visuell');
+    await page.waitForTimeout(300);
+    await page.frameLocator('#description_ifr').locator('body').click();
+    await page.waitForFunction(function () {
+      return window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
+    await page.click('#daneben');
+    await page.waitForTimeout(150);
+    assert.deepStrictEqual(await closedBy(page), [], 'Jira hat das Feld geschlossen');
+    assert.strictEqual(await open(page), true, 'das Feld wurde geschlossen');
+    await page.close();
+  });
+
+  await test('Escape im Beschreibungsfeld bricht nicht ab', async function () {
+    var page = await newPage(browser, null, ISSUE);
+    await openDescription(page);
+    await page.press('#description', 'Escape');
+    await page.waitForTimeout(150);
+    assert.deepStrictEqual(await closedBy(page), []);
+    await page.close();
+  });
+
+  await test('der schwebende Editor schliesst das eingefrorene Feld nicht', async function () {
+    // Das Panel liegt ausserhalb des Feldblocks - fuer Jira also "daneben".
+    // Bedienbar bleibt es trotzdem: der Klick geht durch, alles andere nicht.
+    var page = await newPage(browser, null, ISSUE);
+    await openDescription(page);
+    await page.locator('.jmd-fieldbar').first().getByText('Editor').click();
+    await page.click('.jmd-panel textarea');
+    await page.fill('#jmd-input', '# Titel');
+    await page.click('.jmd-panel [data-action="insert"]');
+    await page.waitForTimeout(150);
+    assert.deepStrictEqual(await closedBy(page), [], 'Jira hat das Feld geschlossen');
+    assert.ok(/h1\. Titel/.test(await page.inputValue('#description')),
+      'das Panel hat nichts eingefuegt: ' + await page.inputValue('#description'));
+    await page.close();
+  });
+
+  await test('vor der Seite geladen greift das Einfrieren ebenfalls', async function () {
+    // Wie im Manifest: run_at document_start. Die Erweiterung laeuft dann vor
+    // allen Skripten der Seite - und muss ihre Oberflaeche trotzdem erst
+    // aufbauen, wenn das Dokument steht.
+    var context = await browser.newContext();
+    var page = await context.newPage();
+    await page.addInitScript({ content: CHROME_STUB });
+    for (var i = 0; i < SOURCES.length; i++) {
+      await page.addInitScript({ content: readSource(SOURCES[i]) });
+    }
+    await page.goto('file://' + path.join(root, 'test', 'fixtures', ISSUE));
+    await page.waitForFunction(function () {
+      return !!document.querySelector('.jmd-fab');
+    }, null, { timeout: 5000 });
+    await openDescription(page);
+    await page.click('#daneben');
+    await page.waitForTimeout(150);
+    assert.deepStrictEqual(await closedBy(page), [], 'Jira hat das Feld geschlossen');
+    await page.close();
+  });
+
+  await test('ohne Einfrieren schliesst Jira das Beschreibungsfeld weiterhin', async function () {
+    var page = await newPage(browser, { freezeEditMode: false }, ISSUE);
+    await openDescription(page);
+    await page.click('#daneben');
+    await page.waitForTimeout(150);
+    assert.deepStrictEqual(await closedBy(page), ['klick-daneben']);
     await page.close();
   });
 

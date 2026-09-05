@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Mock Jira Server 9.12: Beschreibungsfeld im Vorgang</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; }
+    #description-val { width: 660px; border: 1px dashed #ccc; padding: 8px; }
+    .wiki-edit { border: 1px solid #ccc; padding: 6px; }
+    .wiki-edit-toolbar { background: #f4f5f7; padding: 4px; }
+    .mce-tinymce { border: 1px solid #999; }
+    iframe { width: 100%; height: 150px; border: 0; display: block; }
+    textarea.textarea { width: 100%; height: 150px; }
+    .buttons-container { margin-top: 6px; }
+    #daneben { margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Mock Jira: Vorgang mit Beschreibungsfeld</h1>
+
+  <!--
+    Naeher am echten Vorgang als mock-jira-inline-edit.html:
+
+    * Der Rahmen um das bearbeitete Feld ist die Inline-Bearbeitung
+      (#description-val), die Knoepfe "Speichern"/"Abbrechen" liegen darin,
+      aber ausserhalb des Wiki-Felds mit der Textarea.
+    * Das Feld kennt beide Bearbeitungsmodi: "Visuell" laeuft im
+      TinyMCE-Rahmen, "Text" in der Textarea. Beim Wechsel baut Jira den
+      Feldblock neu auf - die Textarea von eben ist danach weg.
+    * Geschlossen wird ueber Handler in der Erfassungsphase am Dokument, so
+      wie Jira und Atlassians Bausteine es tun. Sie haengen schon an der
+      Seite, bevor die Erweiterung geladen wird.
+  -->
+  <div id="descriptionmodule" class="module">
+    <div class="mod-content">
+      <label id="description-label">Beschreibung</label>
+      <div id="description-val" class="editable-field inactive"></div>
+    </div>
+  </div>
+
+  <p id="daneben">Irgendwo daneben klicken.</p>
+  <button type="button" id="fremder-knopf">Fremder Knopf</button>
+
+  <script>
+    var box = document.getElementById('description-val');
+    var stored = 'Beschreibung aus Jira';
+
+    window.__closed = [];        // wodurch Jira das Feld geschlossen hat
+    window.__saved = null;
+    window.__fremdeKlicks = 0;
+    window.__mode = null;
+
+    document.getElementById('fremder-knopf').addEventListener('click', function () {
+      window.__fremdeKlicks++;
+    });
+
+    function editing() {
+      return box.classList.contains('active');
+    }
+
+    function readView() {
+      window.__mode = null;
+      box.className = 'editable-field inactive';
+      box.innerHTML = '<div class="user-content-block"></div>';
+      box.firstChild.textContent = stored;
+    }
+
+    /** Der Feldblock, den Jira beim Bearbeiten aufbaut. */
+    function editView(mode) {
+      window.__mode = mode;
+      box.className = 'editable-field active';
+      box.innerHTML = [
+        '<form class="aui inline-edit-fields" id="description-form">',
+        '  <div class="wiki-edit" id="description-wiki-edit">',
+        '    <div class="wiki-edit-toolbar aui-toolbar2">',
+        '      <button type="button" id="visuell">Visuell</button>',
+        '      <button type="button" id="textmodus">Text</button>',
+        '    </div>',
+        mode === 'visuell'
+          ? '    <div class="mce-tinymce"><iframe id="description_ifr"></iframe></div>' +
+            '    <textarea class="textarea long-field" id="description" name="description" style="display:none"></textarea>'
+          : '    <textarea class="textarea long-field" id="description" name="description" rows="8"></textarea>',
+        '  </div>',
+        '  <div class="buttons-container">',
+        '    <button type="button" id="speichern">Speichern</button>',
+        '    <button type="button" id="abbrechen">Abbrechen</button>',
+        '  </div>',
+        '</form>'
+      ].join('');
+
+      var textarea = document.getElementById('description');
+      textarea.value = stored;
+
+      if (mode === 'visuell') {
+        var frame = document.getElementById('description_ifr');
+        var doc = frame.contentDocument;
+        doc.open();
+        doc.write('<!DOCTYPE html><html><body contenteditable="true"></body></html>');
+        doc.close();
+        doc.body.textContent = stored;
+        // TinyMCE schreibt den Editorinhalt in die Textarea zurueck.
+        doc.body.addEventListener('input', function () {
+          textarea.value = doc.body.textContent;
+        });
+      } else {
+        textarea.focus();
+      }
+
+      document.getElementById('visuell').addEventListener('click', function () {
+        if (window.__mode !== 'visuell') editView('visuell');
+      });
+      document.getElementById('textmodus').addEventListener('click', function () {
+        if (window.__mode !== 'text') editView('text');
+      });
+      document.getElementById('speichern').addEventListener('click', function () {
+        stored = document.getElementById('description').value;
+        window.__saved = stored;
+        readView();
+      });
+      document.getElementById('abbrechen').addEventListener('click', function () {
+        close('abbrechen');
+      });
+    }
+
+    /** Jira verwirft beim Schliessen, was im Feld stand. */
+    function close(reason) {
+      if (!editing()) return;
+      window.__closed.push(reason);
+      readView();
+    }
+
+    // Oeffnen: Klick in die Leseansicht.
+    document.addEventListener('click', function (event) {
+      if (editing()) return;
+      if (box.contains(event.target)) editView('text');
+    });
+
+    // Schliessen: Erfassungsphase am Dokument - diese Handler haengen schon
+    // an der Seite, bevor die Erweiterung ueberhaupt geladen ist.
+    document.addEventListener('mousedown', function (event) {
+      if (!editing()) return;
+      if (!box.contains(event.target)) close('klick-daneben');
+    }, true);
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') close('escape');
+    }, true);
+
+    readView();
+  </script>
+</body>
+</html>

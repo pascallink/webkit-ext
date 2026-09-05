@@ -12,16 +12,20 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
 
 1. **Buttonleiste direkt am Feld** – ueber jedem Beschreibungs- und
    Kommentarfeld:
-   * *Markdown in Jira-Markup umwandeln* – wandelt den Feldinhalt (oder die
-     Auswahl darin) an Ort und Stelle um.
-   * *Aus Zwischenablage einfuegen* – holt das Markdown aus der Zwischenablage,
-     konvertiert es und fuegt es an der Cursorposition ein.
-   * *Code einfuegen* – oeffnet den Dialog fuer einen Codeblock.
-   * *Panel aus Vorlage* – stellt vier farbige Panels zur Auswahl und fuegt
-     das gewaehlte an der Cursorposition ein.
-   * *Editor oeffnen* – oeffnet das Eingabefeld mit Vorschau.
-   * *Schloss* – haelt das bearbeitete Feld offen, statt es von Jira beim
-     Klick daneben schliessen zu lassen.
+   * *Umwandeln* – wandelt den Feldinhalt (oder die Auswahl darin) an Ort und
+     Stelle um.
+   * *Einfuegen* – holt das Markdown aus der Zwischenablage, konvertiert es
+     und fuegt es an der Cursorposition ein.
+   * *Code* – oeffnet den Dialog fuer einen Codeblock.
+   * *Panel* – stellt vier farbige Panels zur Auswahl und fuegt das gewaehlte
+     an der Cursorposition ein.
+   * *Editor* – oeffnet das Eingabefeld mit Vorschau.
+   * *Schloss* – zeigt an, dass das Feld im Bearbeitungsmodus festgehalten
+     wird, und gibt es auf Klick wieder frei. Das Festhalten passiert von
+     selbst, laesst sich in den Einstellungen aber abschalten.
+
+   Die Beschriftungen sind kurz gehalten, damit die Leiste in eine Zeile
+   passt; was ein Button genau tut, steht in seinem Tooltip.
 2. **Eingabefeld mit Vorschau** (schwebender `MD`-Button unten rechts) –
    links Markdown einfuegen, rechts das fertige Jira-Markup sehen, dann
    *Ins Ticket einfuegen*, *Feld ersetzen*, *Markup kopieren* oder
@@ -153,15 +157,19 @@ auseinanderlaufen.
 
 ## Bearbeitung einfrieren
 
-Jira beendet das Inline-Bearbeiten, sobald man neben das Feld klickt. Was im
-Feld stand, ist danach entweder weg oder liegt ungewollt als Entwurf am
-Vorgang. Deshalb friert die Erweiterung den Bearbeitungsmodus ein, sobald man
-in einem Beschreibungs-, Kommentar- oder Umgebungsfeld zu arbeiten beginnt:
-das Schloss in der Buttonleiste ist zu, und das Feld bleibt offen.
+Das Hauptfeld eines Vorgangs – die Beschreibung – wechselt in Jira per Klick
+zwischen Ansicht und Bearbeitung, und ein Klick daneben beendet die
+Bearbeitung genauso schnell wieder. Was im Feld stand, ist danach entweder weg
+oder liegt ungewollt als Entwurf am Vorgang.
+
+Mit der Erweiterung ist das Feld darum automatisch im Bearbeitungsmodus
+fixiert, sobald dieser aufgeht: das Schloss in der Buttonleiste ist von
+Anfang an zu, und das Feld bleibt offen, bis gespeichert oder abgebrochen
+wird. Fuer Kommentar- und Umgebungsfelder gilt dasselbe.
 
 | Schloss zu (eingefroren) | Schloss offen (Jira wie gewohnt) |
 | --- | --- |
-| ![Buttonleiste mit geschlossenem Schloss und der Beschriftung "Bearbeitung eingefroren"](docs/images/schloss-zu.png) | ![Dieselbe Leiste mit geoeffnetem Schloss und der Beschriftung "Bearbeitung einfrieren"](docs/images/schloss-auf.png) |
+| ![Buttonleiste mit geschlossenem Schloss und der Beschriftung "Eingefroren"](docs/images/schloss-zu.png) | ![Dieselbe Leiste mit geoeffnetem Schloss und der Beschriftung "Einfrieren"](docs/images/schloss-auf.png) |
 
 Solange das Schloss zu ist:
 
@@ -171,17 +179,27 @@ Solange das Schloss zu ist:
 * `Escape` bricht das Bearbeiten nicht ab.
 * Wer die Seite verlaesst oder neu laedt, wird vom Browser gefragt, ob er das
   wirklich will.
-* *Speichern* und *Abbrechen* im Feld selbst funktionieren normal – sie
-  gehoeren zum Feld, nicht zu „daneben". Danach gibt das Feld seine Sperre
-  von selbst wieder ab.
+* *Speichern* und *Abbrechen* funktionieren normal – genau wie die
+  Werkzeugleiste und der Umschalter zwischen *Visuell* und *Text*. Zum Feld
+  gehoert der ganze Block, den Jira beim Bearbeiten aufbaut, nicht nur das
+  Eingabefeld darin. Nach dem Speichern oder Abbrechen gibt das Feld seine
+  Sperre von selbst wieder ab.
+* Die eigene Buttonleiste, der schwebende Editor und die Dialoge der
+  Erweiterung bleiben bedienbar – und Jira bekommt von diesen Klicks nichts
+  mit, obwohl sie streng genommen „daneben" liegen.
+* Beide Bearbeitungsmodi sind abgedeckt: der Textmodus mit der Textarea
+  ebenso wie der Rich-Text-Editor (`jira.rte.enabled`), der in einem eigenen
+  Rahmen laeuft. Beim Wechsel zwischen beiden baut Jira den Feldblock neu auf
+  – die Sperre geht auf das neue Feld ueber, das Schloss bleibt zu.
 
 Ein Klick auf das Schloss oeffnet es: dann gilt wieder Jiras eigenes
 Verhalten, und dieses Feld friert auch nicht von selbst wieder ein. Beim
 naechsten Bearbeiten faengt alles von vorn an.
 
-Abschalten laesst sich das Ganze in den Einstellungen unter *Verhalten*
-(*Bearbeitetes Feld offen halten*); dann verschwindet auch das Schloss aus
-der Buttonleiste.
+Wer das Fixieren gar nicht will, schaltet den Automatismus in den
+Einstellungen unter *Verhalten* ab (*Bearbeitetes Feld automatisch offen
+halten*): dann bleibt es ueberall bei Jiras eigenem Verhalten, und das
+Schloss verschwindet aus der Buttonleiste.
 
 ## Automatik ein- und ausschalten
 
@@ -361,7 +379,7 @@ Erreichbar ueber das Popup („Einstellungen") oder
 
 * Automatik beim Einfuegen an/aus (derselbe Schalter wie im Popup)
 * Schwebenden Button und Bestaetigungen an/aus
-* Bearbeitetes Feld offen halten (das Schloss an der Buttonleiste)
+* Bearbeitetes Feld automatisch offen halten (das Schloss an der Buttonleiste)
 * Verhalten im Rich-Text-Editor: formatiert einfuegen, Jira-Markup als Text
   einfuegen oder Markdown durchreichen; dazu das Umschalten auf den
   Markup-Modus

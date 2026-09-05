@@ -899,8 +899,8 @@
     var convertButton = document.createElement('button');
     convertButton.type = 'button';
     convertButton.className = 'jmd-fieldbar__btn';
-    convertButton.textContent = 'Markdown in Jira-Markup umwandeln';
-    convertButton.title = 'Inhalt bzw. Auswahl dieses Feldes umwandeln';
+    convertButton.textContent = 'Umwandeln';
+    convertButton.title = 'Markdown in diesem Feld - oder die Auswahl darin - in Jira-Markup umwandeln';
     convertButton.addEventListener('click', function (event) {
       event.preventDefault();
       target = field;
@@ -910,8 +910,8 @@
     var pasteButton = document.createElement('button');
     pasteButton.type = 'button';
     pasteButton.className = 'jmd-fieldbar__btn';
-    pasteButton.textContent = 'Aus Zwischenablage einfuegen';
-    pasteButton.title = 'Markdown aus der Zwischenablage konvertiert einfuegen';
+    pasteButton.textContent = 'Einfuegen';
+    pasteButton.title = 'Markdown aus der Zwischenablage umgewandelt an der Cursorposition einfuegen';
     pasteButton.addEventListener('click', function (event) {
       event.preventDefault();
       target = field;
@@ -929,8 +929,8 @@
     var codeButton = document.createElement('button');
     codeButton.type = 'button';
     codeButton.className = 'jmd-fieldbar__btn';
-    codeButton.textContent = 'Code einfuegen';
-    codeButton.title = 'Codeblock mit Sprachauswahl einfuegen';
+    codeButton.textContent = 'Code';
+    codeButton.title = 'Codeblock mit Sprachauswahl an der Cursorposition einfuegen';
     codeButton.addEventListener('click', function (event) {
       event.preventDefault();
       openCodeDialog(field);
@@ -939,8 +939,8 @@
     var templateButton = document.createElement('button');
     templateButton.type = 'button';
     templateButton.className = 'jmd-fieldbar__btn';
-    templateButton.textContent = 'Panel aus Vorlage';
-    templateButton.title = 'Panel mit Titel und Platzhaltertext an der Cursorposition einfuegen';
+    templateButton.textContent = 'Panel';
+    templateButton.title = 'Farbiges Panel aus einer Vorlage an der Cursorposition einfuegen';
     templateButton.setAttribute('aria-haspopup', 'true');
     templateButton.setAttribute('aria-expanded', 'false');
     templateButton.addEventListener('click', function (event) {
@@ -952,8 +952,8 @@
     var panelButton = document.createElement('button');
     panelButton.type = 'button';
     panelButton.className = 'jmd-fieldbar__btn jmd-fieldbar__btn--ghost';
-    panelButton.textContent = 'Editor oeffnen';
-    panelButton.title = 'Markdown eingeben und Vorschau ansehen';
+    panelButton.textContent = 'Editor';
+    panelButton.title = 'Editor mit Vorschau oeffnen: Markdown eingeben und das Jira-Markup sehen';
     panelButton.addEventListener('click', function (event) {
       event.preventDefault();
       target = field;
@@ -1102,6 +1102,16 @@
     doc.addEventListener('mouseup', remember, true);
     doc.addEventListener('keyup', remember, true);
     doc.addEventListener('paste', onPaste, true);
+    // Im Rich-Text-Modus arbeitet der Nutzer im Rahmen, nicht in der
+    // Textarea: das Feld friert darum von hier aus ein.
+    doc.addEventListener('focusin', function () {
+      target = field;
+      EditLock.lock(field);
+    }, true);
+    doc.addEventListener('mousedown', function () {
+      target = field;
+      EditLock.lock(field);
+    }, true);
   }
 
   var scanTimer = null;
@@ -1132,6 +1142,16 @@
       // Sobald im Feld gearbeitet wird, friert der Bearbeitungsmodus ein.
       EditLock.lock(field);
     }, true);
+
+    // Solange ein Feld eingefroren ist, kommen die gestoppten Ereignisse
+    // nicht mehr bis zu unseren eigenen Wachposten am Dokument. Sie bekommen
+    // sie deshalb von der Sperre gereicht - sonst bliebe das Vorlagenmenue
+    // offen und die Feldauswahl taub.
+    EditLock.watch(function (event) {
+      if (event.type !== 'mousedown') return;
+      onTemplateMenuOutside(event);
+      if (pickingTarget) onPickClick(event);
+    });
 
     // Cursorposition festhalten, solange das Feld sie noch kennt. Sobald der
     // Nutzer ins Panel klickt, ist sie sonst verloren.
