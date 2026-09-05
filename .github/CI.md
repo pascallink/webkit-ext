@@ -35,6 +35,15 @@ haelt alle drei synchron - nie einzeln von Hand anfassen.
   Hat der Push die Version selbst geaendert, bumpt nichts nach.
 - **Minor (`y`)**: von Hand auf `x.y.0` setzen, taggen, Release anlegen. Erst
   das erzeugt ZIPs, und zwar als `<projekt>-<version>.zip`.
+- **Releases nur auf `x.y.0`.** `release.yml` bricht bei jedem anderen Tag mit
+  einem Fehler ab - absichtlich laut. Ein Release ohne Assets wird zum
+  neuesten Release, und danach laeuft `/releases/latest/download/...` ins
+  Leere. Wer trotzdem eines braucht, markiert es als Prerelease; dann zieht
+  GitHub es nicht als "latest" heran.
+- **Versions-Drift**: weichen `manifest.json` und `package.json` voneinander
+  ab, bricht der Release-Build ab. Passt die Version nicht zum Release-Tag,
+  gibt es nur eine Warnung - bei mehreren Projekten kann ein Tag nicht fuer
+  alle stimmen.
 - **Direktlink ohne Version** ist die Ausnahme, nicht die Regel: nur Projekte
   mit `"stableZipAlias": true` in ihrer `package.json` bekommen zusaetzlich
   ein `<projekt>.zip`, das `/releases/latest/download/<projekt>.zip` bedient.
