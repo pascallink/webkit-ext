@@ -181,7 +181,7 @@
     fab.type = 'button';
     fab.className = 'jmd-fab';
     fab.dataset.jmdUi = 'fab';
-    fab.setAttribute('aria-label', 'Markdown nach Jira umwandeln');
+    fab.setAttribute('aria-label', 'Markdown in Jira-Markup umwandeln');
 
     var caption = document.createElement('span');
     caption.textContent = 'MD';
@@ -205,7 +205,7 @@
     var state = Settings.toggleState(settings);
     var dot = fab.querySelector('.jmd-fab__dot');
     if (dot) dot.style.background = state.color;
-    fab.title = 'Markdown nach Jira - ' + state.label;
+    fab.title = 'PowerEdit for Jira - ' + state.label;
   }
 
   function isTopFrame() {
@@ -298,7 +298,7 @@
 
   var PANEL_HTML = [
     '<div class="jmd-panel__head">',
-    '  <span class="jmd-panel__title">Markdown nach Jira</span>',
+    '  <span class="jmd-panel__title">PowerEdit for Jira</span>',
     '  <button type="button" class="jmd-icon-btn" data-action="close" title="Schliessen" aria-label="Schliessen">x</button>',
     '</div>',
     '<div class="jmd-panel__body">',
@@ -357,7 +357,7 @@
     panel.className = 'jmd-panel';
     panel.dataset.jmdUi = 'panel';
     panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-label', 'Markdown nach Jira');
+    panel.setAttribute('aria-label', 'PowerEdit for Jira');
     panel.innerHTML = PANEL_HTML;
     document.body.appendChild(panel);
 
