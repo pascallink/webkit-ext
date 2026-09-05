@@ -114,6 +114,19 @@ console.log('\nDateiverweise in HTML');
   });
 });
 
+test('README verweist nur auf vorhandene Bilder', function () {
+  var readme = fs.readFileSync(abs('README.md'), 'utf8');
+  // Nur echte Verweise, nicht die Beispielzeile in der Umwandlungstabelle.
+  var pattern = /!\[[^\]]*\]\((docs\/[^)]+)\)/g;
+  var match;
+  var count = 0;
+  while ((match = pattern.exec(readme)) !== null) {
+    count++;
+    assert.ok(exists(match[1]), match[1] + ' fehlt');
+  }
+  assert.ok(count >= 4, 'zu wenige Bilder in der Dokumentation: ' + count);
+});
+
 console.log('\nService-Worker');
 test('importScripts verweist auf vorhandene Dateien', function () {
   var source = fs.readFileSync(abs('src/background.js'), 'utf8');
@@ -186,6 +199,15 @@ test('Code einfuegen ist an Feldleiste und Panel vorhanden', function () {
   assert.ok(/data-code-action="copy-jira"/.test(dialog), 'kein Knopf zum Kopieren des Markups');
   assert.ok(/data-code-action="copy-html"/.test(dialog), 'kein Knopf zum formatierten Kopieren');
   assert.ok(!/actionscript/.test(dialog), 'Sprachliste ist im Dialog dupliziert');
+});
+
+test('Kopieren gibt es als Markup und formatiert', function () {
+  var content = fs.readFileSync(abs('src/content.js'), 'utf8');
+  assert.ok(/data-action="copy"/.test(content), 'Panel kopiert kein Markup');
+  assert.ok(/data-action="copy-html"/.test(content), 'Panel kopiert nicht formatiert');
+  var dialog = fs.readFileSync(abs('src/codedialog.js'), 'utf8');
+  assert.ok(/data-code-action="copy-jira"/.test(dialog), 'Dialog kopiert kein Markup');
+  assert.ok(/data-code-action="copy-html"/.test(dialog), 'Dialog kopiert nicht formatiert');
 });
 
 console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');
