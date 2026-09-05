@@ -8,7 +8,7 @@ Markdown-Tabelle wird eine Jira-Tabelle.
 
 ## Was die Erweiterung einbaut
 
-Auf Jira-Seiten kommen drei Bedienelemente dazu:
+Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
 
 1. **Buttonleiste direkt am Feld** – ueber jedem Beschreibungs- und
    Kommentarfeld:
@@ -16,12 +16,32 @@ Auf Jira-Seiten kommen drei Bedienelemente dazu:
      Auswahl darin) an Ort und Stelle um.
    * *Aus Zwischenablage einfuegen* – holt das Markdown aus der Zwischenablage,
      konvertiert es und fuegt es an der Cursorposition ein.
+   * *Code einfuegen* – oeffnet den Dialog fuer einen Codeblock.
+   * *Panel aus Vorlage* – stellt vier farbige Panels zur Auswahl und fuegt
+     das gewaehlte an der Cursorposition ein.
    * *Editor oeffnen* – oeffnet das Eingabefeld mit Vorschau.
 2. **Eingabefeld mit Vorschau** (schwebender `MD`-Button unten rechts) –
    links Markdown einfuegen, rechts das fertige Jira-Markup sehen, dann
-   *Ins Ticket einfuegen*, *Feld ersetzen* oder *Kopieren*. Ueber
-   *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen.
-3. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
+   *Ins Ticket einfuegen*, *Feld ersetzen*, *Markup kopieren* oder
+   *Formatiert kopieren* (fuer den Rich-Text-Editor). Ueber
+   *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Code
+   einfuegen* und *Panel aus Vorlage* gibt es auch hier.
+3. **Dialog "Code einfuegen"** – Sprache aus der Liste der von Jira
+   unterstuetzten Sprachen waehlen, Code eintippen, fertigen Codeblock an der
+   Cursorposition einsetzen. Zu erreichen ueber die Buttonleiste am Feld und
+   ueber das Panel.
+
+   ![Der Dialog "Code einfuegen": Sprachauswahl, Eingabefeld fuer den Code, Hinweis zur Tastaturbedienung, darunter Einfuegen, Abbrechen und die beiden Kopier-Knoepfe](docs/images/code-dialog.png)
+
+4. **Menue "Panel aus Vorlage"** – vier farbige Vorlagen zur Auswahl: Info
+   (blau), Hinweis (gelb), Warnung (rot) und Standard (grau). Die gewaehlte
+   wird mit Titel und Platzhaltertext an der Cursorposition eingesetzt, der
+   Platzhalter ist danach markiert. Zu erreichen ueber die Buttonleiste am
+   Feld und ueber das Panel.
+
+   ![Das Menue "Panel aus Vorlage" mit den vier Eintraegen Info, Hinweis, Warnung und Standard, jeder mit seinem Farbtupfer](docs/images/panel-vorlagen.png)
+
+5. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
    eingefuegt, der nach Markdown aussieht, wandelt die Erweiterung ihn direkt
    beim Einfuegen um. `Strg+Z` macht das rueckgaengig.
 
@@ -30,9 +50,104 @@ vorher im Panel getippt wurde. Ist im Feld ein Rich-Text-Editor aktiv, kommt
 der Text formatiert an; auf Wunsch schaltet die Erweiterung stattdessen vorher
 auf den Markup-Modus um.
 
+Klappt das Einfuegen in ein Feld einmal nicht, kopieren *Markup kopieren*
+und *Formatiert kopieren* - im Panel wie im Code-Dialog - das Ergebnis zum
+Einfuegen von Hand: einmal als Jira-Markup, einmal als `text/html` mit dem
+Markup als Rueckfalltext daneben.
+
 Dazu kommen ein Symbolleisten-Popup (Konverter ohne Jira-Seite), ein
 Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`
 (macOS: `Cmd+Umschalt+M`), das die aktuelle Auswahl im Editor umwandelt.
+
+## Code einfuegen
+
+Der Knopf *Code einfuegen* – in der Buttonleiste am Feld wie im Panel – oeffnet
+einen kleinen Dialog: oben die Auswahlliste mit den Sprachen, die Jira im
+`{code}`-Makro kennt, darunter ein mehrzeiliges Feld fuer den Code. *Einfuegen*
+schreibt den fertigen Codeblock an die gemerkte Cursorposition im Jira-Feld -
+dieselbe Position wie beim Panel, eine markierte Passage wird ersetzt.
+
+Wenn das Zielfeld sich nicht beschreiben laesst, helfen die beiden Knoepfe
+darunter: *Markup kopieren* legt `{code:sprache} … {code}` in die
+Zwischenablage, *Formatiert kopieren* den Codeblock als `text/html` (mit dem
+Markup als Rueckfalltext daneben) - beim Einfuegen von Hand kommt er im
+Rich-Text-Editor also als echter Codeblock an. Der Dialog bleibt dabei offen.
+
+Dieselben beiden Knoepfe sitzen im Panel, dort fuer das umgewandelte Markdown:
+
+![Panel mit den Knoepfen "Markup kopieren" und "Formatiert kopieren" unter den Einfuege-Knoepfen](docs/images/kopieren.png)
+
+Der Code wird dabei nie durch den Markdown-Parser geschickt: `# Titel` oder
+`**fett**` bleiben im Codeblock genau so stehen, wie sie eingetippt wurden.
+
+| Feldtyp | Was ankommt |
+| --- | --- |
+| Textfeld (Wiki Style Renderer) | `{code:java} … {code}` |
+| Rich-Text-Editor | `<pre><code class="language-java"> … </code></pre>` |
+
+Derselbe Codeblock, einmal im Textfeld von Jira Server 9.12 und einmal im
+Rich-Text-Editor – eingesetzt an der Stelle, an der der Cursor stand:
+
+| Textfeld (Wiki Style Renderer) | Rich-Text-Editor |
+| --- | --- |
+| ![Textfeld mit einem eingefuegten {code:java}-Block zwischen zwei Saetzen](docs/images/code-textfeld.png) | ![Rich-Text-Editor mit dem Codeblock als formatiertem Kasten](docs/images/code-richtext.png) |
+
+Im Rich-Text-Editor gelten dieselben Einstellungen wie beim uebrigen
+Einfuegen: ist *Vorher auf den Markup-Modus umschalten* aktiv, wird
+umgeschaltet und Jira-Markup geschrieben; steht *Im Rich-Text-Editor* auf
+*Jira-Markup einfuegen*, kommt ebenfalls Markup an.
+
+Im Eingabefeld:
+
+| Taste | Wirkung |
+| --- | --- |
+| `Tab` | rueckt um vier Leerzeichen ein (statt den Fokus zu wechseln) |
+| `Umschalt+Tab` | nimmt die Einrueckung wieder zurueck |
+| `Umschalt+Tab` ohne Einrueckung | springt aus dem Feld zurueck zur Sprachauswahl |
+| `Strg+Enter` | fuegt ein |
+| `Escape` | schliesst den Dialog |
+
+Damit bleibt das Feld auch ohne Maus verlassbar; derselbe Hinweis steht als
+Text unter dem Eingabefeld und ist ueber `aria-describedby` mit ihm verbunden.
+
+## Panel aus Vorlage
+
+Der Button *Panel aus Vorlage* – in der Buttonleiste am Feld und im Panel der
+Erweiterung – stellt vier Vorlagen zur Auswahl:
+
+| Vorlage | Farbe | Rahmen | Hintergrund |
+| --- | --- | --- | --- |
+| Info | blau | `#0052cc` | `#deebff` |
+| Hinweis | gelb | `#ff8b00` | `#fffae6` |
+| Warnung | rot | `#de350b` | `#ffebe6` |
+| Standard | grau | `#dfe1e6` | `#f4f5f7` |
+
+Gewaehlt wird ueber ein kleines Menue, in dem jede Vorlage ihren Farbtupfer
+traegt. Eingefuegt wird an der gemerkten Cursorposition; danach ist der
+Platzhaltertext markiert, sodass Tippen ihn ersetzt.
+
+Was ankommt, haengt am Feldtyp:
+
+| Feld | Ausgabe |
+| --- | --- |
+| reines Textfeld | `{panel:title=Info\|borderColor=#0052cc\|bgColor=#deebff} … {panel}` |
+| Rich-Text-Editor | dasselbe als HTML: ein `div` mit denselben Farben, Titel fett darueber |
+
+Ist *Vorher auf den Markup-Modus umschalten* eingestellt, wird aus dem
+Rich-Text-Editor erst ein Textfeld – dann kommt auch dort Wiki-Markup an.
+
+**Warum `{panel}` und nicht `{info}`/`{note}`/`{warning}`:** Diese drei Makros
+stammen aus Confluence. Der Wiki Style Renderer von Jira Server / Data Center
+bringt sie in aller Regel nicht mit; sie stuenden dann woertlich im Ticket.
+`{panel}` gehoert dagegen zur dokumentierten Textformatierung von Jira und
+kennt `title`, `borderColor` und `bgColor` – die Farbe steckt darum in der
+Vorlage, nicht im Makronamen. (`borderStyle` und `titleBGColor` sind ebenfalls
+dokumentiert, werden hier aber nicht gebraucht.)
+
+Titel, Platzhalter und Farben stehen an einer Stelle – `PANEL_TEMPLATES` in
+`src/settings.js`. Die Ausgabe erzeugen `panelMarkup` und `panelHtml` in
+`src/converter.js` aus derselben Vorlage, damit Markup- und HTML-Zweig nicht
+auseinanderlaufen.
 
 ## Automatik ein- und ausschalten
 
@@ -228,10 +343,12 @@ jira-markdown-converter/
 ├── src/
 │   ├── converter.js   Markdown -> Jira (ohne DOM, auch in Node nutzbar)
 │   ├── editors.js     Jira-Felder finden, lesen, beschreiben
+│   ├── codedialog.js  Dialog "Code einfuegen"
 │   ├── content.js     Bedienelemente, Einfuege-Automatik
 │   ├── settings.js    gemeinsame Einstellungen
 │   ├── background.js  Tastenkuerzel, Kontextmenue, eigene Hosts
-│   └── content.css
+│   ├── content.css
+│   └── codedialog.css
 ├── popup/             Konverter in der Symbolleiste
 ├── options/           Einstellungsseite
 ├── icons/
@@ -272,4 +389,7 @@ convertBoth('# Titel');   // { jira: "h1. Titel", html: "<h1>Titel</h1>" }
 ```
 
 Beide Formate entstehen aus demselben Parser; die Ausgabe bestimmt ein
-Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`.
+Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`. Der
+Code-Dialog nimmt genau diese Dialekte direkt (`dialects.jira.codeBlock`,
+`dialects.html.codeBlock`) und holt die Sprachliste aus `codeLanguages`, damit
+sie nur an einer Stelle gepflegt wird.

@@ -22,6 +22,8 @@ export default [
         Event: 'readonly',
         ClipboardEvent: 'readonly',
         DataTransfer: 'readonly',
+        Blob: 'readonly',
+        ClipboardItem: 'readonly',
         MutationObserver: 'readonly',
         HTMLTextAreaElement: 'readonly',
         importScripts: 'readonly'

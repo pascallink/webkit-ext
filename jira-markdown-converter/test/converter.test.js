@@ -392,6 +392,39 @@ test('Optionen wirken auf beide Formate', function () {
   assert.strictEqual(both.html, '<pre><code>a</code></pre>');
 });
 
+console.log('\nSprachliste fuer die Auswahl');
+test('Sprachliste wird exportiert und ist alphabetisch', function () {
+  var names = jira.codeLanguages;
+  assert.ok(Array.isArray(names), 'kein Array');
+  assert.ok(names.length > 40, 'zu wenige Sprachen: ' + names.length);
+  ['java', 'javascript', 'json', 'python', 'sql', 'yaml'].forEach(function (name) {
+    assert.ok(names.indexOf(name) !== -1, name + ' fehlt in der Liste');
+  });
+  assert.deepStrictEqual(names, names.slice().sort(), 'Liste ist nicht sortiert');
+});
+test('jede angebotene Sprache ueberlebt die Zuordnung', function () {
+  jira.codeLanguages.forEach(function (name) {
+    assert.strictEqual(jira.mapLanguage(name), name, name + ' wird nicht erkannt');
+  });
+  assert.strictEqual(jira.mapLanguage('js'), 'javascript');
+  assert.strictEqual(jira.mapLanguage('erfunden'), '');
+});
+
+console.log('\nCodeblock aus dem Dialog');
+test('Dialekte bauen den Codeblock ohne Markdown-Deutung', function () {
+  // Der Code-Dialog nimmt genau diesen Weg: Text direkt in den Dialekt,
+  // ohne den Parser.
+  var body = '# kein Titel\n**kein Fettdruck**\n  eingerueckt';
+  assert.strictEqual(jira.dialects.jira.codeBlock('java', body),
+    '{code:java}\n' + body + '\n{code}');
+  assert.strictEqual(jira.dialects.jira.codeBlock('', body),
+    '{code}\n' + body + '\n{code}');
+});
+test('HTML-Codeblock maskiert den Inhalt', function () {
+  var html = jira.dialects.html.codeBlock('html', '<b>&</b>');
+  assert.strictEqual(html, '<pre><code class="language-html">&lt;b&gt;&amp;&lt;/b&gt;</code></pre>');
+});
+
 console.log('\nGesamtdokument (Azure DevOps Work Item)');
 test('vollstaendiges Dokument', function () {
   var markdown = [
@@ -467,6 +500,85 @@ test('vollstaendiges Dokument', function () {
   ].join('\n');
 
   eq(markdown, expected);
+});
+
+console.log('\nPanel aus einer Vorlage');
+var Settings = require(path.join(__dirname, '..', 'src', 'settings.js'));
+
+function template(id) {
+  var found = Settings.panelTemplate(id);
+  assert.ok(found, 'Vorlage fehlt: ' + id);
+  return found;
+}
+
+test('Markup nutzt {panel} mit Rahmen- und Hintergrundfarbe', function () {
+  // {info}/{note}/{warning} sind Confluence-Makros und stehen im Wiki Style
+  // Renderer von Jira Server nicht bereit - die Farbe kommt ueber Attribute.
+  assert.strictEqual(jira.panelMarkup(template('info')),
+    '{panel:title=Info|borderColor=#0052cc|bgColor=#deebff}\n' +
+    'Hier die Information eintragen.\n{panel}');
+});
+
+test('jede Vorlage liefert Titel, Platzhalter und beide Farben', function () {
+  Settings.PANEL_TEMPLATES.forEach(function (entry) {
+    var markup = jira.panelMarkup(entry);
+    assert.ok(markup.indexOf('{panel:title=' + entry.title) === 0, entry.id + ': ' + markup);
+    assert.ok(markup.indexOf('|borderColor=' + entry.borderColor) !== -1, entry.id + ': ' + markup);
+    assert.ok(markup.indexOf('|bgColor=' + entry.bgColor) !== -1, entry.id + ': ' + markup);
+    assert.ok(markup.indexOf('\n' + entry.body + '\n') !== -1, entry.id + ': ' + markup);
+    assert.ok(/\{panel\}$/.test(markup), entry.id + ': ' + markup);
+  });
+});
+
+test('kein Confluence-Makro im Markup', function () {
+  Settings.PANEL_TEMPLATES.forEach(function (entry) {
+    assert.ok(!/\{(?:info|note|warning|tip)[:}]/.test(jira.panelMarkup(entry)), entry.id);
+  });
+});
+
+test('HTML-Zweig traegt dieselben Farben wie das Markup', function () {
+  Settings.PANEL_TEMPLATES.forEach(function (entry) {
+    var html = jira.panelHtml(entry);
+    assert.ok(html.indexOf('border: 1px solid ' + entry.borderColor) !== -1, entry.id + ': ' + html);
+    assert.ok(html.indexOf('background-color: ' + entry.bgColor) !== -1, entry.id + ': ' + html);
+    assert.ok(html.indexOf('<strong>' + entry.title + '</strong>') !== -1, entry.id + ': ' + html);
+    assert.ok(html.indexOf('<p>' + entry.body + '</p>') !== -1, entry.id + ': ' + html);
+  });
+});
+
+test('beide Zweige lesen dieselbe Vorlage', function () {
+  var eigene = {
+    id: 'test', label: 'Test', title: 'Titel', body: 'Text',
+    borderColor: '#123456', bgColor: '#abcdef'
+  };
+  assert.ok(jira.panelMarkup(eigene).indexOf('#123456') !== -1);
+  assert.ok(jira.panelHtml(eigene).indexOf('#123456') !== -1);
+  assert.ok(jira.panelMarkup(eigene).indexOf('#abcdef') !== -1);
+  assert.ok(jira.panelHtml(eigene).indexOf('#abcdef') !== -1);
+});
+
+test('eigener Text ersetzt den Platzhalter', function () {
+  var markup = jira.panelMarkup(template('note'), 'Eigener Text');
+  assert.ok(markup.indexOf('\nEigener Text\n') !== -1, markup);
+  assert.ok(jira.panelHtml(template('note'), 'Eigener Text').indexOf('<p>Eigener Text</p>') !== -1);
+});
+
+test('Titel kann das Makro nicht sprengen', function () {
+  var boese = { title: 'a|b}c', body: 'x', borderColor: '#000000', bgColor: '#ffffff' };
+  var markup = jira.panelMarkup(boese);
+  assert.strictEqual(markup.split('\n')[0],
+    '{panel:title=a b c|borderColor=#000000|bgColor=#ffffff}', markup);
+});
+
+test('unbrauchbare Farben fallen weg', function () {
+  var markup = jira.panelMarkup({ title: 'T', body: 'x', borderColor: 'rot; content: bad', bgColor: '' });
+  assert.strictEqual(markup.split('\n')[0], '{panel:title=T}', markup);
+});
+
+test('HTML im Panel wird maskiert', function () {
+  var html = jira.panelHtml({ title: '<b>T</b>', body: '<script>x</script>', borderColor: '#000000', bgColor: '#ffffff' });
+  assert.ok(html.indexOf('<script>') === -1, html);
+  assert.ok(html.indexOf('&lt;b&gt;T&lt;/b&gt;') !== -1, html);
 });
 
 console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');
