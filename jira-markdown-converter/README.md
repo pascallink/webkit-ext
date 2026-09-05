@@ -40,6 +40,8 @@ Die Erkennung greift manchmal auch bei Text, der gar kein Markdown ist – ein
 Spiegelstrich am Zeilenanfang genuegt. Deshalb laesst sich die Automatik
 ueberall dort abschalten, wo man gerade ist:
 
+![Der Schalter in beiden Zustaenden: aktiviert gruen, deaktiviert grau](docs/images/schalter-zustaende.png)
+
 | Wo | Was |
 | --- | --- |
 | Symbol in der Symbolleiste | Badge zeigt den Zustand: **AN** gruen, **AUS** grau |
@@ -53,6 +55,18 @@ Alle Stellen schreiben dieselbe Einstellung; ein Umschalten ist sofort ueberall
 sichtbar. Ausgeschaltet bleiben nur die Automatik und nichts sonst – die
 Buttonleiste am Feld, das Panel, das Kontextmenue und das Tastenkuerzel
 wandeln weiterhin auf Zuruf um.
+
+Der Schalter ist eine echte Checkbox unter der Optik: mit Tabulator erreichbar,
+mit Leertaste schaltbar. Beschriftung und Farbe wechseln gemeinsam, der Zustand
+haengt also nicht allein an der Farbe.
+
+| Im Popup | Im Panel auf der Jira-Seite |
+| --- | --- |
+| ![Popup mit dem Schalter ganz oben](docs/images/popup.png) | ![Panel mit ausgeschalteter Automatik](docs/images/panel.png) |
+
+Auf der Einstellungsseite sitzt derselbe Schalter im Abschnitt *Verhalten*:
+
+![Abschnitt Verhalten der Einstellungsseite](docs/images/einstellungen.png)
 
 ## Installation
 
