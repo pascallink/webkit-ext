@@ -46,6 +46,10 @@
     vala: 1, vb: 1, verilog: 1, vhdl: 1, xml: 1, xquery: 1, yaml: 1
   };
 
+  // Dieselbe Liste alphabetisch als Namen - fuer Auswahllisten in der
+  // Oberflaeche, damit sie nirgends ein zweites Mal gepflegt werden muss.
+  var CODE_LANGUAGE_NAMES = Object.keys(JIRA_CODE_LANGUAGES).sort();
+
   // Aliase, die Azure DevOps / GitHub haeufig verwenden.
   var LANGUAGE_ALIASES = {
     js: 'javascript',
@@ -1048,6 +1052,8 @@
     looksLikeMarkdown: looksLikeMarkdown,
     panelMarkup: panelMarkup,
     panelHtml: panelHtml,
+    mapLanguage: mapLanguage,
+    codeLanguages: CODE_LANGUAGE_NAMES,
     defaultOptions: DEFAULT_OPTIONS,
     dialects: DIALECTS
   };

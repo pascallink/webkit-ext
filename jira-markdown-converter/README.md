@@ -16,14 +16,15 @@ Auf Jira-Seiten kommen drei Bedienelemente dazu:
      Auswahl darin) an Ort und Stelle um.
    * *Aus Zwischenablage einfuegen* – holt das Markdown aus der Zwischenablage,
      konvertiert es und fuegt es an der Cursorposition ein.
+   * *Code einfuegen* – oeffnet den Dialog fuer einen Codeblock.
    * *Panel aus Vorlage* – stellt vier farbige Panels zur Auswahl und fuegt
      das gewaehlte an der Cursorposition ein.
    * *Editor oeffnen* – oeffnet das Eingabefeld mit Vorschau.
 2. **Eingabefeld mit Vorschau** (schwebender `MD`-Button unten rechts) –
    links Markdown einfuegen, rechts das fertige Jira-Markup sehen, dann
    *Ins Ticket einfuegen*, *Feld ersetzen* oder *Kopieren*. Ueber
-   *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Panel aus
-   Vorlage* gibt es auch hier.
+   *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Code
+   einfuegen* und *Panel aus Vorlage* gibt es auch hier.
 3. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
    eingefuegt, der nach Markdown aussieht, wandelt die Erweiterung ihn direkt
    beim Einfuegen um. `Strg+Z` macht das rueckgaengig.
@@ -36,6 +37,39 @@ auf den Markup-Modus um.
 Dazu kommen ein Symbolleisten-Popup (Konverter ohne Jira-Seite), ein
 Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`
 (macOS: `Cmd+Umschalt+M`), das die aktuelle Auswahl im Editor umwandelt.
+
+## Code einfuegen
+
+Der Knopf *Code einfuegen* – in der Buttonleiste am Feld wie im Panel – oeffnet
+einen kleinen Dialog: oben die Auswahlliste mit den Sprachen, die Jira im
+`{code}`-Makro kennt, darunter ein mehrzeiliges Feld fuer den Code. *Einfuegen*
+schreibt den fertigen Codeblock an die gemerkte Cursorposition im Jira-Feld.
+
+Der Code wird dabei nie durch den Markdown-Parser geschickt: `# Titel` oder
+`**fett**` bleiben im Codeblock genau so stehen, wie sie eingetippt wurden.
+
+| Feldtyp | Was ankommt |
+| --- | --- |
+| Textfeld (Wiki Style Renderer) | `{code:java} … {code}` |
+| Rich-Text-Editor | `<pre><code class="language-java"> … </code></pre>` |
+
+Im Rich-Text-Editor gelten dieselben Einstellungen wie beim uebrigen
+Einfuegen: ist *Vorher auf den Markup-Modus umschalten* aktiv, wird
+umgeschaltet und Jira-Markup geschrieben; steht *Im Rich-Text-Editor* auf
+*Jira-Markup einfuegen*, kommt ebenfalls Markup an.
+
+Im Eingabefeld:
+
+| Taste | Wirkung |
+| --- | --- |
+| `Tab` | rueckt um vier Leerzeichen ein (statt den Fokus zu wechseln) |
+| `Umschalt+Tab` | nimmt die Einrueckung wieder zurueck |
+| `Umschalt+Tab` ohne Einrueckung | springt aus dem Feld zurueck zur Sprachauswahl |
+| `Strg+Enter` | fuegt ein |
+| `Escape` | schliesst den Dialog |
+
+Damit bleibt das Feld auch ohne Maus verlassbar; derselbe Hinweis steht als
+Text unter dem Eingabefeld und ist ueber `aria-describedby` mit ihm verbunden.
 
 ## Panel aus Vorlage
 
@@ -270,10 +304,12 @@ jira-markdown-converter/
 ├── src/
 │   ├── converter.js   Markdown -> Jira (ohne DOM, auch in Node nutzbar)
 │   ├── editors.js     Jira-Felder finden, lesen, beschreiben
+│   ├── codedialog.js  Dialog "Code einfuegen"
 │   ├── content.js     Bedienelemente, Einfuege-Automatik
 │   ├── settings.js    gemeinsame Einstellungen
 │   ├── background.js  Tastenkuerzel, Kontextmenue, eigene Hosts
-│   └── content.css
+│   ├── content.css
+│   └── codedialog.css
 ├── popup/             Konverter in der Symbolleiste
 ├── options/           Einstellungsseite
 ├── icons/
@@ -314,4 +350,7 @@ convertBoth('# Titel');   // { jira: "h1. Titel", html: "<h1>Titel</h1>" }
 ```
 
 Beide Formate entstehen aus demselben Parser; die Ausgabe bestimmt ein
-Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`.
+Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`. Der
+Code-Dialog nimmt genau diese Dialekte direkt (`dialects.jira.codeBlock`,
+`dialects.html.codeBlock`) und holt die Sprachliste aus `codeLanguages`, damit
+sie nur an einer Stelle gepflegt wird.

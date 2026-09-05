@@ -392,6 +392,39 @@ test('Optionen wirken auf beide Formate', function () {
   assert.strictEqual(both.html, '<pre><code>a</code></pre>');
 });
 
+console.log('\nSprachliste fuer die Auswahl');
+test('Sprachliste wird exportiert und ist alphabetisch', function () {
+  var names = jira.codeLanguages;
+  assert.ok(Array.isArray(names), 'kein Array');
+  assert.ok(names.length > 40, 'zu wenige Sprachen: ' + names.length);
+  ['java', 'javascript', 'json', 'python', 'sql', 'yaml'].forEach(function (name) {
+    assert.ok(names.indexOf(name) !== -1, name + ' fehlt in der Liste');
+  });
+  assert.deepStrictEqual(names, names.slice().sort(), 'Liste ist nicht sortiert');
+});
+test('jede angebotene Sprache ueberlebt die Zuordnung', function () {
+  jira.codeLanguages.forEach(function (name) {
+    assert.strictEqual(jira.mapLanguage(name), name, name + ' wird nicht erkannt');
+  });
+  assert.strictEqual(jira.mapLanguage('js'), 'javascript');
+  assert.strictEqual(jira.mapLanguage('erfunden'), '');
+});
+
+console.log('\nCodeblock aus dem Dialog');
+test('Dialekte bauen den Codeblock ohne Markdown-Deutung', function () {
+  // Der Code-Dialog nimmt genau diesen Weg: Text direkt in den Dialekt,
+  // ohne den Parser.
+  var body = '# kein Titel\n**kein Fettdruck**\n  eingerueckt';
+  assert.strictEqual(jira.dialects.jira.codeBlock('java', body),
+    '{code:java}\n' + body + '\n{code}');
+  assert.strictEqual(jira.dialects.jira.codeBlock('', body),
+    '{code}\n' + body + '\n{code}');
+});
+test('HTML-Codeblock maskiert den Inhalt', function () {
+  var html = jira.dialects.html.codeBlock('html', '<b>&</b>');
+  assert.strictEqual(html, '<pre><code class="language-html">&lt;b&gt;&amp;&lt;/b&gt;</code></pre>');
+});
+
 console.log('\nGesamtdokument (Azure DevOps Work Item)');
 test('vollstaendiges Dokument', function () {
   var markdown = [

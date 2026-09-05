@@ -11,6 +11,7 @@
   var Converter = window.JiraMarkdown;
   var Editors = window.JiraEditors;
   var Settings = window.JiraMdSettings;
+  var CodeDialog = window.JiraCodeDialog;
 
   var settings = Settings.DEFAULTS;
   var panel = null;
@@ -259,6 +260,7 @@
     '    <button type="button" class="jmd-btn" data-action="copy">Kopieren</button>',
     '  </div>',
     '  <div class="jmd-row">',
+    '    <button type="button" class="jmd-btn" data-action="code">Code einfuegen</button>',
     '    <button type="button" class="jmd-btn" data-action="panel-template"',
     '            aria-haspopup="true" aria-expanded="false">Panel aus Vorlage</button>',
     '  </div>',
@@ -369,6 +371,9 @@
       case 'replace':
         insertFromPanel(input.value, 'replace');
         break;
+      case 'code':
+        openCodeDialog(null);
+        break;
       default:
         break;
     }
@@ -390,6 +395,52 @@
       } else {
         toast('Einfuegen nicht moeglich - bitte Text kopieren.', true);
       }
+    });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Code einfuegen
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Oeffnet den Code-Dialog fuer ein Feld. Der Dialog baut den Codeblock,
+   * eingefuegt wird hier - an der gemerkten Cursorposition.
+   */
+  function openCodeDialog(field) {
+    var into = field || currentTarget();
+    if (!into) {
+      toast('Kein Jira-Eingabefeld gefunden.', true);
+      return;
+    }
+    target = into;
+    CodeDialog.open({
+      target: Editors.describe(into),
+      onEmpty: function () {
+        toast('Bitte zuerst Code eingeben.', true);
+      },
+      onInsert: function (result) {
+        return insertCode(into, result);
+      }
+    });
+  }
+
+  /**
+   * Reines Textfeld bekommt {code:sprache}, der Rich-Text-Editor das fertige
+   * <pre><code>. Die Einstellungen fuer den Rich-Text-Editor gelten wie beim
+   * uebrigen Einfuegen: erst umschalten, sonst Markup oder formatiert.
+   */
+  function insertCode(field, result) {
+    var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
+      ? Editors.switchToMarkup(field)
+      : Promise.resolve(false);
+
+    return switching.then(function (switched) {
+      var markupOnly = switched || isPlainField(field) || settings.richEditorFormat === 'jira';
+      var ok = markupOnly
+        ? Editors.insert(field, result.jira, 'insert')
+        : Editors.insertFormatted(field, result.jira, result.html, 'insert');
+      toast(ok ? 'Codeblock eingefuegt.' : 'Einfuegen nicht moeglich - bitte Text kopieren.', !ok);
+      return ok;
     });
   }
 
@@ -812,6 +863,16 @@
       });
     });
 
+    var codeButton = document.createElement('button');
+    codeButton.type = 'button';
+    codeButton.className = 'jmd-fieldbar__btn';
+    codeButton.textContent = 'Code einfuegen';
+    codeButton.title = 'Codeblock mit Sprachauswahl einfuegen';
+    codeButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      openCodeDialog(field);
+    });
+
     var templateButton = document.createElement('button');
     templateButton.type = 'button';
     templateButton.className = 'jmd-fieldbar__btn';
@@ -838,6 +899,7 @@
 
     bar.appendChild(convertButton);
     bar.appendChild(pasteButton);
+    bar.appendChild(codeButton);
     bar.appendChild(templateButton);
     bar.appendChild(panelButton);
     parent.insertBefore(bar, host);
