@@ -178,13 +178,31 @@
     fab.type = 'button';
     fab.className = 'jmd-fab';
     fab.dataset.jmdUi = 'fab';
-    fab.textContent = 'MD';
-    fab.title = 'Markdown nach Jira umwandeln';
     fab.setAttribute('aria-label', 'Markdown nach Jira umwandeln');
+
+    var caption = document.createElement('span');
+    caption.textContent = 'MD';
+    fab.appendChild(caption);
+
+    // Kleiner Punkt zeigt, ob die Einfuege-Automatik laeuft.
+    var dot = document.createElement('span');
+    dot.className = 'jmd-fab__dot';
+    fab.appendChild(dot);
+
     fab.addEventListener('click', function () {
       togglePanel();
     });
     document.body.appendChild(fab);
+    updateFab();
+  }
+
+  /** Faerbt den Zustandspunkt am schwebenden Button. */
+  function updateFab() {
+    if (!fab) return;
+    var state = Settings.toggleState(settings);
+    var dot = fab.querySelector('.jmd-fab__dot');
+    if (dot) dot.style.background = state.color;
+    fab.title = 'Markdown nach Jira - ' + state.label;
   }
 
   function isTopFrame() {
@@ -210,6 +228,16 @@
     '  <button type="button" class="jmd-icon-btn" data-action="close" title="Schliessen" aria-label="Schliessen">x</button>',
     '</div>',
     '<div class="jmd-panel__body">',
+    '  <div class="jmd-toggle-card" data-role="toggle-card">',
+    '    <label class="jmd-switch">',
+    '      <input type="checkbox" data-option="convertOnPaste">',
+    '      <span class="jmd-switch__track"><span class="jmd-switch__knob"></span></span>',
+    '      <span class="jmd-switch__text">',
+    '        <b data-role="toggle-label">Automatik ist an</b>',
+    '        <small data-role="toggle-hint">Eingefuegtes Markdown wird umgewandelt.</small>',
+    '      </span>',
+    '    </label>',
+    '  </div>',
     '  <label class="jmd-label" for="jmd-input">Markdown aus Azure DevOps</label>',
     '  <textarea id="jmd-input" class="jmd-textarea" rows="7" spellcheck="false"',
     '            placeholder="Markdown hier einfuegen (Strg+V) ..."></textarea>',
@@ -230,7 +258,6 @@
     '    <button type="button" class="jmd-btn" data-action="copy">Kopieren</button>',
     '  </div>',
     '  <div class="jmd-options">',
-    '    <label class="jmd-check"><input type="checkbox" data-option="convertOnPaste"> Beim Einfuegen automatisch umwandeln</label>',
     '    <label class="jmd-check"><input type="checkbox" data-option="switchToMarkup"> Rich-Text vorher auf Markup-Modus umschalten</label>',
     '    <label class="jmd-check jmd-check--wide">Im Rich-Text-Editor:',
     '      <select class="jmd-select" data-option="richEditorFormat">',
@@ -275,7 +302,12 @@
       update[option] = event.target.tagName === 'SELECT' ? event.target.value : event.target.checked;
       settings = Settings.withDefaults(Object.assign({}, settings, update));
       Settings.save(settings);
+      syncPanelState();
+      updateFab();
       refreshPreview();
+      if (option === 'convertOnPaste') {
+        toast(Settings.toggleState(settings).label + '.');
+      }
     });
 
     panel.addEventListener('keydown', function (event) {
@@ -377,6 +409,15 @@
     if (paste) paste.checked = !!settings.convertOnPaste;
     if (markup) markup.checked = !!settings.switchToMarkup;
     if (rich) rich.value = settings.richEditorFormat;
+
+    var state = Settings.toggleState(settings);
+    var card = panel.querySelector('[data-role="toggle-card"]');
+    var label = panel.querySelector('[data-role="toggle-label"]');
+    var hint = panel.querySelector('[data-role="toggle-hint"]');
+    if (card) card.style.setProperty('--jmd-switch-color', state.color);
+    if (label) label.textContent = state.label;
+    if (hint) hint.textContent = state.hint;
+
     updateTargetLabel();
   }
 
@@ -733,6 +774,7 @@
         removeFab();
       }
       syncPanelState();
+      updateFab();
       refreshPreview();
     });
   }

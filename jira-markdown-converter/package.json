@@ -1,6 +1,6 @@
 {
   "name": "jira-markdown-converter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Browser-Erweiterung: wandelt Markdown aus Azure DevOps in Jira-Markup um und fuegt es ins Ticket ein.",
   "private": true,
   "scripts": {

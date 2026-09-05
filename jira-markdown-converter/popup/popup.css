@@ -7,6 +7,8 @@
   --muted: #6b778c;
   --accent: #0052cc;
   --error: #de350b;
+  --on: #36b37e;
+  --off: #8993a4;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,6 +19,8 @@
     --text: #c7d1db;
     --muted: #9fadbc;
     --accent: #579dff;
+    --on: #4bce97;
+    --off: #738496;
   }
 }
 
@@ -156,4 +160,75 @@ body {
 .notice__text {
   margin: 0 0 8px;
   font-size: 12px;
+}
+
+/* Schalter fuer die Einfuege-Automatik -------------------------------- */
+
+.toggle-card {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--switch-color, var(--off));
+  border-radius: 4px;
+  background: var(--bg-soft);
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+/* Die Checkbox bleibt bedienbar (Tab, Leertaste), nur unsichtbar. */
+.switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.switch__track {
+  flex: none;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--off);
+  transition: background 0.15s ease;
+}
+
+.switch__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.switch input:checked + .switch__track {
+  background: var(--on);
+}
+
+.switch input:checked + .switch__track .switch__knob {
+  transform: translateX(18px);
+}
+
+.switch input:focus-visible + .switch__track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.switch__text b {
+  display: block;
+  font-size: 13px;
+}
+
+.switch__text small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
 }

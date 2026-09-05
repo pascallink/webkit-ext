@@ -20,6 +20,17 @@
       <button type="button" class="btn btn--primary" id="grant">Diese Jira-Adresse freigeben</button>
     </div>
 
+    <div class="toggle-card" id="toggleCard">
+      <label class="switch">
+        <input type="checkbox" id="convertOnPaste">
+        <span class="switch__track"><span class="switch__knob"></span></span>
+        <span class="switch__text">
+          <b id="toggleLabel">Automatik ist an</b>
+          <small id="toggleHint">Eingefuegtes Markdown wird umgewandelt.</small>
+        </span>
+      </label>
+    </div>
+
     <label class="label" for="input">Markdown aus Azure DevOps</label>
     <textarea id="input" class="area" rows="8" spellcheck="false"
               placeholder="Markdown hier einfuegen (Strg+V) ..."></textarea>

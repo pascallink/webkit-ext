@@ -99,5 +99,32 @@ test('Konverter-Optionen enthalten nur Konverter-Schluessel', function () {
     ['convertAlerts', 'convertHtml', 'escapeBraces', 'keepCodeLanguage']);
 });
 
+console.log('\nSchalter fuer die Einfuege-Automatik');
+test('an: gruen mit passender Beschriftung', function () {
+  var state = Settings.toggleState({ convertOnPaste: true });
+  assert.strictEqual(state.color, '#36b37e');
+  assert.strictEqual(state.badge, 'AN');
+  assert.ok(/an$/.test(state.label), 'Beschriftung: ' + state.label);
+});
+test('aus: grau mit passender Beschriftung', function () {
+  var state = Settings.toggleState({ convertOnPaste: false });
+  assert.strictEqual(state.color, '#8993a4');
+  assert.strictEqual(state.badge, 'AUS');
+  assert.ok(/aus$/.test(state.label), 'Beschriftung: ' + state.label);
+});
+test('fehlende Einstellungen gelten als aus', function () {
+  assert.strictEqual(Settings.toggleState(null).badge, 'AUS');
+  assert.strictEqual(Settings.toggleState({}).badge, 'AUS');
+});
+test('beide Zustaende sind unterscheidbar', function () {
+  assert.notStrictEqual(Settings.TOGGLE.on.color, Settings.TOGGLE.off.color);
+  assert.notStrictEqual(Settings.TOGGLE.on.badge, Settings.TOGGLE.off.badge);
+  assert.notStrictEqual(Settings.TOGGLE.on.label, Settings.TOGGLE.off.label);
+});
+test('Zustand folgt der gespeicherten Einstellung', function () {
+  var stored = Settings.withDefaults({ convertOnPaste: false });
+  assert.strictEqual(Settings.toggleState(stored).badge, 'AUS');
+});
+
 console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');
 process.exit(failed === 0 ? 0 : 1);

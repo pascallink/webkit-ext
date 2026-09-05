@@ -79,10 +79,19 @@
       });
   }
 
+  /** Beschriftung und Farbe des Schalters zum Zustand passend setzen. */
+  function showToggle() {
+    var state = Settings.toggleState(settings);
+    document.getElementById('toggleLabel').textContent = state.label;
+    document.getElementById('toggleHint').textContent = state.hint;
+    document.getElementById('toggleCard').style.setProperty('--switch-color', state.color);
+  }
+
   function writeForm() {
     CHECKBOXES.forEach(function (key) {
       document.getElementById(key).checked = !!settings[key];
     });
+    showToggle();
     var radio = document.querySelector('input[name="richEditorFormat"][value="' + settings.richEditorFormat + '"]');
     if (radio) radio.checked = true;
     hostsField.value = (settings.extraHosts || []).join('\n');
@@ -92,6 +101,7 @@
 
   function save() {
     settings = readForm();
+    showToggle();
     Settings.save(settings).then(function () {
       say('Gespeichert.');
       refreshPreview();

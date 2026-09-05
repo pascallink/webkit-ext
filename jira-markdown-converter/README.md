@@ -23,8 +23,7 @@ Auf Jira-Seiten kommen drei Bedienelemente dazu:
    *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen.
 3. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
    eingefuegt, der nach Markdown aussieht, wandelt die Erweiterung ihn direkt
-   beim Einfuegen um. `Strg+Z` macht das rueckgaengig; abschaltbar in den
-   Einstellungen.
+   beim Einfuegen um. `Strg+Z` macht das rueckgaengig.
 
 Eingefuegt wird immer an der Cursorposition im Jira-Feld, auch wenn der Text
 vorher im Panel getippt wurde. Ist im Feld ein Rich-Text-Editor aktiv, kommt
@@ -34,6 +33,40 @@ auf den Markup-Modus um.
 Dazu kommen ein Symbolleisten-Popup (Konverter ohne Jira-Seite), ein
 Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`
 (macOS: `Cmd+Umschalt+M`), das die aktuelle Auswahl im Editor umwandelt.
+
+## Automatik ein- und ausschalten
+
+Die Erkennung greift manchmal auch bei Text, der gar kein Markdown ist – ein
+Spiegelstrich am Zeilenanfang genuegt. Deshalb laesst sich die Automatik
+ueberall dort abschalten, wo man gerade ist:
+
+![Der Schalter in beiden Zustaenden: aktiviert gruen, deaktiviert grau](docs/images/schalter-zustaende.png)
+
+| Wo | Was |
+| --- | --- |
+| Symbol in der Symbolleiste | Badge zeigt den Zustand: **AN** gruen, **AUS** grau |
+| Rechtsklick auf das Symbol | Haken-Eintrag *Beim Einfuegen automatisch umwandeln* |
+| Popup (Klick auf das Symbol) | Schalter ganz oben |
+| Panel auf der Jira-Seite | derselbe Schalter ganz oben |
+| Schwebender Button | kleiner Punkt: gruen an, grau aus |
+| Einstellungsseite | Schalter im Abschnitt *Verhalten* |
+
+Alle Stellen schreiben dieselbe Einstellung; ein Umschalten ist sofort ueberall
+sichtbar. Ausgeschaltet bleiben nur die Automatik und nichts sonst – die
+Buttonleiste am Feld, das Panel, das Kontextmenue und das Tastenkuerzel
+wandeln weiterhin auf Zuruf um.
+
+Der Schalter ist eine echte Checkbox unter der Optik: mit Tabulator erreichbar,
+mit Leertaste schaltbar. Beschriftung und Farbe wechseln gemeinsam, der Zustand
+haengt also nicht allein an der Farbe.
+
+| Im Popup | Im Panel auf der Jira-Seite |
+| --- | --- |
+| ![Popup mit dem Schalter ganz oben](docs/images/popup.png) | ![Panel mit ausgeschalteter Automatik](docs/images/panel.png) |
+
+Auf der Einstellungsseite sitzt derselbe Schalter im Abschnitt *Verhalten*:
+
+![Abschnitt Verhalten der Einstellungsseite](docs/images/einstellungen.png)
 
 ## Installation
 
@@ -163,7 +196,7 @@ die aktuelle Position zurueck.
 Erreichbar ueber das Popup („Einstellungen") oder
 `chrome://extensions` → *Details* → *Erweiterungsoptionen*:
 
-* Automatik beim Einfuegen an/aus
+* Automatik beim Einfuegen an/aus (derselbe Schalter wie im Popup)
 * Schwebenden Button und Bestaetigungen an/aus
 * Verhalten im Rich-Text-Editor: formatiert einfuegen, Jira-Markup als Text
   einfuegen oder Markdown durchreichen; dazu das Umschalten auf den

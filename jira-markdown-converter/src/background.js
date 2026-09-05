@@ -17,6 +17,8 @@ var CONTENT_CSS = ['src/content.css'];
  * Kontextmenue
  * -------------------------------------------------------------------- */
 
+var TOGGLE_MENU_ID = 'toggle-convert-on-paste';
+
 function createMenus() {
   chrome.contextMenus.removeAll(function () {
     chrome.contextMenus.create({
@@ -29,6 +31,66 @@ function createMenus() {
       title: 'Markdown-Konverter oeffnen',
       contexts: ['editable', 'page']
     });
+    // Direkt am Symbol der Erweiterung erreichbar (Rechtsklick darauf).
+    chrome.contextMenus.create({
+      id: TOGGLE_MENU_ID,
+      title: 'Beim Einfuegen automatisch umwandeln',
+      type: 'checkbox',
+      checked: true,
+      contexts: ['action', 'editable', 'page']
+    }, function () {
+      void chrome.runtime.lastError;
+      refreshIndicators();
+    });
+  });
+}
+
+/* -------------------------------------------------------------------- *
+ * Zustand der Einfuege-Automatik anzeigen
+ * -------------------------------------------------------------------- */
+
+/**
+ * Badge am Symbol und Haken im Kontextmenue nachziehen, damit der Zustand
+ * ohne Klick erkennbar ist: gruen = an, grau = aus.
+ */
+function refreshIndicators() {
+  Settings.load().then(function (settings) {
+    var state = Settings.toggleState(settings);
+
+    if (chrome.action) {
+      chrome.action.setBadgeText({ text: state.badge }, function () {
+        void chrome.runtime.lastError;
+      });
+      chrome.action.setBadgeBackgroundColor({ color: state.color }, function () {
+        void chrome.runtime.lastError;
+      });
+      if (chrome.action.setBadgeTextColor) {
+        chrome.action.setBadgeTextColor({ color: '#ffffff' }, function () {
+          void chrome.runtime.lastError;
+        });
+      }
+      chrome.action.setTitle({
+        title: 'Markdown nach Jira - ' + state.label + '\n' + state.hint
+      }, function () {
+        void chrome.runtime.lastError;
+      });
+    }
+
+    chrome.contextMenus.update(TOGGLE_MENU_ID, {
+      checked: !!settings.convertOnPaste
+    }, function () {
+      void chrome.runtime.lastError;
+    });
+  });
+}
+
+/** Schaltet die Einfuege-Automatik um; liefert den neuen Zustand. */
+function toggleConvertOnPaste(force) {
+  return Settings.load().then(function (settings) {
+    settings.convertOnPaste = force === undefined ? !settings.convertOnPaste : !!force;
+    return Settings.save(settings).then(function () {
+      return settings.convertOnPaste;
+    });
   });
 }
 
@@ -38,10 +100,19 @@ chrome.runtime.onInstalled.addListener(function () {
 });
 
 chrome.runtime.onStartup.addListener(function () {
+  createMenus();
   syncExtraHosts();
 });
 
+// Auch beim blossen Aufwachen des Service-Workers stimmt das Badge dann.
+refreshIndicators();
+
 chrome.contextMenus.onClicked.addListener(function (info, tab) {
+  if (info.menuItemId === TOGGLE_MENU_ID) {
+    // 'checked' kommt vom Menue - der gespeicherte Wert folgt ihm.
+    toggleConvertOnPaste(info.checked);
+    return;
+  }
   if (!tab || tab.id === undefined) return;
   if (info.menuItemId === 'convert-selection') {
     sendToTab(tab.id, { type: 'convert-context-selection', text: info.selectionText || '' });
@@ -139,8 +210,12 @@ function syncExtraHosts() {
 }
 
 chrome.storage.onChanged.addListener(function (changes, area) {
-  if (area === 'sync' && changes.extraHosts) {
+  if (area !== 'sync') return;
+  if (changes.extraHosts) {
     syncExtraHosts();
+  }
+  if (changes.convertOnPaste) {
+    refreshIndicators();
   }
 });
 
@@ -154,12 +229,22 @@ if (chrome.permissions && chrome.permissions.onAdded) {
  * -------------------------------------------------------------------- */
 
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-  if (!message || message.type !== 'convert') return;
-  Settings.load().then(function (settings) {
-    sendResponse({
-      ok: true,
-      text: Converter.convert(message.text, Settings.converterOptions(settings))
+  if (!message) return;
+
+  if (message.type === 'convert') {
+    Settings.load().then(function (settings) {
+      sendResponse({
+        ok: true,
+        text: Converter.convert(message.text, Settings.converterOptions(settings))
+      });
     });
-  });
-  return true;
+    return true;
+  }
+
+  if (message.type === 'toggle-convert-on-paste') {
+    toggleConvertOnPaste(message.value).then(function (value) {
+      sendResponse({ ok: true, convertOnPaste: value });
+    });
+    return true;
+  }
 });

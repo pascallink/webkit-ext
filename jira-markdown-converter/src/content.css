@@ -40,6 +40,17 @@
   box-shadow: 0 4px 10px rgba(9, 30, 66, 0.28);
 }
 
+.jmd-fab__dot {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #8993a4;
+}
+
 .jmd-fab:hover {
   background: #0065ff;
 }
@@ -335,5 +346,89 @@
     background: #22272b;
     border-color: #333b43;
     color: #c7d1db;
+  }
+}
+
+/* Schalter fuer die Einfuege-Automatik -------------------------------- */
+
+.jmd-toggle-card {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid #dfe1e6;
+  border-left: 4px solid var(--jmd-switch-color, #8993a4);
+  border-radius: 3px;
+  background: #f4f5f7;
+}
+
+.jmd-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  margin: 0;
+}
+
+/* Die Checkbox bleibt bedienbar (Tab, Leertaste), nur unsichtbar. */
+.jmd-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.jmd-switch__track {
+  flex: none;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: #8993a4;
+  transition: background 0.15s ease;
+}
+
+.jmd-switch__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.jmd-switch input:checked + .jmd-switch__track {
+  background: #36b37e;
+}
+
+.jmd-switch input:checked + .jmd-switch__track .jmd-switch__knob {
+  transform: translateX(18px);
+}
+
+.jmd-switch input:focus-visible + .jmd-switch__track {
+  outline: 2px solid #4c9aff;
+  outline-offset: 2px;
+}
+
+.jmd-switch__text b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.jmd-switch__text small {
+  display: block;
+  color: #6b778c;
+  font-size: 11px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .jmd-toggle-card {
+    background: #22272b;
+    border-color: #333b43;
+  }
+
+  .jmd-switch__text small {
+    color: #9fadbc;
   }
 }
