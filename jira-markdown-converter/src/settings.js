@@ -134,6 +134,30 @@
   }
 
   /**
+   * Wie der Schalter fuer die Einfuege-Automatik ueberall dargestellt wird:
+   * gruen wenn an, grau wenn aus. Eine Quelle fuer Popup, Optionsseite,
+   * Panel, Badge am Symbol und Kontextmenue.
+   */
+  var TOGGLE = {
+    on: {
+      label: 'Automatik ist an',
+      hint: 'Eingefuegtes Markdown wird umgewandelt.',
+      badge: 'AN',
+      color: '#36b37e'
+    },
+    off: {
+      label: 'Automatik ist aus',
+      hint: 'Eingefuegter Text bleibt unveraendert.',
+      badge: 'AUS',
+      color: '#8993a4'
+    }
+  };
+
+  function toggleState(settings) {
+    return settings && settings.convertOnPaste ? TOGGLE.on : TOGGLE.off;
+  }
+
+  /**
    * Match-Pattern fuer chrome.scripting / chrome.permissions.
    * Beide Schemata, weil Jira Server / Data Center im Firmennetz haeufig
    * ueber http erreichbar ist.
@@ -144,6 +168,8 @@
 
   return {
     DEFAULTS: DEFAULTS,
+    TOGGLE: TOGGLE,
+    toggleState: toggleState,
     withDefaults: withDefaults,
     converterOptions: converterOptions,
     load: load,

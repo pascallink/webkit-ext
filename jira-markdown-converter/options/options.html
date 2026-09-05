@@ -16,13 +16,23 @@
     <section class="card">
       <h2>Verhalten</h2>
 
-      <label class="check">
-        <input type="checkbox" id="convertOnPaste">
-        <span>
-          Beim Einfuegen (Strg+V) in ein Jira-Feld automatisch umwandeln
-          <small>Erkennt Markdown und ersetzt es durch Jira-Markup. Strg+Z macht es rueckgaengig.</small>
-        </span>
-      </label>
+      <div class="toggle-card" id="toggleCard">
+        <label class="switch">
+          <input type="checkbox" id="convertOnPaste">
+          <span class="switch__track"><span class="switch__knob"></span></span>
+          <span class="switch__text">
+            <b id="toggleLabel">Automatik ist an</b>
+            <small id="toggleHint">Eingefuegtes Markdown wird umgewandelt.</small>
+          </span>
+        </label>
+        <p class="hint toggle-card__note">
+          Beim Einfuegen (Strg+V) in ein Jira-Feld wird Markdown erkannt und
+          umgewandelt. Wird Text eingefuegt, der kein Markdown ist, aber danach
+          aussieht, hilft das Ausschalten. Derselbe Schalter sitzt im Popup, im
+          Panel auf der Jira-Seite und im Kontextmenue des Erweiterungssymbols;
+          ein Badge am Symbol zeigt den Zustand.
+        </p>
+      </div>
 
       <label class="check">
         <input type="checkbox" id="showFloatingButton">

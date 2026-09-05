@@ -7,6 +7,8 @@
   var input = document.getElementById('input');
   var output = document.getElementById('output');
   var status = document.getElementById('status');
+  var toggle = document.getElementById('convertOnPaste');
+  var toggleCard = document.getElementById('toggleCard');
   var settings = Settings.DEFAULTS;
 
   function say(message, isError) {
@@ -27,6 +29,28 @@
       callback(tabs[0]);
     });
   }
+
+  /* ---------------------------------------------------------------- *
+   * Schalter fuer die Einfuege-Automatik
+   * ---------------------------------------------------------------- */
+
+  function showToggle() {
+    var state = Settings.toggleState(settings);
+    toggle.checked = !!settings.convertOnPaste;
+    document.getElementById('toggleLabel').textContent = state.label;
+    document.getElementById('toggleHint').textContent = state.hint;
+    toggleCard.style.setProperty('--switch-color', state.color);
+  }
+
+  toggle.addEventListener('change', function () {
+    settings.convertOnPaste = toggle.checked;
+    showToggle();
+    Settings.save(settings).then(function () {
+      say(Settings.toggleState(settings).label + '.');
+    }, function () {
+      say('Einstellung konnte nicht gespeichert werden.', true);
+    });
+  });
 
   input.addEventListener('input', refresh);
 
@@ -141,8 +165,17 @@
 
   Settings.load().then(function (loaded) {
     settings = loaded;
+    showToggle();
     refresh();
     input.focus();
     checkCurrentTab();
+  });
+
+  // Wurde anderswo umgeschaltet (Kontextmenue, Panel, Optionsseite), zieht
+  // der Schalter nach.
+  Settings.onChange(function (next) {
+    settings = next;
+    showToggle();
+    refresh();
   });
 })();

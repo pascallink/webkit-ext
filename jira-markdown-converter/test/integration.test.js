@@ -549,6 +549,95 @@ async function run() {
     await page.close();
   });
 
+  console.log('\nSchalter fuer die Einfuege-Automatik');
+  await test('Schalter im Panel zeigt den Zustand an', async function () {
+    var page = await newPage(browser);
+    await page.click('.jmd-fab');
+    var view = await page.evaluate(function () {
+      var card = document.querySelector('[data-role="toggle-card"]');
+      return {
+        checked: document.querySelector('.jmd-panel [data-option="convertOnPaste"]').checked,
+        label: document.querySelector('[data-role="toggle-label"]').textContent,
+        color: card.style.getPropertyValue('--jmd-switch-color')
+      };
+    });
+    assert.strictEqual(view.checked, true);
+    assert.ok(/an$/.test(view.label), 'Beschriftung: ' + view.label);
+    assert.strictEqual(view.color, '#36b37e', 'aktiv muss gruen sein');
+    await page.close();
+  });
+
+  await test('Ausschalten faerbt grau und stoppt die Automatik', async function () {
+    var page = await newPage(browser);
+    await page.click('.jmd-fab');
+    await page.click('.jmd-panel .jmd-switch__track');
+
+    var view = await page.evaluate(function () {
+      return {
+        checked: document.querySelector('.jmd-panel [data-option="convertOnPaste"]').checked,
+        label: document.querySelector('[data-role="toggle-label"]').textContent,
+        color: document.querySelector('[data-role="toggle-card"]').style.getPropertyValue('--jmd-switch-color'),
+        stored: window.__settings.convertOnPaste
+      };
+    });
+    assert.strictEqual(view.checked, false);
+    assert.ok(/aus$/.test(view.label), 'Beschriftung: ' + view.label);
+    assert.strictEqual(view.color, '#8993a4', 'inaktiv muss grau sein');
+    assert.strictEqual(view.stored, false, 'Einstellung wurde nicht gespeichert');
+
+    // Und der eigentliche Zweck: Einfuegen bleibt jetzt unveraendert.
+    await page.close();
+  });
+
+  await test('nach dem Ausschalten wird nichts mehr umgewandelt', async function () {
+    var page = await newPage(browser);
+    await page.click('.jmd-fab');
+    await page.click('.jmd-panel .jmd-switch__track');
+    await page.click('.jmd-panel [data-action="close"]');
+
+    var prevented = await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      var data = new DataTransfer();
+      data.setData('text/plain', '# Titel');
+      var event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    assert.strictEqual(prevented, false, 'das Einfuegen wurde weiterhin abgefangen');
+    assert.strictEqual(await page.inputValue('#description'), '');
+    await page.close();
+  });
+
+  await test('Zustandspunkt am schwebenden Button folgt dem Schalter', async function () {
+    var page = await newPage(browser);
+    var on = await page.evaluate(function () {
+      return document.querySelector('.jmd-fab__dot').style.background;
+    });
+    await page.click('.jmd-fab');
+    await page.click('.jmd-panel .jmd-switch__track');
+    var off = await page.evaluate(function () {
+      return document.querySelector('.jmd-fab__dot').style.background;
+    });
+    assert.notStrictEqual(on, off, 'der Punkt aendert seine Farbe nicht');
+    assert.ok(/54, 179, 126/.test(on), 'aktiv nicht gruen: ' + on);
+    await page.close();
+  });
+
+  await test('ausgeschalteter Zustand wird beim Laden uebernommen', async function () {
+    var page = await newPage(browser, { convertOnPaste: false });
+    await page.click('.jmd-fab');
+    var view = await page.evaluate(function () {
+      return {
+        checked: document.querySelector('.jmd-panel [data-option="convertOnPaste"]').checked,
+        color: document.querySelector('[data-role="toggle-card"]').style.getPropertyValue('--jmd-switch-color')
+      };
+    });
+    assert.strictEqual(view.checked, false);
+    assert.strictEqual(view.color, '#8993a4');
+    await page.close();
+  });
+
   console.log('\nRobustheit');
   await test('kein Fehler in der Konsole beim Laden', async function () {
     var context = await browser.newContext();

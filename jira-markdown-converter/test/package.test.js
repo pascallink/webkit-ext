@@ -151,5 +151,26 @@ test('kein innerHTML mit Fremddaten', function () {
   });
 });
 
+test('Schalter ist an allen Oberflaechen vorhanden', function () {
+  // Popup, Optionsseite und Panel muessen dieselbe Einstellung anbieten.
+  ['popup/popup.html', 'options/options.html'].forEach(function (page) {
+    var html = fs.readFileSync(abs(page), 'utf8');
+    assert.ok(/id="convertOnPaste"/.test(html), page + ' hat keinen Schalter');
+    assert.ok(/switch__track/.test(html), page + ' nutzt nicht die Schalter-Optik');
+  });
+  var content = fs.readFileSync(abs('src/content.js'), 'utf8');
+  assert.ok(/data-option="convertOnPaste"/.test(content), 'Panel hat keinen Schalter');
+  assert.ok(/jmd-switch__track/.test(content), 'Panel nutzt nicht die Schalter-Optik');
+});
+
+test('Schalter sitzt auch am Erweiterungssymbol', function () {
+  var source = fs.readFileSync(abs('src/background.js'), 'utf8');
+  assert.ok(/contexts:\s*\[[^\]]*'action'/.test(source),
+    'kein Kontextmenue-Eintrag am Symbol');
+  assert.ok(/type:\s*'checkbox'/.test(source), 'Eintrag ist kein Haken-Eintrag');
+  assert.ok(/setBadgeText/.test(source), 'kein Badge am Symbol');
+  assert.ok(/setBadgeBackgroundColor/.test(source), 'Badge ohne Farbe');
+});
+
 console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');
 process.exit(failed === 0 ? 0 : 1);
