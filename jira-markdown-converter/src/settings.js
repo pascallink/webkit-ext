@@ -158,6 +158,64 @@
   }
 
   /**
+   * Vorlagen fuer den Panel-Button an Feld und Panel. Eine Quelle fuer beide
+   * Ausgabezweige (Wiki-Markup und HTML), damit Titel und Farben nicht
+   * auseinanderlaufen - so wie TOGGLE fuer den Schalter.
+   *
+   * Warum {panel} und nicht {info}/{note}/{warning}: Der Wiki Style Renderer
+   * von Jira Server / Data Center kennt {panel} samt borderColor und bgColor.
+   * Die Makros {info}, {note} und {warning} stammen aus Confluence und stehen
+   * in Jira in aller Regel nicht bereit - sie wuerden woertlich im Ticket
+   * stehen. Die Farbe steckt darum in der Vorlage, nicht im Makronamen.
+   */
+  var PANEL_TEMPLATES = [
+    {
+      id: 'info',
+      label: 'Info',
+      hint: 'Blaues Panel fuer Zusatzinformationen.',
+      title: 'Info',
+      body: 'Hier die Information eintragen.',
+      borderColor: '#0052cc',
+      bgColor: '#deebff'
+    },
+    {
+      id: 'note',
+      label: 'Hinweis',
+      hint: 'Gelbes Panel fuer Hinweise, auf die man achten sollte.',
+      title: 'Hinweis',
+      body: 'Hier den Hinweis eintragen.',
+      borderColor: '#ff8b00',
+      bgColor: '#fffae6'
+    },
+    {
+      id: 'warning',
+      label: 'Warnung',
+      hint: 'Rotes Panel fuer Warnungen und Risiken.',
+      title: 'Warnung',
+      body: 'Hier die Warnung eintragen.',
+      borderColor: '#de350b',
+      bgColor: '#ffebe6'
+    },
+    {
+      id: 'plain',
+      label: 'Standard',
+      hint: 'Graues Panel ohne besondere Bedeutung.',
+      title: 'Titel',
+      body: 'Hier den Text eintragen.',
+      borderColor: '#dfe1e6',
+      bgColor: '#f4f5f7'
+    }
+  ];
+
+  /** Vorlage zu einer Kennung, sonst null. */
+  function panelTemplate(id) {
+    for (var i = 0; i < PANEL_TEMPLATES.length; i++) {
+      if (PANEL_TEMPLATES[i].id === id) return PANEL_TEMPLATES[i];
+    }
+    return null;
+  }
+
+  /**
    * Match-Pattern fuer chrome.scripting / chrome.permissions.
    * Beide Schemata, weil Jira Server / Data Center im Firmennetz haeufig
    * ueber http erreichbar ist.
@@ -170,6 +228,8 @@
     DEFAULTS: DEFAULTS,
     TOGGLE: TOGGLE,
     toggleState: toggleState,
+    PANEL_TEMPLATES: PANEL_TEMPLATES,
+    panelTemplate: panelTemplate,
     withDefaults: withDefaults,
     converterOptions: converterOptions,
     load: load,

@@ -16,11 +16,14 @@ Auf Jira-Seiten kommen drei Bedienelemente dazu:
      Auswahl darin) an Ort und Stelle um.
    * *Aus Zwischenablage einfuegen* – holt das Markdown aus der Zwischenablage,
      konvertiert es und fuegt es an der Cursorposition ein.
+   * *Panel aus Vorlage* – stellt vier farbige Panels zur Auswahl und fuegt
+     das gewaehlte an der Cursorposition ein.
    * *Editor oeffnen* – oeffnet das Eingabefeld mit Vorschau.
 2. **Eingabefeld mit Vorschau** (schwebender `MD`-Button unten rechts) –
    links Markdown einfuegen, rechts das fertige Jira-Markup sehen, dann
    *Ins Ticket einfuegen*, *Feld ersetzen* oder *Kopieren*. Ueber
-   *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen.
+   *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Panel aus
+   Vorlage* gibt es auch hier.
 3. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
    eingefuegt, der nach Markdown aussieht, wandelt die Erweiterung ihn direkt
    beim Einfuegen um. `Strg+Z` macht das rueckgaengig.
@@ -33,6 +36,45 @@ auf den Markup-Modus um.
 Dazu kommen ein Symbolleisten-Popup (Konverter ohne Jira-Seite), ein
 Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`
 (macOS: `Cmd+Umschalt+M`), das die aktuelle Auswahl im Editor umwandelt.
+
+## Panel aus Vorlage
+
+Der Button *Panel aus Vorlage* – in der Buttonleiste am Feld und im Panel der
+Erweiterung – stellt vier Vorlagen zur Auswahl:
+
+| Vorlage | Farbe | Rahmen | Hintergrund |
+| --- | --- | --- | --- |
+| Info | blau | `#0052cc` | `#deebff` |
+| Hinweis | gelb | `#ff8b00` | `#fffae6` |
+| Warnung | rot | `#de350b` | `#ffebe6` |
+| Standard | grau | `#dfe1e6` | `#f4f5f7` |
+
+Gewaehlt wird ueber ein kleines Menue, in dem jede Vorlage ihren Farbtupfer
+traegt. Eingefuegt wird an der gemerkten Cursorposition; danach ist der
+Platzhaltertext markiert, sodass Tippen ihn ersetzt.
+
+Was ankommt, haengt am Feldtyp:
+
+| Feld | Ausgabe |
+| --- | --- |
+| reines Textfeld | `{panel:title=Info\|borderColor=#0052cc\|bgColor=#deebff} … {panel}` |
+| Rich-Text-Editor | dasselbe als HTML: ein `div` mit denselben Farben, Titel fett darueber |
+
+Ist *Vorher auf den Markup-Modus umschalten* eingestellt, wird aus dem
+Rich-Text-Editor erst ein Textfeld – dann kommt auch dort Wiki-Markup an.
+
+**Warum `{panel}` und nicht `{info}`/`{note}`/`{warning}`:** Diese drei Makros
+stammen aus Confluence. Der Wiki Style Renderer von Jira Server / Data Center
+bringt sie in aller Regel nicht mit; sie stuenden dann woertlich im Ticket.
+`{panel}` gehoert dagegen zur dokumentierten Textformatierung von Jira und
+kennt `title`, `borderColor` und `bgColor` – die Farbe steckt darum in der
+Vorlage, nicht im Makronamen. (`borderStyle` und `titleBGColor` sind ebenfalls
+dokumentiert, werden hier aber nicht gebraucht.)
+
+Titel, Platzhalter und Farben stehen an einer Stelle – `PANEL_TEMPLATES` in
+`src/settings.js`. Die Ausgabe erzeugen `panelMarkup` und `panelHtml` in
+`src/converter.js` aus derselben Vorlage, damit Markup- und HTML-Zweig nicht
+auseinanderlaufen.
 
 ## Automatik ein- und ausschalten
 

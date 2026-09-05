@@ -126,5 +126,59 @@ test('Zustand folgt der gespeicherten Einstellung', function () {
   assert.strictEqual(Settings.toggleState(stored).badge, 'AUS');
 });
 
+console.log('\nVorlagen fuer Panels');
+test('vier Vorlagen in fester Reihenfolge', function () {
+  assert.deepStrictEqual(Settings.PANEL_TEMPLATES.map(function (entry) {
+    return entry.id;
+  }), ['info', 'note', 'warning', 'plain']);
+  assert.deepStrictEqual(Settings.PANEL_TEMPLATES.map(function (entry) {
+    return entry.label;
+  }), ['Info', 'Hinweis', 'Warnung', 'Standard']);
+});
+test('Farben im Atlassian-Ton', function () {
+  var info = Settings.panelTemplate('info');
+  assert.strictEqual(info.borderColor, '#0052cc');
+  assert.strictEqual(info.bgColor, '#deebff');
+  var note = Settings.panelTemplate('note');
+  assert.strictEqual(note.borderColor, '#ff8b00');
+  assert.strictEqual(note.bgColor, '#fffae6');
+  var warning = Settings.panelTemplate('warning');
+  assert.strictEqual(warning.borderColor, '#de350b');
+  assert.strictEqual(warning.bgColor, '#ffebe6');
+  var plain = Settings.panelTemplate('plain');
+  assert.strictEqual(plain.borderColor, '#dfe1e6');
+  assert.strictEqual(plain.bgColor, '#f4f5f7');
+});
+test('jede Vorlage ist vollstaendig und in Hex angegeben', function () {
+  Settings.PANEL_TEMPLATES.forEach(function (entry) {
+    ['id', 'label', 'hint', 'title', 'body'].forEach(function (key) {
+      assert.ok(entry[key], entry.id + ': ' + key + ' fehlt');
+    });
+    assert.ok(/^#[0-9a-f]{6}$/.test(entry.borderColor), entry.id + ': ' + entry.borderColor);
+    assert.ok(/^#[0-9a-f]{6}$/.test(entry.bgColor), entry.id + ': ' + entry.bgColor);
+  });
+});
+test('Vorlagen sind unterscheidbar', function () {
+  var ids = {};
+  var colors = {};
+  Settings.PANEL_TEMPLATES.forEach(function (entry) {
+    assert.ok(!ids[entry.id], 'doppelte Kennung: ' + entry.id);
+    ids[entry.id] = true;
+    assert.ok(!colors[entry.borderColor], 'doppelte Farbe: ' + entry.borderColor);
+    colors[entry.borderColor] = true;
+  });
+});
+test('UI-Texte kommen ohne Umlaute aus', function () {
+  Settings.PANEL_TEMPLATES.forEach(function (entry) {
+    var text = [entry.label, entry.hint, entry.title, entry.body].join(' ');
+    assert.ok(/^[\x00-\x7F]*$/.test(text), entry.id + ': ' + text);
+  });
+});
+test('Vorlage wird ueber die Kennung gefunden', function () {
+  assert.strictEqual(Settings.panelTemplate('warning').title, 'Warnung');
+  assert.strictEqual(Settings.panelTemplate('gibtsnicht'), null);
+  assert.strictEqual(Settings.panelTemplate(''), null);
+});
+
 console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');
 process.exit(failed === 0 ? 0 : 1);

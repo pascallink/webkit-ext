@@ -331,6 +331,70 @@
   var DIALECTS = { jira: JIRA_DIALECT, html: HTML_DIALECT };
 
   /* ------------------------------------------------------------------ *
+   * Panel aus einer Vorlage
+   *
+   * Die Vorlagen selbst stehen in src/settings.js (PANEL_TEMPLATES) und
+   * werden hier nur ausgegeben - einmal als Wiki-Markup fuer reine Textfelder,
+   * einmal als HTML fuer den Rich-Text-Editor. Beide Zweige lesen dieselbe
+   * Vorlage, damit Titel und Farben nicht auseinanderlaufen.
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Ein Titel darf das Makro nicht sprengen: '|' trennt die Attribute, '}'
+   * beendet den Kopf. Beides wird durch ein Leerzeichen ersetzt.
+   */
+  function panelTitle(title) {
+    return String(title === undefined || title === null ? '' : title)
+      .replace(/[|{}\r\n]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /** Nur echte Hex-Farben durchlassen - alles andere faellt weg. */
+  function panelColor(value) {
+    var color = String(value === undefined || value === null ? '' : value).trim();
+    return /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color) ? color : '';
+  }
+
+  function panelBody(template, body) {
+    var text = body === undefined || body === null ? (template && template.body) : body;
+    return String(text === undefined || text === null ? '' : text);
+  }
+
+  /**
+   * Vorlage -> Jira-Wiki-Markup. Das {panel}-Makro mit title, borderColor und
+   * bgColor ist der Weg, den der Wiki Style Renderer von Jira Server /
+   * Data Center kennt; die Confluence-Makros {info}/{note}/{warning} stehen
+   * dort nicht bereit.
+   */
+  function panelMarkup(template, body) {
+    if (!template) return '';
+    var head = '{panel:title=' + panelTitle(template.title);
+    var border = panelColor(template.borderColor);
+    var background = panelColor(template.bgColor);
+    if (border) head += '|borderColor=' + border;
+    if (background) head += '|bgColor=' + background;
+    return head + '}\n' + panelBody(template, body) + '\n{panel}';
+  }
+
+  /**
+   * Dieselbe Vorlage als HTML - fuer den Rich-Text-Editor, der Wiki-Markup
+   * woertlich stehen lassen wuerde. Die Farben stecken als Inline-Stil im
+   * Rahmen, damit das Panel genauso aussieht wie das gerenderte Makro.
+   */
+  function panelHtml(template, body) {
+    if (!template) return '';
+    var border = panelColor(template.borderColor) || '#dfe1e6';
+    var background = panelColor(template.bgColor) || '#f4f5f7';
+    var style = 'border: 1px solid ' + border + '; background-color: ' + background +
+      '; padding: 10px; margin: 8px 0;';
+    var title = panelTitle(template.title);
+    var head = title ? '<p><strong>' + escapeHtml(title) + '</strong></p>' : '';
+    return '<div style="' + escapeAttribute(style) + '">' + head +
+      '<p>' + escapeHtml(panelBody(template, body)) + '</p></div>';
+  }
+
+  /* ------------------------------------------------------------------ *
    * Platzhalter-Verwaltung
    * ------------------------------------------------------------------ */
 
@@ -982,6 +1046,8 @@
     markdownToJira: convert,
     markdownToHtml: convertToHtml,
     looksLikeMarkdown: looksLikeMarkdown,
+    panelMarkup: panelMarkup,
+    panelHtml: panelHtml,
     defaultOptions: DEFAULT_OPTIONS,
     dialects: DIALECTS
   };
