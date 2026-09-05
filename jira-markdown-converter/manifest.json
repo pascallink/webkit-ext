@@ -32,6 +32,7 @@
         "src/converter.js",
         "src/editors.js",
         "src/codedialog.js",
+        "src/editlock.js",
         "src/content.js"
       ],
       "css": [

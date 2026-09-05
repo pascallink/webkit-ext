@@ -74,7 +74,13 @@ test('Standardwerte sind vollstaendig', function () {
   // Im Rich-Text-Editor kommt der Text formatiert an statt als Markup.
   assert.strictEqual(defaults.richEditorFormat, 'html');
   assert.strictEqual(defaults.switchToMarkup, false);
+  // Das Einfrieren ist an: sonst schliesst Jira das Feld beim Klick daneben.
+  assert.strictEqual(defaults.freezeEditMode, true);
   assert.deepStrictEqual(defaults.extraHosts, []);
+});
+test('Einfrieren laesst sich abschalten', function () {
+  assert.strictEqual(Settings.withDefaults({ freezeEditMode: false }).freezeEditMode, false);
+  assert.strictEqual(Settings.withDefaults({}).freezeEditMode, true);
 });
 test('gespeicherte Werte gewinnen', function () {
   var merged = Settings.withDefaults({ convertOnPaste: false, extraHosts: ['jira.firma.de'] });

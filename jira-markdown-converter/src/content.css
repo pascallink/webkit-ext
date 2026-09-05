@@ -271,6 +271,23 @@
   background: transparent;
 }
 
+/* Schloss: eingefroren ist es deutlich sichtbar, offen unauffaellig. */
+.jmd-fieldbar__btn--lock {
+  margin-left: auto;
+}
+
+.jmd-fieldbar__btn--locked {
+  border-color: #0052cc;
+  background: #deebff;
+  color: #0747a6;
+  font-weight: 600;
+}
+
+.jmd-fieldbar__btn--locked:hover {
+  background: #b3d4ff;
+  border-color: #0052cc;
+}
+
 /* Panel-Vorlagen ----------------------------------------------------- */
 
 .jmd-panelmenu {
@@ -402,6 +419,12 @@
     background: #22272b;
     border-color: #333b43;
     color: #c7d1db;
+  }
+
+  .jmd-fieldbar__btn--locked {
+    background: #09326c;
+    border-color: #0052cc;
+    color: #cce0ff;
   }
 
   .jmd-target,

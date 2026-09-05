@@ -63,7 +63,8 @@ var CHROME_STUB = [
   '};'
 ].join('\n');
 
-var SOURCES = ['src/settings.js', 'src/converter.js', 'src/editors.js', 'src/codedialog.js', 'src/content.js'];
+var SOURCES = ['src/settings.js', 'src/converter.js', 'src/editors.js', 'src/codedialog.js',
+  'src/editlock.js', 'src/content.js'];
 var STYLES = ['src/content.css', 'src/codedialog.css'];
 
 function readSource(file) {
@@ -1235,6 +1236,178 @@ async function run() {
     await setCaret(page, 1);
     await pasteInto(page, '#description', '**x**');
     assert.strictEqual(await page.inputValue('#description'), 'A*x*B');
+    await page.close();
+  });
+
+  console.log('\nBearbeitungsmodus einfrieren');
+  var INLINE = 'mock-jira-inline-edit.html';
+
+  /** Inline-Bearbeitung oeffnen und warten, bis unsere Leiste dranhaengt. */
+  async function startEditing(page) {
+    await page.click('#description-val');
+    await page.waitForSelector('.jmd-fieldbar', { timeout: 4000 });
+  }
+
+  async function clickBeside(page) {
+    await page.click('#daneben');
+    await page.waitForTimeout(150);
+  }
+
+  function editing(page) {
+    return page.evaluate(function () {
+      return !!document.getElementById('description-wiki-edit');
+    });
+  }
+
+  await test('ohne Einfrieren schliesst Jira das Feld beim Klick daneben', async function () {
+    var page = await newPage(browser, { freezeEditMode: false }, INLINE);
+    await startEditing(page);
+    await clickBeside(page);
+    assert.strictEqual(await editing(page), false, 'das Feld haette schliessen muessen');
+    assert.deepStrictEqual(await page.evaluate(function () { return window.__closed; }),
+      ['klick-daneben']);
+    await page.close();
+  });
+
+  await test('eingefroren bleibt das Feld beim Klick daneben offen', async function () {
+    var page = await newPage(browser, null, INLINE);
+    await startEditing(page);
+    await page.waitForFunction(function () {
+      return window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
+    await page.fill('#description', 'Wichtige Aenderung');
+    await clickBeside(page);
+    assert.strictEqual(await editing(page), true, 'das Feld wurde geschlossen');
+    assert.deepStrictEqual(await page.evaluate(function () { return window.__closed; }), []);
+    assert.strictEqual(await page.inputValue('#description'), 'Wichtige Aenderung',
+      'der Text ist verloren gegangen');
+    await page.close();
+  });
+
+  await test('das Schloss zeigt den Zustand an', async function () {
+    var page = await newPage(browser, null, INLINE);
+    await startEditing(page);
+    var view = await page.evaluate(function () {
+      var button = document.querySelector('.jmd-fieldbar__btn--lock');
+      return {
+        pressed: button.getAttribute('aria-pressed'),
+        text: button.textContent,
+        hidden: button.hidden
+      };
+    });
+    assert.strictEqual(view.hidden, false);
+    assert.strictEqual(view.pressed, 'true');
+    assert.ok(/eingefroren/.test(view.text), 'Beschriftung: ' + view.text);
+    await page.close();
+  });
+
+  await test('geoeffnetes Schloss stellt Jiras Verhalten wieder her', async function () {
+    var page = await newPage(browser, null, INLINE);
+    await startEditing(page);
+    await page.click('.jmd-fieldbar__btn--lock');
+    var view = await page.evaluate(function () {
+      var button = document.querySelector('.jmd-fieldbar__btn--lock');
+      return { pressed: button.getAttribute('aria-pressed'), text: button.textContent };
+    });
+    assert.strictEqual(view.pressed, 'false');
+    assert.ok(/einfrieren/.test(view.text), 'Beschriftung: ' + view.text);
+    await clickBeside(page);
+    assert.strictEqual(await editing(page), false, 'Jira haette schliessen duerfen');
+    await page.close();
+  });
+
+  await test('Escape bricht das eingefrorene Feld nicht ab', async function () {
+    var page = await newPage(browser, null, INLINE);
+    await startEditing(page);
+    await page.press('#description', 'Escape');
+    await page.waitForTimeout(150);
+    assert.strictEqual(await editing(page), true, 'Escape hat das Feld geschlossen');
+    await page.click('.jmd-fieldbar__btn--lock');
+    await page.press('#description', 'Escape');
+    await page.waitForTimeout(150);
+    assert.strictEqual(await editing(page), false, 'nach dem Oeffnen muss Escape wieder greifen');
+    await page.close();
+  });
+
+  await test('ein geoeffnetes Schloss friert nicht von selbst wieder ein', async function () {
+    var page = await newPage(browser, null, INLINE);
+    await startEditing(page);
+    await page.click('.jmd-fieldbar__btn--lock');
+    // Zurueck ins Feld: der Fokus darf die Sperre nicht wieder setzen.
+    await page.click('#description');
+    await page.waitForTimeout(150);
+    assert.strictEqual(await page.evaluate(function () { return window.JiraEditLock.isActive(); }), false);
+    await clickBeside(page);
+    assert.strictEqual(await editing(page), false, 'Jira haette schliessen duerfen');
+    await page.close();
+  });
+
+  await test('Speichern im Feld funktioniert weiter', async function () {
+    var page = await newPage(browser, null, INLINE);
+    await startEditing(page);
+    await page.fill('#description', 'Neuer Stand');
+    await page.click('#speichern');
+    await page.waitForTimeout(150);
+    assert.strictEqual(await page.evaluate(function () { return window.__saved; }), 'Neuer Stand');
+    await page.close();
+  });
+
+  await test('vor dem Verlassen der Seite wird gefragt, solange eingefroren ist', async function () {
+    var page = await newPage(browser, null, INLINE);
+    await startEditing(page);
+    var asks = function () {
+      return page.evaluate(function () {
+        var event = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      });
+    };
+    assert.strictEqual(await asks(), true, 'es wurde nicht nachgefragt');
+    await page.click('.jmd-fieldbar__btn--lock');
+    assert.strictEqual(await asks(), false, 'nach dem Oeffnen darf nichts mehr fragen');
+    await page.close();
+  });
+
+  await test('geschlossenes Feld gibt seine Sperre wieder ab', async function () {
+    var page = await newPage(browser, null, INLINE);
+    await startEditing(page);
+    await page.click('.jmd-fieldbar__btn--lock');
+    await clickBeside(page);
+    await page.waitForFunction(function () {
+      return !window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
+    var asked = await page.evaluate(function () {
+      var event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    assert.strictEqual(asked, false);
+    await page.close();
+  });
+
+  await test('abgeschaltet gibt es weder Schloss noch Einfrieren', async function () {
+    var page = await newPage(browser, { freezeEditMode: false }, INLINE);
+    await startEditing(page);
+    var hidden = await page.evaluate(function () {
+      return document.querySelector('.jmd-fieldbar__btn--lock').hidden;
+    });
+    assert.strictEqual(hidden, true, 'das Schloss haette versteckt sein muessen');
+    assert.strictEqual(await page.evaluate(function () { return window.JiraEditLock.isActive(); }), false);
+    await page.close();
+  });
+
+  await test('eingefroren bleiben Klicks daneben ohne Wirkung', async function () {
+    // Bewusst so: das Feld ist eingefroren, die Seite reagiert daneben nicht
+    // mehr auf Klicks. Das Schloss oeffnen gibt sie wieder frei.
+    var page = await newPage(browser, null, INLINE);
+    await startEditing(page);
+    await page.click('#fremder-knopf');
+    await page.waitForTimeout(100);
+    assert.strictEqual(await page.evaluate(function () { return window.__fremdeKlicks; }), 0);
+    await page.click('.jmd-fieldbar__btn--lock');
+    await page.click('#fremder-knopf');
+    await page.waitForTimeout(100);
+    assert.strictEqual(await page.evaluate(function () { return window.__fremdeKlicks; }), 1);
     await page.close();
   });
 
