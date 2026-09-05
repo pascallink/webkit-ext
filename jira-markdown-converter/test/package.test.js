@@ -181,6 +181,15 @@ test('Schalter ist an allen Oberflaechen vorhanden', function () {
   var content = fs.readFileSync(abs('src/content.js'), 'utf8');
   assert.ok(/data-option="convertOnPaste"/.test(content), 'Panel hat keinen Schalter');
   assert.ok(/jmd-switch__track/.test(content), 'Panel nutzt nicht die Schalter-Optik');
+
+  // Die Leiste direkt am Feld gehoert dazu - mit Punkt und Beschriftung, und
+  // beides aus derselben Quelle wie ueberall sonst.
+  assert.ok(/jmd-fieldbar__btn--auto/.test(content), 'Feldleiste hat keinen Schalter');
+  assert.ok(/createAutoToggle\(\)/.test(content), 'Schalter wird nicht in die Leiste gebaut');
+  assert.ok(/Settings\.toggleState\(settings\)/.test(content),
+    'Feldleiste holt den Zustand nicht aus Settings.TOGGLE');
+  var css = fs.readFileSync(abs('src/content.css'), 'utf8');
+  assert.ok(/\.jmd-fieldbar__dot/.test(css), 'Schalter in der Leiste ohne Zustandspunkt');
 });
 
 test('Schalter sitzt auch am Erweiterungssymbol', function () {

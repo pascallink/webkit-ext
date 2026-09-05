@@ -222,6 +222,77 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * Schalter fuer die Einfuege-Automatik an der Buttonleiste
+   *
+   * Denselben Zustand zeigen Popup, Optionsseite, Panel, das Badge am
+   * Symbol und der Punkt am schwebenden Button. Farbe, Beschriftung und
+   * Beschreibung kommen darum aus Settings.TOGGLE - hier steht nichts
+   * davon noch einmal.
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Kompakter Schalter in der Optik der uebrigen Leisten-Buttons: ein Punkt
+   * traegt die Farbe, die Beschriftung sagt den Zustand im Klartext - an der
+   * Farbe allein soll er nicht haengen.
+   */
+  function createAutoToggle() {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'jmd-fieldbar__btn jmd-fieldbar__btn--auto';
+
+    var dot = document.createElement('span');
+    dot.className = 'jmd-fieldbar__dot';
+    dot.setAttribute('aria-hidden', 'true');
+    button.appendChild(dot);
+
+    var caption = document.createElement('span');
+    caption.className = 'jmd-fieldbar__caption';
+    button.appendChild(caption);
+
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      setConvertOnPaste(!settings.convertOnPaste);
+    });
+
+    showAutoToggle(button);
+    return button;
+  }
+
+  function showAutoToggle(button) {
+    var on = !!settings.convertOnPaste;
+    var state = Settings.toggleState(settings);
+    var dot = button.querySelector('.jmd-fieldbar__dot');
+    var caption = button.querySelector('.jmd-fieldbar__caption');
+    if (dot) dot.style.background = state.color;
+    if (caption) caption.textContent = state.label;
+    button.setAttribute('aria-pressed', on ? 'true' : 'false');
+    button.title = state.hint + ' Klicken schaltet die Automatik '
+      + (on ? 'aus' : 'ein') + '.';
+  }
+
+  /**
+   * Zieht alle Leisten nach. Auf einem Vorgang haengt je eine an Beschreibung
+   * und Kommentar - wird woanders umgeschaltet, muessen beide es zeigen.
+   */
+  function updateFieldbarToggles() {
+    var buttons = document.querySelectorAll('.jmd-fieldbar__btn--auto');
+    for (var i = 0; i < buttons.length; i++) {
+      showAutoToggle(buttons[i]);
+    }
+  }
+
+  /** Schreibt die Einstellung und zieht alle Oberflaechen nach. */
+  function setConvertOnPaste(next) {
+    settings = Settings.withDefaults(Object.assign({}, settings, { convertOnPaste: next }));
+    Settings.save(settings);
+    syncPanelState();
+    updateFab();
+    updateFieldbarToggles();
+    refreshPreview();
+    toast(Settings.toggleState(settings).label + '.');
+  }
+
+  /* ------------------------------------------------------------------ *
    * Oberflaeche: Panel
    * ------------------------------------------------------------------ */
 
@@ -314,6 +385,7 @@
       Settings.save(settings);
       syncPanelState();
       updateFab();
+      updateFieldbarToggles();
       refreshPreview();
       if (option === 'convertOnPaste') {
         toast(Settings.toggleState(settings).label + '.');
@@ -896,6 +968,10 @@
     bar.dataset.jmdUi = 'fieldbar';
     bar.__jmdField = field;
 
+    // Schalter fuer die Einfuege-Automatik - dort, wo man ohnehin hinschaut,
+    // wenn beim Einfuegen etwas falsch umgewandelt wurde.
+    var autoButton = createAutoToggle();
+
     var convertButton = document.createElement('button');
     convertButton.type = 'button';
     convertButton.className = 'jmd-fieldbar__btn';
@@ -964,6 +1040,7 @@
     // schliessen wuerde.
     var lockButton = EditLock.createButton(field);
 
+    bar.appendChild(autoButton);
     bar.appendChild(convertButton);
     bar.appendChild(pasteButton);
     bar.appendChild(codeButton);
@@ -1184,6 +1261,7 @@
       }
       syncPanelState();
       updateFab();
+      updateFieldbarToggles();
       refreshPreview();
     });
   }

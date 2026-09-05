@@ -271,6 +271,24 @@
   background: transparent;
 }
 
+/*
+ * Schalter fuer die Einfuege-Automatik: der Punkt traegt die Farbe aus
+ * Settings.TOGGLE, den Zustand sagt die Beschriftung daneben.
+ */
+.jmd-fieldbar__btn--auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jmd-fieldbar__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8993a4;
+}
+
 /* Schloss: eingefroren ist es deutlich sichtbar, offen unauffaellig. */
 .jmd-fieldbar__btn--lock {
   margin-left: auto;
@@ -425,6 +443,11 @@
     background: #09326c;
     border-color: #0052cc;
     color: #cce0ff;
+  }
+
+  /* Auf dunklem Grund braucht der Punkt eine Kante, sonst verschwindet er. */
+  .jmd-fieldbar__dot {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
   }
 
   .jmd-target,
