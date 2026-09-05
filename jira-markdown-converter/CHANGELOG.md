@@ -5,6 +5,31 @@ festgehalten. Das Format orientiert sich an
 [Keep a Changelog](https://keepachangelog.com/de/1.0.0/), Versionierung an
 [SemVer](https://semver.org/lang/de/).
 
+## [Unveroeffentlicht]
+
+### Hinzugefuegt
+
+- Unterlagen fuer die Einreichung im Microsoft Edge Add-ons Store unter
+  `docs/store/`: Listungstexte (deutsch und englisch), Begruendung je
+  Berechtigung, Hinweise fuer die Pruefer und der Veroeffentlichungsprozess.
+- Bild-Artefakte fuer die Listung - Logo 300x300, Promo-Tile 1400x560 und
+  fuenf Screenshots 1280x800 - reproduzierbar gebaut ueber
+  `npm run store:assets`.
+- `homepage_url` im Manifest, `license` und `homepage` in der `package.json`.
+- Tests fuer die Store-Vorgaben: Laenge der Beschreibungen, Groesse der
+  Bilder, Version synchron zwischen `manifest.json` und `package.json`,
+  kein nachgeladener Code im Paket.
+
+### Geaendert
+
+- `description` nennt Codebloecke statt der noch nicht gebauten Smart-Links.
+
+### Entfernt
+
+- Optionale Berechtigung `clipboardRead`: sie wurde nie angefordert. Die
+  Zwischenablage wird ueber `navigator.clipboard` hinter einem Klick des
+  Nutzers gelesen, wofuer es keine Berechtigung braucht.
+
 ## [1.2.1] - 2026-09-05
 
 ### Behoben
