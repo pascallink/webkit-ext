@@ -3,16 +3,14 @@
   "name": "PowerEdit for Jira",
   "short_name": "PowerEdit",
   "version": "1.2.2",
-  "description": "Erweitert die Jira-Ticket-Bearbeitung um Markdown-Support, Formatierungsvorlagen und Smart-Links.",
+  "description": "Erweitert die Jira-Ticket-Bearbeitung um Markdown-Support, Formatierungsvorlagen und Codebloecke.",
+  "homepage_url": "https://github.com/pascallink/webkit-ext",
   "minimum_chrome_version": "102",
   "permissions": [
     "activeTab",
     "storage",
     "contextMenus",
     "scripting"
-  ],
-  "optional_permissions": [
-    "clipboardRead"
   ],
   "host_permissions": [
     "https://*.atlassian.net/*"
