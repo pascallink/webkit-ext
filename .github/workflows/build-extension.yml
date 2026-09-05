@@ -1,15 +1,22 @@
-name: Build Extension
+name: Build Extensions
+
+# Baut jede Browser-Erweiterung im Repo (jeder oberste Ordner mit einer
+# manifest.json) einzeln: lint -> test -> Whitelist-Kopie -> ZIP. Neue
+# Erweiterungen brauchen keine Aenderung an diesem Workflow, solange sie
+# demselben Aufbau folgen (manifest.json, eigenes package.json mit "lint"
+# und "test"-Skripten, Laufzeitcode neben Test-/Doku-/Buildordnern).
+#
+# Auf main werden alle ZIPs als Assets der rollierenden Release "latest"
+# veroeffentlicht - referenziert wird sie ueber die feste Tag-URL
+# .../releases/download/latest/<ordner>.zip, NICHT ueber
+# .../releases/latest/download/..., weil GitHub Letzteres auf die zuletzt
+# veroeffentlichte Nicht-Vorab-Release umbiegt (z. B. eine manuell erstellte
+# Versions-Release ohne Assets) und der Download-Link damit ins Leere liefe.
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'jira-markdown-converter/**'
-      - '.github/workflows/build-extension.yml'
-  pull_request:
-    paths:
-      - 'jira-markdown-converter/**'
-      - '.github/workflows/build-extension.yml'
+  pull_request: {}
   workflow_dispatch: {}
 
 permissions:
@@ -18,9 +25,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: jira-markdown-converter
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,30 +34,55 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test
-        run: npm test
-
-      - name: Package extension
+      - name: Find extensions
+        id: find
         run: |
-          rm -rf dist
-          mkdir -p dist/jira-markdown-converter
-          cp -r manifest.json src popup options icons dist/jira-markdown-converter/
-          (cd dist && zip -r ../jira-markdown-converter.zip jira-markdown-converter)
+          : > extensions.txt
+          for dir in */ ; do
+            dir=${dir%/}
+            if [ -f "$dir/manifest.json" ] && jq -e 'has("manifest_version")' "$dir/manifest.json" >/dev/null 2>&1; then
+              echo "$dir" >> extensions.txt
+            fi
+          done
+          echo "Gefundene Erweiterungen:"
+          cat extensions.txt
 
-      - name: Upload build artifact
+      - name: Build and package each extension
+        run: |
+          set -e
+          mkdir -p release
+          while IFS= read -r dir; do
+            [ -z "$dir" ] && continue
+            echo "::group::$dir"
+
+            if [ -f "$dir/package.json" ]; then
+              npm install --prefix "$dir"
+              if jq -e '.devDependencies.playwright' "$dir/package.json" >/dev/null 2>&1; then
+                npx --prefix "$dir" playwright install --with-deps chromium
+              fi
+              npm run lint --prefix "$dir" --if-present
+              npm test --prefix "$dir" --if-present
+            fi
+
+            stage="stage/$dir"
+            rm -rf "$stage"
+            mkdir -p "$stage"
+            cp -r "$dir/." "$stage/"
+            rm -rf "$stage/node_modules" "$stage/test" "$stage/docs" \
+              "$stage/package.json" "$stage/package-lock.json" \
+              "$stage/eslint.config.mjs"
+            rm -f "$stage"/.eslintrc*
+            (cd stage && zip -rq "$GITHUB_WORKSPACE/release/$dir.zip" "$dir")
+
+            echo "::endgroup::"
+          done < extensions.txt
+          ls -la release
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: jira-markdown-converter
-          path: jira-markdown-converter/jira-markdown-converter.zip
+          name: extensions
+          path: release/*.zip
 
       - name: Publish rolling release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -63,7 +92,10 @@ jobs:
           name: Latest build
           prerelease: false
           make_latest: 'true'
-          body: Automatisch gebautes ZIP des aktuellen `main`-Stands. Nicht signiert, ueber "Entpackte Erweiterung laden" zu installieren.
-          files: jira-markdown-converter/jira-markdown-converter.zip
+          body: >-
+            Automatisch gebaute ZIPs des aktuellen `main`-Stands, je Erweiterung
+            ein Download. Nicht signiert, ueber "Entpackte Erweiterung laden"
+            zu installieren.
+          files: release/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
