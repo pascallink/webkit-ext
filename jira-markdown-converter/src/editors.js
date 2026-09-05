@@ -681,6 +681,7 @@
   return {
     RICH_SELECTOR: RICH_SELECTOR,
     TEXTAREA_SELECTOR: TEXTAREA_SELECTOR,
+    fieldContainer: fieldContainer,
     richTextFrame: richTextFrame,
     richTextBody: richTextBody,
     isRichTextActive: isRichTextActive,
