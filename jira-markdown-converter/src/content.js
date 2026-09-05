@@ -19,6 +19,7 @@
   var target = null;         // gemerktes Zielfeld
   var pickingTarget = false;
   var toastTimer = null;
+  var templateMenu = null;   // offenes Menue mit den Panel-Vorlagen
 
   /* ------------------------------------------------------------------ *
    * Konvertierung
@@ -262,6 +263,8 @@
     '    <button type="button" class="jmd-btn" data-action="copy-html"',
     '            title="Als formatierten Text in die Zwischenablage legen">Formatiert kopieren</button>',
     '    <button type="button" class="jmd-btn" data-action="code">Code einfuegen</button>',
+    '    <button type="button" class="jmd-btn" data-action="panel-template"',
+    '            aria-haspopup="true" aria-expanded="false">Panel aus Vorlage</button>',
     '  </div>',
     '  <div class="jmd-options">',
     '    <label class="jmd-check"><input type="checkbox" data-option="switchToMarkup"> Rich-Text vorher auf Markup-Modus umschalten</label>',
@@ -298,7 +301,7 @@
     panel.addEventListener('click', function (event) {
       var button = event.target.closest('[data-action]');
       if (!button) return;
-      handleAction(button.getAttribute('data-action'), input, output);
+      handleAction(button.getAttribute('data-action'), input, output, button);
     });
 
     panel.addEventListener('change', function (event) {
@@ -326,7 +329,7 @@
     return panel;
   }
 
-  function handleAction(action, input, output) {
+  function handleAction(action, input, output, button) {
     switch (action) {
       case 'close':
         closePanel();
@@ -357,6 +360,9 @@
         break;
       case 'pick':
         startPicking();
+        break;
+      case 'panel-template':
+        toggleTemplateMenu(button, currentTarget());
         break;
       case 'copy':
         copyText(output.value);
@@ -547,6 +553,7 @@
 
   function closePanel() {
     stopPicking();
+    closeTemplateMenu();
     if (panel) panel.classList.remove('jmd-panel--open');
   }
 
@@ -559,6 +566,237 @@
     var active = Editors.activeEditor();
     if (active) target = active;
     openPanel();
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Panel aus einer Vorlage einfuegen
+   *
+   * Die Vorlagen (Titel, Platzhalter, Farben) stehen in
+   * Settings.PANEL_TEMPLATES, die Ausgabe erzeugt der Konverter:
+   * Wiki-Markup fuer reine Textfelder, gleichwertiges HTML fuer den
+   * Rich-Text-Editor.
+   * ------------------------------------------------------------------ */
+
+  /** Oeffnet das Menue unter dem Button; ein zweiter Klick schliesst es. */
+  function toggleTemplateMenu(anchorButton, field) {
+    if (templateMenu && templateMenu.__jmdAnchor === anchorButton) {
+      closeTemplateMenu();
+      return;
+    }
+    openTemplateMenu(anchorButton, field);
+  }
+
+  function openTemplateMenu(anchorButton, field) {
+    closeTemplateMenu();
+
+    var menu = document.createElement('div');
+    menu.className = 'jmd-panelmenu';
+    menu.dataset.jmdUi = 'panelmenu';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', 'Panel-Vorlagen');
+    menu.__jmdAnchor = anchorButton;
+
+    Settings.PANEL_TEMPLATES.forEach(function (template) {
+      menu.appendChild(templateMenuItem(template, field));
+    });
+
+    document.body.appendChild(menu);
+    templateMenu = menu;
+    anchorButton.setAttribute('aria-expanded', 'true');
+    placeTemplateMenu(menu, anchorButton);
+
+    document.addEventListener('mousedown', onTemplateMenuOutside, true);
+    document.addEventListener('keydown', onTemplateMenuKey, true);
+    // Das Menue haengt an der Position des Buttons - beim Scrollen oder
+    // Groessenaendern muss es mitwandern.
+    window.addEventListener('scroll', followTemplateAnchor, true);
+    window.addEventListener('resize', followTemplateAnchor, true);
+
+    var first = menu.querySelector('.jmd-panelmenu__item');
+    // Ohne preventScroll wuerde der Fokus die Seite verschieben - und damit
+    // das eben erst gesetzte Menue.
+    if (first) first.focus({ preventScroll: true });
+  }
+
+  function templateMenuItem(template, field) {
+    var item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'jmd-panelmenu__item';
+    item.setAttribute('role', 'menuitem');
+    item.dataset.template = template.id;
+    item.title = template.hint;
+    // Die Farbe der Vorlage traegt der Farbtupfer, nicht nur die Beschriftung.
+    item.style.setProperty('--jmd-panel-border', template.borderColor);
+    item.style.setProperty('--jmd-panel-bg', template.bgColor);
+
+    var swatch = document.createElement('span');
+    swatch.className = 'jmd-panelmenu__swatch';
+    swatch.setAttribute('aria-hidden', 'true');
+    item.appendChild(swatch);
+
+    var caption = document.createElement('span');
+    caption.textContent = template.label;
+    item.appendChild(caption);
+
+    item.addEventListener('click', function (event) {
+      event.preventDefault();
+      closeTemplateMenu();
+      insertTemplate(field, template);
+    });
+    return item;
+  }
+
+  /** Unter den Button, notfalls darueber - das Menue bleibt im Sichtbereich. */
+  function placeTemplateMenu(menu, anchorButton) {
+    var rect = anchorButton.getBoundingClientRect();
+    menu.style.left = Math.round(rect.left) + 'px';
+    menu.style.top = Math.round(rect.bottom + 4) + 'px';
+
+    var box = menu.getBoundingClientRect();
+    if (box.right > window.innerWidth - 8) {
+      menu.style.left = Math.round(Math.max(8, window.innerWidth - box.width - 8)) + 'px';
+    }
+    if (box.bottom > window.innerHeight - 8) {
+      menu.style.top = Math.round(Math.max(8, rect.top - box.height - 4)) + 'px';
+    }
+  }
+
+  function closeTemplateMenu() {
+    if (!templateMenu) return;
+    var anchorButton = templateMenu.__jmdAnchor;
+    if (anchorButton) anchorButton.setAttribute('aria-expanded', 'false');
+    if (templateMenu.parentNode) templateMenu.parentNode.removeChild(templateMenu);
+    templateMenu = null;
+    document.removeEventListener('mousedown', onTemplateMenuOutside, true);
+    document.removeEventListener('keydown', onTemplateMenuKey, true);
+    window.removeEventListener('scroll', followTemplateAnchor, true);
+    window.removeEventListener('resize', followTemplateAnchor, true);
+  }
+
+  /** Menue dem Button nachfuehren; ist er weggescrollt, wird geschlossen. */
+  function followTemplateAnchor() {
+    if (!templateMenu) return;
+    var anchorButton = templateMenu.__jmdAnchor;
+    if (!anchorButton || !anchorButton.isConnected) {
+      closeTemplateMenu();
+      return;
+    }
+    var rect = anchorButton.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      closeTemplateMenu();
+      return;
+    }
+    placeTemplateMenu(templateMenu, anchorButton);
+  }
+
+  function onTemplateMenuOutside(event) {
+    if (!templateMenu) return;
+    if (templateMenu.contains(event.target)) return;
+    var anchorButton = templateMenu.__jmdAnchor;
+    if (anchorButton && (anchorButton === event.target || anchorButton.contains(event.target))) return;
+    closeTemplateMenu();
+  }
+
+  function onTemplateMenuKey(event) {
+    if (event.key === 'Escape') closeTemplateMenu();
+  }
+
+  /**
+   * Fuegt das Panel an der gemerkten Cursorposition ein.
+   *
+   * Reines Textfeld  -> {panel:title=...|borderColor=...|bgColor=...}
+   * Rich-Text-Editor -> gleichwertiges HTML mit denselben Farben
+   *
+   * Ist eingestellt, dass vorher auf den Markup-Modus umgeschaltet wird, wird
+   * aus dem Rich-Text-Editor ein Textfeld - dann gilt der Markup-Zweig.
+   */
+  function insertTemplate(field, template) {
+    if (!field) {
+      toast('Kein Jira-Eingabefeld gefunden.', true);
+      return;
+    }
+    target = field;
+
+    var switching = !isPlainField(field) && settings.switchToMarkup &&
+      Editors.isRichTextActive(field)
+      ? Editors.switchToMarkup(field)
+      : Promise.resolve(false);
+
+    switching.then(function () {
+      var markup = Converter.panelMarkup(template);
+      var html = isPlainField(field) ? null : Converter.panelHtml(template);
+      if (!Editors.insertFormatted(field, markup, html, 'insert')) {
+        toast('Einfuegen nicht moeglich.', true);
+        return;
+      }
+      focusPanelBody(field, template.body);
+      toast('Panel "' + template.label + '" eingefuegt.');
+    });
+  }
+
+  /**
+   * Danach soll der Cursor im Textbereich des Panels stehen: der Platzhalter
+   * wird markiert, sodass Tippen ihn ersetzt.
+   */
+  function focusPanelBody(field, placeholder) {
+    if (selectPlaceholder(field, placeholder)) return;
+    // Rich-Text-Editoren bauen eingefuegte Inhalte teils verzoegert ein.
+    setTimeout(function () {
+      selectPlaceholder(field, placeholder);
+    }, 60);
+  }
+
+  function selectPlaceholder(field, placeholder) {
+    if (!field || !placeholder) return false;
+    var surface = Editors.editingSurface(field);
+    if (!surface) return false;
+
+    if (Editors.isTextarea(surface)) {
+      var value = String(surface.value || '');
+      // Der Cursor steht nach dem Einfuegen am Ende des Panels - von dort
+      // aus rueckwaerts suchen, damit fruehere Panels unberuehrt bleiben.
+      var from = typeof surface.selectionStart === 'number' ? surface.selectionStart : value.length;
+      var start = value.lastIndexOf(placeholder, from);
+      if (start === -1) return false;
+      surface.focus();
+      surface.setSelectionRange(start, start + placeholder.length);
+      return true;
+    }
+
+    if (!surface.isContentEditable) return false;
+    return selectInEditable(surface, placeholder);
+  }
+
+  function selectInEditable(surface, placeholder) {
+    var doc = surface.ownerDocument;
+    var view = doc.defaultView;
+    try {
+      // NodeFilter aus dem Dokument der Flaeche - im Editor-Rahmen ist das
+      // ein anderes Fenster als das der Seite.
+      var walker = doc.createTreeWalker(surface, view.NodeFilter.SHOW_TEXT, null);
+      var node = null;
+      var found = null;
+      var offset = -1;
+      while ((node = walker.nextNode())) {
+        var at = String(node.nodeValue || '').indexOf(placeholder);
+        // Das letzte Vorkommen ist das gerade eingefuegte.
+        if (at !== -1) {
+          found = node;
+          offset = at;
+        }
+      }
+      if (!found) return false;
+      var selection = view && view.getSelection();
+      if (!selection) return false;
+      var range = doc.createRange();
+      range.setStart(found, offset);
+      range.setEnd(found, offset + placeholder.length);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
+    } catch (error) {
+      return false;   // Editor hat den Inhalt umgebaut - dann eben nicht
+    }
   }
 
   /* ------------------------------------------------------------------ *
@@ -694,6 +932,19 @@
       openCodeDialog(field);
     });
 
+    var templateButton = document.createElement('button');
+    templateButton.type = 'button';
+    templateButton.className = 'jmd-fieldbar__btn';
+    templateButton.textContent = 'Panel aus Vorlage';
+    templateButton.title = 'Panel mit Titel und Platzhaltertext an der Cursorposition einfuegen';
+    templateButton.setAttribute('aria-haspopup', 'true');
+    templateButton.setAttribute('aria-expanded', 'false');
+    templateButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      target = field;
+      toggleTemplateMenu(templateButton, field);
+    });
+
     var panelButton = document.createElement('button');
     panelButton.type = 'button';
     panelButton.className = 'jmd-fieldbar__btn jmd-fieldbar__btn--ghost';
@@ -708,6 +959,7 @@
     bar.appendChild(convertButton);
     bar.appendChild(pasteButton);
     bar.appendChild(codeButton);
+    bar.appendChild(templateButton);
     bar.appendChild(panelButton);
     parent.insertBefore(bar, host);
   }

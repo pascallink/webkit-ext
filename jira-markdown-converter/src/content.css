@@ -6,7 +6,8 @@
 .jmd-fab,
 .jmd-panel,
 .jmd-toast,
-.jmd-fieldbar {
+.jmd-fieldbar,
+.jmd-panelmenu {
   box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 13px;
@@ -16,7 +17,8 @@
 
 .jmd-fab *,
 .jmd-panel *,
-.jmd-fieldbar * {
+.jmd-fieldbar *,
+.jmd-panelmenu * {
   box-sizing: border-box;
 }
 
@@ -267,6 +269,67 @@
 
 .jmd-fieldbar__btn--ghost {
   background: transparent;
+}
+
+/* Panel-Vorlagen ----------------------------------------------------- */
+
+.jmd-panelmenu {
+  position: fixed;
+  /* ueber dem Panel, damit es nicht dahinter verschwindet */
+  z-index: 2147483002;
+  min-width: 176px;
+  padding: 4px;
+  border: 1px solid #dfe1e6;
+  border-radius: 3px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(9, 30, 66, 0.25);
+}
+
+.jmd-panelmenu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: #172b4d;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.jmd-panelmenu__item:hover,
+.jmd-panelmenu__item:focus-visible {
+  background: #f4f5f7;
+  outline: none;
+}
+
+/* Zeigt die Farbe der Vorlage - Rahmen und Fuellung wie im Ticket. */
+.jmd-panelmenu__swatch {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--jmd-panel-border, #dfe1e6);
+  border-radius: 3px;
+  background: var(--jmd-panel-bg, #f4f5f7);
+}
+
+@media (prefers-color-scheme: dark) {
+  .jmd-panelmenu {
+    background: #1d2125;
+    border-color: #333b43;
+  }
+
+  .jmd-panelmenu__item {
+    color: #c7d1db;
+  }
+
+  .jmd-panelmenu__item:hover,
+  .jmd-panelmenu__item:focus-visible {
+    background: #22272b;
+  }
 }
 
 /* Feldauswahl -------------------------------------------------------- */
