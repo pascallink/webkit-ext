@@ -98,6 +98,29 @@
     return frame && frame.tagName === 'IFRAME' ? frame : null;
   }
 
+  /**
+   * Zu einem Editor-Rahmen das Feld, zu dem er gehoert. Klickt der Nutzer in
+   * den Rich-Text-Editor, ist das Ziel im Hauptdokument naemlich der Rahmen -
+   * gemeint ist aber die Textarea darunter.
+   */
+  function fieldForFrame(element) {
+    if (!element || element.tagName !== 'IFRAME') return null;
+    try {
+      if (!element.matches(RICH_TEXT_FRAME_SELECTOR)) return null;
+    } catch (error) {
+      return null;
+    }
+    var doc = element.ownerDocument;
+    var id = String(element.id || '').replace(/_ifr$/, '');
+    var field = id ? doc.getElementById(id) : null;
+    if (!field) {
+      var container = fieldContainer(element);
+      field = container && container.querySelector ? container.querySelector('textarea') : null;
+    }
+    if (!field || field.tagName !== 'TEXTAREA' || isIgnored(field)) return null;
+    return field;
+  }
+
   /** Der beschreibbare Body im Editor-Rahmen (gleiche Herkunft, sonst null). */
   function richTextBody(field) {
     var frame = richTextFrame(field);
@@ -248,7 +271,7 @@
     if (!element) return null;
     if (isTextarea(element) && !isIgnored(element)) return element;
     // Klick im Rich-Text-Rahmen: das zugehoerige Feld ist die Textarea.
-    var owner = fieldForSurface(element);
+    var owner = fieldForSurface(element) || fieldForFrame(element);
     if (owner) return owner;
     if (element.isContentEditable) {
       var host = element.closest('.ProseMirror') || element.closest('[contenteditable="true"]') || element;
@@ -754,6 +777,7 @@
     fieldContainer: fieldContainer,
     richTextFrame: richTextFrame,
     richTextBody: richTextBody,
+    fieldForFrame: fieldForFrame,
     isRichTextActive: isRichTextActive,
     editingSurface: editingSurface,
     findModeToggle: findModeToggle,

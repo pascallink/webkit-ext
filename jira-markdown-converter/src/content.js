@@ -1102,6 +1102,16 @@
     doc.addEventListener('mouseup', remember, true);
     doc.addEventListener('keyup', remember, true);
     doc.addEventListener('paste', onPaste, true);
+    // Im Rich-Text-Modus arbeitet der Nutzer im Rahmen, nicht in der
+    // Textarea: das Feld friert darum von hier aus ein.
+    doc.addEventListener('focusin', function () {
+      target = field;
+      EditLock.lock(field);
+    }, true);
+    doc.addEventListener('mousedown', function () {
+      target = field;
+      EditLock.lock(field);
+    }, true);
   }
 
   var scanTimer = null;
@@ -1132,6 +1142,16 @@
       // Sobald im Feld gearbeitet wird, friert der Bearbeitungsmodus ein.
       EditLock.lock(field);
     }, true);
+
+    // Solange ein Feld eingefroren ist, kommen die gestoppten Ereignisse
+    // nicht mehr bis zu unseren eigenen Wachposten am Dokument. Sie bekommen
+    // sie deshalb von der Sperre gereicht - sonst bliebe das Vorlagenmenue
+    // offen und die Feldauswahl taub.
+    EditLock.watch(function (event) {
+      if (event.type !== 'mousedown') return;
+      onTemplateMenuOutside(event);
+      if (pickingTarget) onPickClick(event);
+    });
 
     // Cursorposition festhalten, solange das Feld sie noch kennt. Sobald der
     // Nutzer ins Panel klickt, ist sie sonst verloren.

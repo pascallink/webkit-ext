@@ -171,9 +171,18 @@ Solange das Schloss zu ist:
 * `Escape` bricht das Bearbeiten nicht ab.
 * Wer die Seite verlaesst oder neu laedt, wird vom Browser gefragt, ob er das
   wirklich will.
-* *Speichern* und *Abbrechen* im Feld selbst funktionieren normal – sie
-  gehoeren zum Feld, nicht zu „daneben". Danach gibt das Feld seine Sperre
-  von selbst wieder ab.
+* *Speichern* und *Abbrechen* funktionieren normal – genau wie die
+  Werkzeugleiste und der Umschalter zwischen *Visuell* und *Text*. Zum Feld
+  gehoert der ganze Block, den Jira beim Bearbeiten aufbaut, nicht nur das
+  Eingabefeld darin. Nach dem Speichern oder Abbrechen gibt das Feld seine
+  Sperre von selbst wieder ab.
+* Die eigene Buttonleiste, der schwebende Editor und die Dialoge der
+  Erweiterung bleiben bedienbar – und Jira bekommt von diesen Klicks nichts
+  mit, obwohl sie streng genommen „daneben" liegen.
+* Beide Bearbeitungsmodi sind abgedeckt: der Textmodus mit der Textarea
+  ebenso wie der Rich-Text-Editor (`jira.rte.enabled`), der in einem eigenen
+  Rahmen laeuft. Beim Wechsel zwischen beiden baut Jira den Feldblock neu auf
+  – die Sperre geht auf das neue Feld ueber, das Schloss bleibt zu.
 
 Ein Klick auf das Schloss oeffnet es: dann gilt wieder Jiras eigenes
 Verhalten, und dieses Feld friert auch nicht von selbst wieder ein. Beim

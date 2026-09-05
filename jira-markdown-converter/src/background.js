@@ -192,7 +192,9 @@ function syncExtraHosts() {
           matches: patterns,
           js: CONTENT_FILES,
           css: CONTENT_CSS,
-          runAt: 'document_idle',
+          // Frueh genug, um beim Einfrieren vor Jiras eigenen Handlern zu
+          // stehen; die Oberflaeche wartet ohnehin auf das fertige Dokument.
+          runAt: 'document_start',
           allFrames: true
         };
 
