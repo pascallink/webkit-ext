@@ -60,8 +60,8 @@
     '[data-testid*="rich-text"]'
   ].join(',');
 
-  var LOCKED = { glyph: '🔒', text: 'Bearbeitung eingefroren' };
-  var OPEN = { glyph: '🔓', text: 'Bearbeitung einfrieren' };
+  var LOCKED = { glyph: '🔒', text: 'Eingefroren' };
+  var OPEN = { glyph: '🔓', text: 'Einfrieren' };
 
   var enabled = false;
   var listening = false;
@@ -371,8 +371,9 @@
     button.textContent = state.glyph + ' ' + state.text;
     button.setAttribute('aria-pressed', locked ? 'true' : 'false');
     button.title = locked
-      ? 'Schloss oeffnen: Jira darf das Feld beim Klick daneben wieder schliessen'
-      : 'Feld einfrieren: es bleibt beim Klick daneben offen';
+      ? 'Bearbeitung eingefroren: das Feld bleibt offen, bis gespeichert oder abgebrochen wird. '
+        + 'Schloss oeffnen - dann darf Jira es beim Klick daneben wieder schliessen'
+      : 'Bearbeitung einfrieren: das Feld bleibt beim Klick daneben offen';
     button.classList.toggle('jmd-fieldbar__btn--locked', locked);
     button.hidden = !enabled;
   }
