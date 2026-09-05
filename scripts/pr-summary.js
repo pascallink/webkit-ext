@@ -6,10 +6,7 @@
 'use strict';
 
 const { execFileSync } = require('node:child_process');
-
-const API_URL = 'https://api.anthropic.com/v1/messages';
-const API_VERSION = '2023-06-01';
-const MODEL = 'claude-haiku-4-5';
+const { askClaude } = require('./lib/anthropic');
 
 // Token-Bremsen: kleiner Diff rein, kurze Antwort raus.
 const MAX_DIFF_CHARS = 40000;
@@ -74,42 +71,11 @@ async function generateSummary({ title, stat, diff, truncated }) {
     diff || '(leer)',
   ].join('\n');
 
-  const body = {
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
+  return askClaude({
     system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userContent }],
-  };
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': env('ANTHROPIC_API_KEY'),
-        'anthropic-version': API_VERSION,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      const text = (data.content || [])
-        .filter((block) => block.type === 'text')
-        .map((block) => block.text)
-        .join('')
-        .trim();
-      if (!text) throw new Error('Anthropic API lieferte keinen Text zurueck');
-      return text;
-    }
-
-    const detail = await res.text();
-    const retryable = res.status === 429 || res.status >= 500;
-    if (!retryable || attempt === 2) {
-      throw new Error(`Anthropic API ${res.status}: ${detail}`);
-    }
-    await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
-  }
+    user: userContent,
+    maxTokens: MAX_TOKENS,
+  });
 }
 
 function mergeIntoBody(existingBody, summary) {
