@@ -6,4 +6,4 @@ Browser Erweiterungen
 
 | Ordner | Beschreibung |
 | --- | --- |
-| [`jira-markdown-converter/`](jira-markdown-converter/) | Wandelt aus Azure DevOps kopiertes Markdown in Jira-Markup um und fuegt es direkt ins Jira-Ticket ein. |
+| [`jira-markdown-converter/`](jira-markdown-converter/) | **PowerEdit for Jira** - erweitert die Jira-Ticket-Bearbeitung um Markdown-Support, Formatierungsvorlagen und Code-Bloecke (Smart-Links geplant). |

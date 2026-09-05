@@ -71,7 +71,7 @@ function refreshIndicators() {
         });
       }
       chrome.action.setTitle({
-        title: 'Markdown nach Jira - ' + state.label + '\n' + state.hint
+        title: 'PowerEdit for Jira - ' + state.label + '\n' + state.hint
       }, function () {
         void chrome.runtime.lastError;
       });

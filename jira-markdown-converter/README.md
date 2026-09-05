@@ -1,7 +1,10 @@
-# Markdown nach Jira
+# PowerEdit for Jira
 
-Browser-Erweiterung (Manifest V3, Chrome/Edge), die aus Azure DevOps kopiertes
-Markdown in Jira-Wiki-Markup umwandelt und direkt in das Jira-Ticket einfuegt.
+Browser-Erweiterung (Manifest V3, Chrome/Edge), die die Jira-Ticket-Bearbeitung
+um Markdown-Support, Formatierungsvorlagen und Code-Bloecke erweitert -
+darunter die Umwandlung von aus Azure DevOps kopiertem Markdown in
+Jira-Wiki-Markup, direkt im Jira-Ticket. Smart-Link-Parsing ist fuer eine
+kommende Version geplant.
 
 Aus `# Titel` wird `h1. Titel`, aus `**fett**` wird `*fett*`, aus einer
 Markdown-Tabelle wird eine Jira-Tabelle.
