@@ -114,6 +114,19 @@ console.log('\nDateiverweise in HTML');
   });
 });
 
+test('README verweist nur auf vorhandene Bilder', function () {
+  var readme = fs.readFileSync(abs('README.md'), 'utf8');
+  // Nur echte Verweise, nicht die Beispielzeile in der Umwandlungstabelle.
+  var pattern = /!\[[^\]]*\]\((docs\/[^)]+)\)/g;
+  var match;
+  var count = 0;
+  while ((match = pattern.exec(readme)) !== null) {
+    count++;
+    assert.ok(exists(match[1]), match[1] + ' fehlt');
+  }
+  assert.ok(count >= 4, 'zu wenige Bilder in der Dokumentation: ' + count);
+});
+
 console.log('\nService-Worker');
 test('importScripts verweist auf vorhandene Dateien', function () {
   var source = fs.readFileSync(abs('src/background.js'), 'utf8');

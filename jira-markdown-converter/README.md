@@ -8,7 +8,7 @@ Markdown-Tabelle wird eine Jira-Tabelle.
 
 ## Was die Erweiterung einbaut
 
-Auf Jira-Seiten kommen drei Bedienelemente dazu:
+Auf Jira-Seiten kommen vier Bedienelemente dazu:
 
 1. **Buttonleiste direkt am Feld** – ueber jedem Beschreibungs- und
    Kommentarfeld:
@@ -24,7 +24,14 @@ Auf Jira-Seiten kommen drei Bedienelemente dazu:
    *Formatiert kopieren* (fuer den Rich-Text-Editor). Ueber
    *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Code
    einfuegen* oeffnet denselben Dialog wie in der Buttonleiste.
-3. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
+3. **Dialog "Code einfuegen"** – Sprache aus der Liste der von Jira
+   unterstuetzten Sprachen waehlen, Code eintippen, fertigen Codeblock an der
+   Cursorposition einsetzen. Zu erreichen ueber die Buttonleiste am Feld und
+   ueber das Panel.
+
+   ![Der Dialog "Code einfuegen": Sprachauswahl, Eingabefeld fuer den Code, Hinweis zur Tastaturbedienung, darunter Einfuegen, Abbrechen und die beiden Kopier-Knoepfe](docs/images/code-dialog.png)
+
+4. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
    eingefuegt, der nach Markdown aussieht, wandelt die Erweiterung ihn direkt
    beim Einfuegen um. `Strg+Z` macht das rueckgaengig.
 
@@ -56,6 +63,10 @@ Zwischenablage, *Formatiert kopieren* den Codeblock als `text/html` (mit dem
 Markup als Rueckfalltext daneben) - beim Einfuegen von Hand kommt er im
 Rich-Text-Editor also als echter Codeblock an. Der Dialog bleibt dabei offen.
 
+Dieselben beiden Knoepfe sitzen im Panel, dort fuer das umgewandelte Markdown:
+
+![Panel mit den Knoepfen "Markup kopieren" und "Formatiert kopieren" unter den Einfuege-Knoepfen](docs/images/kopieren.png)
+
 Der Code wird dabei nie durch den Markdown-Parser geschickt: `# Titel` oder
 `**fett**` bleiben im Codeblock genau so stehen, wie sie eingetippt wurden.
 
@@ -63,6 +74,13 @@ Der Code wird dabei nie durch den Markdown-Parser geschickt: `# Titel` oder
 | --- | --- |
 | Textfeld (Wiki Style Renderer) | `{code:java} … {code}` |
 | Rich-Text-Editor | `<pre><code class="language-java"> … </code></pre>` |
+
+Derselbe Codeblock, einmal im Textfeld von Jira Server 9.12 und einmal im
+Rich-Text-Editor – eingesetzt an der Stelle, an der der Cursor stand:
+
+| Textfeld (Wiki Style Renderer) | Rich-Text-Editor |
+| --- | --- |
+| ![Textfeld mit einem eingefuegten {code:java}-Block zwischen zwei Saetzen](docs/images/code-textfeld.png) | ![Rich-Text-Editor mit dem Codeblock als formatiertem Kasten](docs/images/code-richtext.png) |
 
 Im Rich-Text-Editor gelten dieselben Einstellungen wie beim uebrigen
 Einfuegen: ist *Vorher auf den Markup-Modus umschalten* aktiv, wird
