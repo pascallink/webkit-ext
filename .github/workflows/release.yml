@@ -74,9 +74,12 @@ jobs:
             rm -rf "$stage"
             mkdir -p "$stage"
             cp -r "$dir/." "$stage/"
+            # Nur Laufzeitdateien ins ZIP: was hier stehen bleibt, geht so an
+            # den Store. Doku und Entwicklungsdateien fliegen raus.
             rm -rf "$stage/node_modules" "$stage/test" "$stage/docs" \
               "$stage/package.json" "$stage/package-lock.json" \
-              "$stage/eslint.config.mjs" "$stage/CLAUDE.md"
+              "$stage/eslint.config.mjs" "$stage/CLAUDE.md" \
+              "$stage/README.md" "$stage/CHANGELOG.md"
             rm -f "$stage"/.eslintrc*
 
             (cd stage && zip -rq "$GITHUB_WORKSPACE/release/$dir-$version.zip" "$dir")
