@@ -57,7 +57,20 @@ editlock -> content.
 - Dateinamen klein und ohne Trennzeichen (`codedialog.js`, `editlock.js`).
 - Kommentare und UI-Texte auf Deutsch, **ohne Umlaute** (`ue`, `ae`, `oe`, `ss`).
 - Leere `catch`-Bloecke sind Absicht (Jira baut das DOM staendig um).
-- Versionen in `manifest.json` und `package.json` synchron halten;
-  Nutzer-sichtbare Aenderungen in `CHANGELOG.md`.
 - Neue Erweiterung: Ordner + `manifest.json` + `package.json` mit `lint`/`test`;
   Laufzeitcode getrennt von `test/`, `docs/` (die werden beim Packen entfernt).
+
+## Release
+
+READMEs sind per `.claudeignore` aus dem Standardkontext genommen, weil sie
+gross und selten relevant sind - **vor jedem Release aber Pflicht**: gezielt
+oeffnen, pruefen, aktualisieren.
+
+1. Version in `manifest.json` und `package.json` synchron anheben.
+2. `CHANGELOG.md` um die nutzer-sichtbaren Aenderungen ergaenzen.
+3. `jira-markdown-converter/README.md` aktualisieren: neue oder geaenderte
+   Funktionen, Einstellungen, Tastenkuerzel, Screenshots in `docs/images/`.
+4. Root-`README.md` nur anfassen, wenn eine Erweiterung dazukommt, wegfaellt
+   oder ihre Kurzbeschreibung nicht mehr stimmt.
+5. `npm run lint` und `npm test` gruen, dann auf `main` - der Workflow
+   veroeffentlicht das ZIP unter der rollierenden Release `latest`.
