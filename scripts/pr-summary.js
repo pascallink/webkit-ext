@@ -9,7 +9,7 @@ const { execFileSync } = require('node:child_process');
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const API_VERSION = '2023-06-01';
-const MODEL = 'claude-3-5-haiku-latest';
+const MODEL = 'claude-haiku-4-5';
 
 // Token-Bremsen: kleiner Diff rein, kurze Antwort raus.
 const MAX_DIFF_CHARS = 40000;
