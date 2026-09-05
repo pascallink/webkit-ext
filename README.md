@@ -25,8 +25,9 @@ Workflow. Voraussetzung:
 * eigenes `package.json` mit `lint`- und `test`-Skripten; beide muessen vor
   dem Packen gruen sein.
 * Laufzeitcode getrennt von Entwicklungsdateien - `test/`, `docs/`,
-  `package.json`, `package-lock.json`, `eslint.config.mjs` und `CLAUDE.md`
-  werden beim Packen automatisch ausgeschlossen.
+  `README.md`, `CHANGELOG.md`, `package.json`, `package-lock.json`,
+  `eslint.config.mjs` und `CLAUDE.md` werden beim Packen automatisch
+  ausgeschlossen. Was uebrig bleibt, ist einreichbar wie es ist.
 
 Jedes Release traegt je Erweiterung ein `foo-1.3.0.zip` - die Version steht
 im Dateinamen. Wer zusaetzlich einen Direktlink ohne Version braucht, setzt
@@ -48,3 +49,16 @@ Nach jedem Merge auf `main` hebt
 beruehrten Erweiterungen an und schreibt sie zurueck. Fuer eine
 Veroeffentlichung setzt du die Version von Hand auf `x.y.0`, taggst sie und
 legst dazu ein Release an - erst das erzeugt ZIPs.
+
+## Veroeffentlichung im Store
+
+Die Unterlagen fuer die Einreichung im Microsoft Edge Add-ons Store liegen je
+Erweiterung unter `<projekt>/docs/store/` - Listungstexte, Begruendung jeder
+Berechtigung, Hinweise fuer die Pruefer, Bild-Artefakte und der Ablauf. Fuer
+PowerEdit for Jira:
+[`jira-markdown-converter/docs/store/`](jira-markdown-converter/docs/store/).
+
+## Datenschutz und Lizenz
+
+Keine der Erweiterungen erhebt oder uebertraegt Daten - siehe
+[PRIVACY.md](PRIVACY.md). Der Code steht unter [MIT](LICENSE).

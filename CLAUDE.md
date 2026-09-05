@@ -36,6 +36,8 @@ kein Workspace-Root, keine gemeinsamen Dependencies. Jeder Top-Level-Ordner mit
   `CLAUDE.md`; Laufzeitcode getrennt von `test/` und `docs/` (fliegen raus).
 - Deutsch in Kommentaren und UI-Texten, **ohne Umlaute** (`ue`, `ae`, `oe`).
 - Release: Versionen synchron (hebt die CI, nicht die Hand), `CHANGELOG.md` + `README.md` pflegen, gruen nach `main`.
+- Store-Einreichung: Unterlagen je Projekt unter `<projekt>/docs/store/`,
+  Datenschutz (`PRIVACY.md`) und Lizenz (`LICENSE`) liegen im Root.
 - Roter CI-Lauf: nicht pollen, nicht mit `sleep` warten - die Analyse kommt als PR-Kommentar. Siehe `.github/CI.md`.
 
 ## Commit-Konventionen
