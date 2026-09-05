@@ -418,6 +418,7 @@
       onEmpty: function () {
         toast('Bitte zuerst Code eingeben.', true);
       },
+      onCopy: copyCode,
       onInsert: function (result) {
         return insertCode(into, result);
       }
@@ -441,6 +442,46 @@
         : Editors.insertFormatted(field, result.jira, result.html, 'insert');
       toast(ok ? 'Codeblock eingefuegt.' : 'Einfuegen nicht moeglich - bitte Text kopieren.', !ok);
       return ok;
+    });
+  }
+
+  /**
+   * Ergebnis des Dialogs in die Zwischenablage - zum Einfuegen von Hand,
+   * wenn ein Feld sich nicht beschreiben laesst.
+   */
+  function copyCode(result, kind) {
+    if (kind === 'html') {
+      copyRich(result.html, result.jira);
+      return;
+    }
+    copyText(result.jira);
+  }
+
+  /**
+   * Formatiert kopieren heisst: als text/html, damit ein Rich-Text-Editor
+   * beim Einfuegen von Hand einen echten Codeblock bekommt. Daneben liegt
+   * das Jira-Markup als Rueckfalltext, genau wie beim Einfuegen.
+   */
+  function copyRich(html, text) {
+    var write = null;
+    if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+      try {
+        write = navigator.clipboard.write([new ClipboardItem({
+          'text/html': new Blob([html], { type: 'text/html' }),
+          'text/plain': new Blob([text], { type: 'text/plain' })
+        })]);
+      } catch (error) {
+        write = null;
+      }
+    }
+    if (!write) {
+      copyText(html, 'HTML als Text kopiert.');
+      return;
+    }
+    write.then(function () {
+      toast('Formatiert kopiert.');
+    }, function () {
+      copyText(html, 'HTML als Text kopiert.');
     });
   }
 
@@ -918,14 +959,14 @@
     });
   }
 
-  function copyText(text) {
+  function copyText(text, message) {
     if (!text) {
       toast('Es gibt noch nichts zu kopieren.', true);
       return;
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {
-        toast('Jira-Markup kopiert.');
+        toast(message || 'Jira-Markup kopiert.');
       }, function () {
         toast('Kopieren nicht moeglich.', true);
       });

@@ -53,6 +53,13 @@
     '      <button type="button" class="jmd-btn jmd-btn--primary" data-code-action="insert">Einfuegen</button>',
     '      <button type="button" class="jmd-btn" data-code-action="close">Abbrechen</button>',
     '    </div>',
+    '    <div class="jmd-row">',
+    '      <button type="button" class="jmd-btn" data-code-action="copy-jira"',
+    '              title="Jira-Markup in die Zwischenablage legen">Markup kopieren</button>',
+    '      <button type="button" class="jmd-btn" data-code-action="copy-html"',
+    '              title="Als formatierten Codeblock in die Zwischenablage legen">Formatiert kopieren</button>',
+    '    </div>',
+    '    <p class="jmd-hint">Zum Einfuegen von Hand, falls das Feld sich straeubt.</p>',
     '  </div>',
     '</div>'
   ].join('\n');
@@ -102,8 +109,11 @@
       var button = event.target.closest('[data-code-action]');
       if (!button) return;
       event.preventDefault();
-      if (button.getAttribute('data-code-action') === 'insert') {
+      var action = button.getAttribute('data-code-action');
+      if (action === 'insert') {
         submit();
+      } else if (action === 'copy-jira' || action === 'copy-html') {
+        copy(action === 'copy-html' ? 'html' : 'jira');
       } else {
         close();
       }
@@ -254,21 +264,38 @@
     };
   }
 
-  function submit() {
-    if (!dialog) return;
+  /** Das Ergebnis zum aktuellen Stand - oder null, wenn nichts dasteht. */
+  function current() {
     var input = dialog.querySelector('#jmd-code-input');
     var select = dialog.querySelector('[data-role="language"]');
     if (!input.value.trim()) {
       input.focus();
       if (handlers && handlers.onEmpty) handlers.onEmpty();
-      return;
+      return null;
     }
     lastLanguage = select.value;
-    var result = build(select.value, input.value);
+    return build(select.value, input.value);
+  }
+
+  function submit() {
+    if (!dialog) return;
+    var result = current();
+    if (!result) return;
     var accepted = handlers && handlers.onInsert ? handlers.onInsert(result) : false;
     Promise.resolve(accepted).then(function (ok) {
       if (ok !== false) close();
     });
+  }
+
+  /**
+   * Kopieren statt einfuegen: 'jira' legt das Markup ab, 'html' den
+   * formatierten Codeblock. Der Dialog bleibt dabei offen.
+   */
+  function copy(kind) {
+    if (!dialog) return;
+    var result = current();
+    if (!result) return;
+    if (handlers && handlers.onCopy) handlers.onCopy(result, kind);
   }
 
   /* ------------------------------------------------------------------ *
@@ -277,7 +304,7 @@
 
   /**
    * options: { target: Beschriftung des Zielfeldes, onInsert: fn(result),
-   *            onEmpty: fn, onClose: fn }
+   *            onCopy: fn(result, 'jira' | 'html'), onEmpty: fn, onClose: fn }
    * onInsert darf false (oder ein Promise darauf) liefern - dann bleibt der
    * Dialog offen.
    */

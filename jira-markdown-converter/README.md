@@ -43,7 +43,14 @@ Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`
 Der Knopf *Code einfuegen* – in der Buttonleiste am Feld wie im Panel – oeffnet
 einen kleinen Dialog: oben die Auswahlliste mit den Sprachen, die Jira im
 `{code}`-Makro kennt, darunter ein mehrzeiliges Feld fuer den Code. *Einfuegen*
-schreibt den fertigen Codeblock an die gemerkte Cursorposition im Jira-Feld.
+schreibt den fertigen Codeblock an die gemerkte Cursorposition im Jira-Feld -
+dieselbe Position wie beim Panel, eine markierte Passage wird ersetzt.
+
+Wenn das Zielfeld sich nicht beschreiben laesst, helfen die beiden Knoepfe
+darunter: *Markup kopieren* legt `{code:sprache} … {code}` in die
+Zwischenablage, *Formatiert kopieren* den Codeblock als `text/html` (mit dem
+Markup als Rueckfalltext daneben) - beim Einfuegen von Hand kommt er im
+Rich-Text-Editor also als echter Codeblock an. Der Dialog bleibt dabei offen.
 
 Der Code wird dabei nie durch den Markdown-Parser geschickt: `# Titel` oder
 `**fett**` bleiben im Codeblock genau so stehen, wie sie eingetippt wurden.

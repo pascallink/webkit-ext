@@ -108,6 +108,33 @@ async function pasteInto(page, selector, text) {
   }, { selector: selector, text: text });
 }
 
+/** Legt eine Zwischenablage unter, die nur mitschreibt. */
+async function stubClipboard(page) {
+  await page.evaluate(function () {
+    window.__copied = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: function (text) {
+          window.__copied.push({ kind: 'text', text: text });
+          return Promise.resolve();
+        },
+        write: function (items) {
+          return items[0].getType('text/html').then(function (blob) {
+            return blob.text();
+          }).then(function (html) {
+            return items[0].getType('text/plain').then(function (blob) {
+              return blob.text();
+            }).then(function (text) {
+              window.__copied.push({ kind: 'html', html: html, text: text });
+            });
+          });
+        }
+      }
+    });
+  });
+}
+
 async function run() {
   var browser = await chromium.launch();
 
@@ -845,6 +872,78 @@ async function run() {
     }, null, { timeout: 4000 });
     assert.strictEqual(await page.inputValue('#description'), '{code:java}\nint a = 1;\n{code}');
     assert.deepStrictEqual(await page.evaluate(function () { return window.__pastes; }), []);
+    await page.close();
+  });
+
+  await test('Markup kopieren legt den Codeblock in die Zwischenablage', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await stubClipboard(page);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.selectOption('#jmd-code-language', 'sql');
+    await page.fill('#jmd-code-input', 'select 1;');
+    await page.click('.jmd-dialog [data-code-action="copy-jira"]');
+    await page.waitForFunction(function () {
+      return window.__copied.length === 1;
+    }, null, { timeout: 4000 });
+    assert.deepStrictEqual(await page.evaluate(function () { return window.__copied[0]; }),
+      { kind: 'text', text: '{code:sql}\nselect 1;\n{code}' });
+    assert.ok(await page.locator('.jmd-dialog--open').count(), 'Dialog haette offen bleiben muessen');
+    assert.strictEqual(await page.inputValue('#description'), '', 'es wurde zusaetzlich eingefuegt');
+    await page.close();
+  });
+
+  await test('Formatiert kopieren legt HTML und Markup nebeneinander ab', async function () {
+    var page = await newPage(browser, null, RTE);
+    await stubClipboard(page);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.selectOption('#jmd-code-language', 'html');
+    await page.fill('#jmd-code-input', '<b>&</b>');
+    await page.click('.jmd-dialog [data-code-action="copy-html"]');
+    await page.waitForFunction(function () {
+      return window.__copied.length === 1;
+    }, null, { timeout: 4000 });
+    var copied = await page.evaluate(function () { return window.__copied[0]; });
+    assert.strictEqual(copied.kind, 'html', 'nicht als text/html kopiert');
+    assert.strictEqual(copied.html,
+      '<pre><code class="language-html">&lt;b&gt;&amp;&lt;/b&gt;</code></pre>');
+    assert.strictEqual(copied.text, '{code:html}\n<b>&</b>\n{code}');
+    assert.deepStrictEqual(await page.evaluate(function () { return window.__pastes; }), [],
+      'Kopieren darf nichts einfuegen');
+    await page.close();
+  });
+
+  await test('ohne text/html-Zwischenablage wird der HTML-Text kopiert', async function () {
+    var page = await newPage(browser, null, RTE);
+    await page.evaluate(function () {
+      window.__copied = [];
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: function (text) {
+            window.__copied.push({ kind: 'text', text: text });
+            return Promise.resolve();
+          }
+        }
+      });
+    });
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'a < b');
+    await page.click('.jmd-dialog [data-code-action="copy-html"]');
+    await page.waitForFunction(function () {
+      return window.__copied.length === 1;
+    }, null, { timeout: 4000 });
+    assert.deepStrictEqual(await page.evaluate(function () { return window.__copied[0]; }),
+      { kind: 'text', text: '<pre><code>a &lt; b</code></pre>' });
+    await page.close();
+  });
+
+  await test('leerer Code wird auch nicht kopiert', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await stubClipboard(page);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.click('.jmd-dialog [data-code-action="copy-jira"]');
+    await page.waitForTimeout(200);
+    assert.deepStrictEqual(await page.evaluate(function () { return window.__copied; }), []);
     await page.close();
   });
 
