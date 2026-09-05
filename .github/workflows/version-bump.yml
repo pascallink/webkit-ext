@@ -1,0 +1,51 @@
+name: Version Bump
+
+# Nach jedem Merge auf main die Patch-Stelle (z in x.y.z) der beruehrten
+# Erweiterungen anheben und zurueckschreiben. Der Bump-Commit traegt
+# [skip ci] und loest daher keinen weiteren Lauf aus.
+#
+# Bewusst uebersprungen wird, wo der Push die Version selbst geaendert hat -
+# sonst wuerde ein manueller Minor-Bump auf 1.3.0 sofort zu 1.3.1 gedreht.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+# Zwei schnell aufeinander folgende Merges duerfen sich nicht ins Gehege
+# kommen - der zweite wartet, statt auf veraltetem Stand zu pushen.
+concurrency:
+  group: version-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Patch-Version anheben
+        id: bump
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: node scripts/bump-patch.js
+
+      - name: Commit und Push
+        if: steps.bump.outputs.bumped != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -a \
+            -m "chore(repo): patch-versionen anheben [skip ci]" \
+            -m "${{ steps.bump.outputs.bumped }}"
+          git pull --rebase origin main
+          git push

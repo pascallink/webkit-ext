@@ -1,0 +1,104 @@
+name: Release ZIPs
+
+# ZIPs entstehen ausschliesslich hier: wenn ein Release auf eine neue
+# Minor-Version (x.y.0) veroeffentlicht wird. Patch-Releases und beliebige
+# Tags laufen bewusst ins Leere.
+#
+# Regel: je Erweiterung entsteht <ordner>-<version>.zip.
+# Ausnahme: wer in seiner package.json "stableZipAlias": true setzt, bekommt
+# denselben Inhalt zusaetzlich als <ordner>.zip. Nur damit funktioniert
+# /releases/latest/download/<ordner>.zip als dauerhafter Direktlink.
+# Die frueher genutzte rollierende Release "latest" faellt weg: sie ist
+# immutable, ihre Assets lassen sich nicht mehr ersetzen.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tag pruefen
+        id: gate
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.0$ ]]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Tag '$TAG' ist keine neue Minor-Version (x.y.0) - keine ZIPs gebaut."
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.ok == 'true'
+        with:
+          node-version: 20
+
+      - name: Erweiterungen bauen und packen
+        if: steps.gate.outputs.ok == 'true'
+        run: |
+          set -eo pipefail
+          mkdir -p release
+          for dir in */ ; do
+            dir=${dir%/}
+            [ -f "$dir/manifest.json" ] || continue
+            jq -e 'has("manifest_version")' "$dir/manifest.json" >/dev/null 2>&1 || continue
+            echo "::group::$dir"
+
+            version=$(jq -r .version "$dir/manifest.json")
+
+            if [ -f "$dir/package.json" ]; then
+              if [ -f "$dir/package-lock.json" ]; then
+                npm ci --prefix "$dir"
+              else
+                npm install --prefix "$dir"
+              fi
+              if jq -e '.devDependencies.playwright' "$dir/package.json" >/dev/null 2>&1; then
+                npx --prefix "$dir" playwright install --with-deps chromium
+              fi
+              npm run lint --prefix "$dir" --if-present
+              npm test --prefix "$dir" --if-present
+            fi
+
+            stage="stage/$dir"
+            rm -rf "$stage"
+            mkdir -p "$stage"
+            cp -r "$dir/." "$stage/"
+            rm -rf "$stage/node_modules" "$stage/test" "$stage/docs" \
+              "$stage/package.json" "$stage/package-lock.json" \
+              "$stage/eslint.config.mjs" "$stage/CLAUDE.md"
+            rm -f "$stage"/.eslintrc*
+
+            (cd stage && zip -rq "$GITHUB_WORKSPACE/release/$dir-$version.zip" "$dir")
+
+            # Ausnahme: Erweiterungen mit "stableZipAlias": true in ihrer
+            # package.json bekommen denselben Inhalt zusaetzlich unter festem
+            # Namen. Nur das macht /releases/latest/download/<ordner>.zip
+            # moeglich - noetig, solange Links dieser Form im Umlauf sind.
+            if jq -e '.stableZipAlias == true' "$dir/package.json" >/dev/null 2>&1; then
+              cp "release/$dir-$version.zip" "release/$dir.zip"
+              echo "$dir: Alias $dir.zip mitgebaut."
+            fi
+
+            echo "::endgroup::"
+          done
+          ls -la release
+
+      - name: ZIPs an das Release haengen
+        if: steps.gate.outputs.ok == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
