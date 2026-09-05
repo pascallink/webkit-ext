@@ -62,9 +62,9 @@ editlock -> content.
 
 ## Release
 
-READMEs sind per `.claudeignore` aus dem Standardkontext genommen, weil sie
-gross und selten relevant sind - **vor jedem Release aber Pflicht**: gezielt
-oeffnen, pruefen, aktualisieren.
+READMEs sind gross und fuer die taegliche Arbeit selten noetig - nicht
+ungefragt einlesen. Vor einem Release sind sie dagegen Pflicht: oeffnen,
+pruefen, aktualisieren.
 
 1. Version in `manifest.json` und `package.json` synchron anheben.
 2. `CHANGELOG.md` um die nutzer-sichtbaren Aenderungen ergaenzen.

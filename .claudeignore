@@ -88,9 +88,3 @@ Thumbs.db
 .git/
 .idea/
 .vscode/
-
-# --- Doku: nicht automatisch in den Kontext ---
-# Ausnahme: vor einem Release gezielt oeffnen und aktualisieren,
-# siehe "Release" in CLAUDE.md.
-README.md
-**/README.md
