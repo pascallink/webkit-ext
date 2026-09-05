@@ -1,90 +1,112 @@
 # Kontext-Ausschluesse fuer Claude Code (Token-Budget).
-# Alles hier ist entweder generiert, binaer oder reproduzierbar.
+# Alles hier ist generiert, binaer oder reproduzierbar.
+#
+# Monorepo-Aufbau: jeder Top-Level-Ordner mit manifest.json ist ein eigenes
+# Projekt mit eigenem package.json. Alle Regeln greifen daher rekursiv (**/),
+# damit ein neues Projekt nichts nachtragen muss.
 
 # --- Abhaengigkeiten ---
-node_modules/
 **/node_modules/
-.pnpm-store/
-.npm/
-.yarn/
-bower_components/
-vendor/
+**/bower_components/
+**/vendor/
+**/.pnpm-store/
+**/.npm/
+**/.yarn/
+!**/.yarn/patches/
 
 # --- Lockfiles ---
-package-lock.json
 **/package-lock.json
-npm-shrinkwrap.json
-yarn.lock
-pnpm-lock.yaml
-bun.lockb
+**/npm-shrinkwrap.json
+**/yarn.lock
+**/pnpm-lock.yaml
+**/bun.lockb
+**/poetry.lock
+**/uv.lock
+**/Cargo.lock
 
-# --- Build-/Release-Artefakte ---
-dist/
-build/
-out/
-release/
-stage/
+# --- Build- und Release-Artefakte ---
+**/dist/
+**/build/
+**/out/
+**/release/
+**/stage/
+**/.output/
+**/*.zip
+**/*.crx
+**/*.xpi
+**/*.pem
+**/*.tgz
+**/*.map
 extensions.txt
-*.zip
-*.crx
-*.xpi
-*.pem
-*.tgz
-*.map
 
-# --- Test-/Tool-Ausgaben ---
-coverage/
-.nyc_output/
-test-results/
-playwright-report/
-blob-report/
-.playwright/
+# --- Framework- und Task-Runner-Caches ---
+**/.next/
+**/.nuxt/
+**/.svelte-kit/
+**/.astro/
+**/.turbo/
+**/.nx/
+**/.parcel-cache/
+**/.vite/
+**/.cache/
+**/.eslintcache
+**/.stylelintcache
 
-# --- Python (falls spaeter dazu) ---
-.venv/
-venv/
-__pycache__/
-*.pyc
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+# --- Typgenerierte / codegenerierte Artefakte ---
+**/*.tsbuildinfo
+**/generated/
+**/__generated__/
+**/*.gen.ts
+**/*.generated.*
+**/*.d.ts.map
+**/schema.graphql.d.ts
 
-# --- Caches ---
-.cache/
-.eslintcache
-.parcel-cache/
-.turbo/
-.next/
+# --- Test- und Tool-Ausgaben ---
+**/coverage/
+**/.nyc_output/
+**/test-results/
+**/playwright-report/
+**/blob-report/
+**/.playwright/
+
+# --- Python (Vorrat) ---
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
 
 # --- Binaerdateien / Assets ---
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-*.ico
-*.svg
-*.pdf
-*.woff
-*.woff2
-*.ttf
-*.eot
-*.mp4
-*.mov
-*.gz
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.ico
+**/*.svg
+**/*.pdf
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.eot
+**/*.mp4
+**/*.mov
+**/*.gz
 
-# --- Logs / temporaere Dateien ---
-*.log
-logs/
-npm-debug.log*
-yarn-error.log*
-*.tmp
-*.swp
-*.bak
-.DS_Store
-Thumbs.db
+# --- Logs und temporaere Dateien ---
+**/*.log
+**/logs/
+**/npm-debug.log*
+**/yarn-error.log*
+**/*.tmp
+**/*.swp
+**/*.bak
+**/.DS_Store
+**/Thumbs.db
 
-# --- Sonstiges ---
+# --- Editor / VCS ---
 .git/
-.idea/
-.vscode/
+**/.idea/
+**/.vscode/
