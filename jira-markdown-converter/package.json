@@ -1,6 +1,6 @@
 {
   "name": "poweredit-for-jira",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "PowerEdit for Jira: Browser-Erweiterung fuer die Jira-Ticket-Bearbeitung mit Markdown-Support, Formatierungsvorlagen und Smart-Links.",
   "private": true,
   "scripts": {

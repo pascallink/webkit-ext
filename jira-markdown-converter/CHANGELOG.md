@@ -5,6 +5,14 @@ festgehalten. Das Format orientiert sich an
 [Keep a Changelog](https://keepachangelog.com/de/1.0.0/), Versionierung an
 [SemVer](https://semver.org/lang/de/).
 
+## [1.2.1] - 2026-09-05
+
+### Behoben
+
+- `eslint` fehlte als Projekt-Abhaengigkeit, dadurch schlug `npm run lint`
+  in der CI fehl (lief lokal nur durch, weil ESLint dort global installiert
+  war). Jetzt als `devDependency` in `package.json` eingetragen.
+
 ## [1.2.0] - 2026-09-05
 
 ### Hinzugefuegt
