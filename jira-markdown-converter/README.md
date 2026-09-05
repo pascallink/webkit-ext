@@ -20,7 +20,8 @@ Auf Jira-Seiten kommen drei Bedienelemente dazu:
    * *Editor oeffnen* – oeffnet das Eingabefeld mit Vorschau.
 2. **Eingabefeld mit Vorschau** (schwebender `MD`-Button unten rechts) –
    links Markdown einfuegen, rechts das fertige Jira-Markup sehen, dann
-   *Ins Ticket einfuegen*, *Feld ersetzen* oder *Kopieren*. Ueber
+   *Ins Ticket einfuegen*, *Feld ersetzen*, *Markup kopieren* oder
+   *Formatiert kopieren* (fuer den Rich-Text-Editor). Ueber
    *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Code
    einfuegen* oeffnet denselben Dialog wie in der Buttonleiste.
 3. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
@@ -31,6 +32,11 @@ Eingefuegt wird immer an der Cursorposition im Jira-Feld, auch wenn der Text
 vorher im Panel getippt wurde. Ist im Feld ein Rich-Text-Editor aktiv, kommt
 der Text formatiert an; auf Wunsch schaltet die Erweiterung stattdessen vorher
 auf den Markup-Modus um.
+
+Klappt das Einfuegen in ein Feld einmal nicht, kopieren *Markup kopieren*
+und *Formatiert kopieren* - im Panel wie im Code-Dialog - das Ergebnis zum
+Einfuegen von Hand: einmal als Jira-Markup, einmal als `text/html` mit dem
+Markup als Rueckfalltext daneben.
 
 Dazu kommen ein Symbolleisten-Popup (Konverter ohne Jira-Seite), ein
 Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`

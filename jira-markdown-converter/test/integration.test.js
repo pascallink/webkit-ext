@@ -215,6 +215,47 @@ async function run() {
     await page.close();
   });
 
+  await test('Panel kopiert das Jira-Markup', async function () {
+    var page = await newPage(browser);
+    await stubClipboard(page);
+    await page.click('.jmd-fab');
+    await page.fill('#jmd-input', '# Titel');
+    await page.click('.jmd-panel [data-action="copy"]');
+    await page.waitForFunction(function () {
+      return window.__copied.length === 1;
+    }, null, { timeout: 4000 });
+    assert.deepStrictEqual(await page.evaluate(function () { return window.__copied[0]; }),
+      { kind: 'text', text: 'h1. Titel' });
+    await page.close();
+  });
+
+  await test('Panel kopiert formatiert mit Markup als Rueckfalltext', async function () {
+    var page = await newPage(browser);
+    await stubClipboard(page);
+    await page.click('.jmd-fab');
+    await page.fill('#jmd-input', '# Titel\n\n- **fett**');
+    await page.click('.jmd-panel [data-action="copy-html"]');
+    await page.waitForFunction(function () {
+      return window.__copied.length === 1;
+    }, null, { timeout: 4000 });
+    var copied = await page.evaluate(function () { return window.__copied[0]; });
+    assert.strictEqual(copied.kind, 'html', 'nicht als text/html kopiert');
+    assert.strictEqual(copied.html, '<h1>Titel</h1>\n\n<ul><li><strong>fett</strong></li></ul>');
+    assert.strictEqual(copied.text, 'h1. Titel\n\n* *fett*');
+    await page.close();
+  });
+
+  await test('leeres Panel kopiert nichts', async function () {
+    var page = await newPage(browser);
+    await stubClipboard(page);
+    await page.click('.jmd-fab');
+    await page.click('.jmd-panel [data-action="copy-html"]');
+    await page.click('.jmd-panel [data-action="copy"]');
+    await page.waitForTimeout(200);
+    assert.deepStrictEqual(await page.evaluate(function () { return window.__copied; }), []);
+    await page.close();
+  });
+
   console.log('\nAutomatik beim Einfuegen');
   await test('Markdown wird beim Einfuegen in die Textarea umgewandelt', async function () {
     var page = await newPage(browser);

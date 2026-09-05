@@ -188,5 +188,14 @@ test('Code einfuegen ist an Feldleiste und Panel vorhanden', function () {
   assert.ok(!/actionscript/.test(dialog), 'Sprachliste ist im Dialog dupliziert');
 });
 
+test('Kopieren gibt es als Markup und formatiert', function () {
+  var content = fs.readFileSync(abs('src/content.js'), 'utf8');
+  assert.ok(/data-action="copy"/.test(content), 'Panel kopiert kein Markup');
+  assert.ok(/data-action="copy-html"/.test(content), 'Panel kopiert nicht formatiert');
+  var dialog = fs.readFileSync(abs('src/codedialog.js'), 'utf8');
+  assert.ok(/data-code-action="copy-jira"/.test(dialog), 'Dialog kopiert kein Markup');
+  assert.ok(/data-code-action="copy-html"/.test(dialog), 'Dialog kopiert nicht formatiert');
+});
+
 console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');
 process.exit(failed === 0 ? 0 : 1);

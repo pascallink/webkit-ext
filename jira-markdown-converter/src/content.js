@@ -256,9 +256,11 @@
     '  <div class="jmd-row jmd-row--main">',
     '    <button type="button" class="jmd-btn jmd-btn--primary" data-action="insert">Ins Ticket einfuegen</button>',
     '    <button type="button" class="jmd-btn" data-action="replace">Feld ersetzen</button>',
-    '    <button type="button" class="jmd-btn" data-action="copy">Kopieren</button>',
+    '    <button type="button" class="jmd-btn" data-action="copy">Markup kopieren</button>',
     '  </div>',
     '  <div class="jmd-row">',
+    '    <button type="button" class="jmd-btn" data-action="copy-html"',
+    '            title="Als formatierten Text in die Zwischenablage legen">Formatiert kopieren</button>',
     '    <button type="button" class="jmd-btn" data-action="code">Code einfuegen</button>',
     '  </div>',
     '  <div class="jmd-options">',
@@ -359,6 +361,9 @@
       case 'copy':
         copyText(output.value);
         break;
+      case 'copy-html':
+        copyFormatted(input.value);
+        break;
       case 'insert':
         insertFromPanel(input.value, 'insert');
         break;
@@ -437,6 +442,19 @@
       toast(ok ? 'Codeblock eingefuegt.' : 'Einfuegen nicht moeglich - bitte Text kopieren.', !ok);
       return ok;
     });
+  }
+
+  /**
+   * Das Markdown des Panels als formatiertes HTML kopieren - dasselbe, was
+   * beim formatierten Einfuegen im Rich-Text-Editor ankaeme.
+   */
+  function copyFormatted(markdown) {
+    if (!markdown) {
+      toast('Es gibt noch nichts zu kopieren.', true);
+      return;
+    }
+    var both = Converter.convertBoth(markdown, Settings.converterOptions(settings));
+    copyRich(both.html, both.jira);
   }
 
   /**
