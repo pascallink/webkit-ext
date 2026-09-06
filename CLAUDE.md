@@ -3,7 +3,8 @@
 Monorepo fuer Browser-Erweiterungen (Chrome/Edge, MV3). **Kein pnpm/turbo/nx**,
 kein Workspace-Root, keine gemeinsamen Dependencies. Jeder Top-Level-Ordner mit
 `manifest.json` ist ein Projekt mit eigenem `package.json` und eigener
-`CLAUDE.md` (max. 40 Zeilen, Vorlage `.github/CLAUDE.template.md`).
+`CLAUDE.md` (max. 40 Zeilen, Vorlage `.github/CLAUDE.template.md`). Vorlage fuer
+Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.template.md).
 
 ## Projekte
 
