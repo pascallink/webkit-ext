@@ -59,6 +59,7 @@
   var MAX_TITLE_LENGTH = 60;
   var MAX_PLACEHOLDER_LENGTH = 40;
   var MAX_ID_LENGTH = 64;
+  var CHANGE_DEBOUNCE_MS = 50;
 
   var PLACEHOLDER_SOURCE = '\\$\\{\\s*([^}\\r\\n]{1,' + MAX_PLACEHOLDER_LENGTH + '}?)\\s*\\}';
 
@@ -297,10 +298,14 @@
   }
 
   /**
-   * save() schreibt sync und local einzeln, Chrome meldet also zwei
-   * onChanged-Events pro save(). Ohne Buendelung liefe der Callback (baut
-   * z. B. den FAB neu auf) zweimal je Speichervorgang. Ein Timeout-Debounce
-   * fasst beide Events zu einem einzigen load() zusammen.
+   * save() schreibt sync und local einzeln - zwei getrennte IPC-Runden zum
+   * Browser-Prozess, bei sync zusaetzlich ans Sync-Backend gebunden. Die
+   * beiden onChanged-Events treffen darum nicht im selben Macrotask ein,
+   * sondern typischerweise einige Millisekunden auseinander. Ein Fenster von
+   * 0 ms faengt das nicht ab: es feuert laengst, bevor das zweite Event da
+   * ist, und der Callback (baut z. B. den FAB neu auf) liefe zweimal je
+   * Speichervorgang. CHANGE_DEBOUNCE_MS ueberdeckt diese Luecke sicher, ohne
+   * bei einem Einstellungs-Callback spuerbar zu verzoegern.
    */
   function onChange(callback) {
     if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.onChanged) return;
@@ -311,7 +316,7 @@
       timer = setTimeout(function () {
         timer = null;
         load().then(callback);
-      }, 0);
+      }, CHANGE_DEBOUNCE_MS);
     });
   }
 

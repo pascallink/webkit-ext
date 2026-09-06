@@ -469,7 +469,47 @@ async function runStorageTests() {
         setTimeout(function () {
           assert.strictEqual(calls, 1);
           resolve();
-        }, 20);
+        }, 150);
+      });
+    });
+  });
+
+  await asyncTest('onChanged-Events in getrennten Macrotasks loesen ein load aus', async function () {
+    // sync und local sind zwei getrennte IPC-Runden - die Events treffen
+    // im Browser regelmaessig einige Millisekunden auseinander ein, nicht
+    // im selben Macrotask. Genau das bildet dieser Test nach.
+    var stub = storageStub({}, {});
+    var calls = 0;
+    await withChromeStub(stub, function () {
+      return new Promise(function (resolve) {
+        Settings.onChange(function () {
+          calls++;
+        });
+        stub.storage.onChanged.trigger({}, 'sync');
+        setTimeout(function () {
+          stub.storage.onChanged.trigger({}, 'local');
+        }, 5);
+        setTimeout(function () {
+          assert.strictEqual(calls, 1);
+          resolve();
+        }, 150);
+      });
+    });
+  });
+
+  await asyncTest('ein einzelnes onChanged-Event loest genau ein load() aus', async function () {
+    var stub = storageStub({}, {});
+    var calls = 0;
+    await withChromeStub(stub, function () {
+      return new Promise(function (resolve) {
+        Settings.onChange(function () {
+          calls++;
+        });
+        stub.storage.onChanged.trigger({}, 'local');
+        setTimeout(function () {
+          assert.strictEqual(calls, 1);
+          resolve();
+        }, 150);
       });
     });
   });
