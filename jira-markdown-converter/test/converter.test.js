@@ -536,7 +536,7 @@ test('kein Confluence-Makro im Markup', function () {
   });
 });
 
-test('HTML-Zweig traegt dieselben Farben wie das Markup', function () {
+test('HTML-Zweig faerbt Akzentleiste und Fuellung nach Vorlage', function () {
   Settings.PANEL_TEMPLATES.forEach(function (entry) {
     var html = jira.panelHtml(entry);
     assert.ok(html.indexOf('border-left: 4px solid ' + entry.borderColor) !== -1, entry.id + ': ' + html);
