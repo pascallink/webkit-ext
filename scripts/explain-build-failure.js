@@ -26,18 +26,31 @@ function env(name) {
   return value;
 }
 
-async function gh(path, asText = false) {
+/**
+ * Ein Aufruf gegen die GitHub-API. Der Accept-Header ist bewusst immer JSON:
+ * die Logs-Route antwortet ohnehin mit einem Redirect auf das Klartext-Log,
+ * und 'text/plain' lehnt GitHub dort inzwischen mit 415 ab.
+ */
+async function ghRequest(path) {
   const res = await fetch(`https://api.github.com${path}`, {
     headers: {
-      // Die Logs-Route liefert trotz JSON-Accept einen Redirect auf das
-      // Klartext-Log; 'text/plain' hier lehnt GitHub inzwischen mit 415 ab.
       accept: 'application/vnd.github+json',
       authorization: `Bearer ${env('GITHUB_TOKEN')}`,
       'x-github-api-version': '2022-11-28',
     },
   });
   if (!res.ok) throw new Error(`GitHub API ${res.status} bei ${path}: ${await res.text()}`);
-  return asText ? res.text() : res.json();
+  return res;
+}
+
+/** Antwort als JSON - der Normalfall. */
+async function gh(path) {
+  return (await ghRequest(path)).json();
+}
+
+/** Antwort als Klartext - das Log hinter dem Redirect. */
+async function ghText(path) {
+  return (await ghRequest(path)).text();
 }
 
 /** Zeitstempel-Praefix der Runner-Logs entfernen, spart Tokens. */
@@ -83,7 +96,7 @@ async function main() {
   }
 
   // 3. Log-Ende holen und analysieren.
-  const log = tail(await gh(`/repos/${repo}/actions/jobs/${failed.id}/logs`, true));
+  const log = tail(await ghText(`/repos/${repo}/actions/jobs/${failed.id}/logs`));
   if (!log) {
     console.log('Log ist leer - nichts zu analysieren.');
     return;
