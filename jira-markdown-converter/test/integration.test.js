@@ -1130,7 +1130,7 @@ async function run() {
       return Array.prototype.map.call(document.querySelectorAll('.jmd-panelmenu__item'), function (item) {
         var swatch = item.querySelector('.jmd-panelmenu__swatch');
         var style = window.getComputedStyle(swatch);
-        return { bg: style.backgroundColor, border: style.borderTopColor };
+        return { bg: style.backgroundColor, border: style.borderLeftColor };
       });
     });
     // Info blau, Hinweis gelb, Warnung rot, Standard grau.
@@ -1225,7 +1225,7 @@ async function run() {
     await page.click('.jmd-panelmenu__item[data-template="info"]');
     var pastes = await page.evaluate(function () { return window.__pastes; });
     assert.strictEqual(pastes.length, 1, 'kein Einfuegen im Editor angekommen');
-    assert.ok(/border: 1px solid #0052cc/.test(pastes[0].html), 'Rahmenfarbe fehlt: ' + pastes[0].html);
+    assert.ok(/border-left: 4px solid #0052cc/.test(pastes[0].html), 'Rahmenfarbe fehlt: ' + pastes[0].html);
     assert.ok(/background-color: #deebff/.test(pastes[0].html), 'Fuellfarbe fehlt: ' + pastes[0].html);
     assert.ok(/<strong>Info<\/strong>/.test(pastes[0].html), 'Titel fehlt: ' + pastes[0].html);
     // Als Rueckfalltext liegt weiterhin das Wiki-Markup bereit.

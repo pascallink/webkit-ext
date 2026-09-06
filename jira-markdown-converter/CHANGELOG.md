@@ -23,6 +23,9 @@ festgehalten. Das Format orientiert sich an
 ### Geaendert
 
 - `description` nennt Codebloecke statt der noch nicht gebauten Smart-Links.
+- Panel-Vorlagen (Info, Hinweis, Warnung, Standard) im Rich-Text-Editor ohne
+  umlaufenden Rahmen: Statusfarbe steckt jetzt in einer linken Akzentleiste,
+  dazu modernere Rundung, Innen- und Aussenabstaende.
 
 ### Entfernt
 

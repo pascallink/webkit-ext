@@ -539,7 +539,7 @@ test('kein Confluence-Makro im Markup', function () {
 test('HTML-Zweig traegt dieselben Farben wie das Markup', function () {
   Settings.PANEL_TEMPLATES.forEach(function (entry) {
     var html = jira.panelHtml(entry);
-    assert.ok(html.indexOf('border: 1px solid ' + entry.borderColor) !== -1, entry.id + ': ' + html);
+    assert.ok(html.indexOf('border-left: 4px solid ' + entry.borderColor) !== -1, entry.id + ': ' + html);
     assert.ok(html.indexOf('background-color: ' + entry.bgColor) !== -1, entry.id + ': ' + html);
     assert.ok(html.indexOf('<strong>' + entry.title + '</strong>') !== -1, entry.id + ': ' + html);
     assert.ok(html.indexOf('<p>' + entry.body + '</p>') !== -1, entry.id + ': ' + html);
