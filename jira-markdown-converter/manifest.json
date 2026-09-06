@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "PowerEdit for Jira",
   "short_name": "PowerEdit",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Erweitert die Jira-Ticket-Bearbeitung um Markdown-Support, Formatierungsvorlagen und Codebloecke.",
   "homepage_url": "https://github.com/pascallink/webkit-ext",
   "minimum_chrome_version": "102",
