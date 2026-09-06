@@ -1977,6 +1977,32 @@ async function run() {
     await page.close();
   });
 
+  await test('Platzhalter mit Sonderzeichen wird maskiert markiert', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        {
+          id: 'tpl-special',
+          title: 'Sonderzeichen',
+          templateMarkup: 'h3. ${Modul [Bereich]}',
+          placeholders: ['Modul [Bereich]']
+        }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-special"]');
+    var selection = await page.evaluate(function () {
+      var field = document.querySelector('#description');
+      return {
+        value: field.value,
+        selected: field.value.substring(field.selectionStart, field.selectionEnd)
+      };
+    });
+    assert.strictEqual(selection.value, 'h3. Modul \\[Bereich\\]');
+    assert.strictEqual(selection.selected, 'Modul \\[Bereich\\]');
+    await page.close();
+  });
+
   await test('Escape und ein zweiter Klick schliessen das Menue', async function () {
     var page = await newPage(browser, {
       customTemplates: [

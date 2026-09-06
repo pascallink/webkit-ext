@@ -960,7 +960,9 @@
 
     if (template.placeholders.length) {
       var first = template.placeholders[0];
-      var inserted = (values && values[first]) || first;
+      // Im Feld steht der maskierte Wert (escapeValue) - gesucht werden muss
+      // darum ebenso maskiert, sonst greift die Markierung bei \ { } [ ] | nicht.
+      var inserted = Settings.fillPlaceholders('${' + first + '}', values || {});
       focusPanelBody(field, inserted);
     }
     toast('Vorlage "' + template.title + '" eingefuegt.');
@@ -1137,7 +1139,10 @@
         items: customTemplateItems(),
         onPick: function (entry) {
           var tpl = Settings.templateById(settings.customTemplates, entry.id);
-          if (!tpl) return;
+          if (!tpl) {
+            toast('Vorlage nicht mehr vorhanden.', true);
+            return;
+          }
           insertCustomTemplate(field, tpl, defaultValues(tpl));
         }
       });
@@ -1383,6 +1388,9 @@
       updateFab();
       updateFieldbarToggles();
       updateFieldbarTemplateButtons();
+      // Ein offenes Vorlagenmenue kann durch eine Aenderung in einem
+      // zweiten Tab veraltet sein (Vorlage geloescht/umbenannt).
+      closeMenu();
       refreshPreview();
     });
   }
