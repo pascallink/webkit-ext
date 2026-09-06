@@ -20,7 +20,7 @@
   var target = null;         // gemerktes Zielfeld
   var pickingTarget = false;
   var toastTimer = null;
-  var templateMenu = null;   // offenes Menue mit den Panel-Vorlagen
+  var menu = null;           // offenes Dropdown-Menue (Panel- oder eigene Vorlagen)
 
   /* ------------------------------------------------------------------ *
    * Konvertierung
@@ -281,6 +281,23 @@
     }
   }
 
+  /** Ohne eigene Vorlagen bleibt der Button deaktiviert - kein Menue mit leerem Inhalt. */
+  function showCustomTemplatesButton(button) {
+    var has = settings.customTemplates.length > 0;
+    button.disabled = !has;
+    button.title = has
+      ? 'Eigene Vorlage an der Cursorposition einfuegen'
+      : 'Noch keine Vorlage angelegt - in den Einstellungen anlegen';
+  }
+
+  /** Zieht den Vorlagen-Button an allen Leisten nach - neue Vorlagen, geloeschte Vorlagen. */
+  function updateFieldbarTemplateButtons() {
+    var buttons = document.querySelectorAll('.jmd-fieldbar__btn--templates');
+    for (var i = 0; i < buttons.length; i++) {
+      showCustomTemplatesButton(buttons[i]);
+    }
+  }
+
   /** Schreibt die Einstellung und zieht alle Oberflaechen nach. */
   function setConvertOnPaste(next) {
     settings = Settings.withDefaults(Object.assign({}, settings, { convertOnPaste: next }));
@@ -435,7 +452,14 @@
         startPicking();
         break;
       case 'panel-template':
-        toggleTemplateMenu(button, currentTarget());
+        var panelField = currentTarget();
+        toggleMenu(button, {
+          label: 'Panel-Vorlagen',
+          items: Settings.PANEL_TEMPLATES,
+          onPick: function (entry) {
+            insertTemplate(panelField, Settings.panelTemplate(entry.id));
+          }
+        });
         break;
       case 'copy':
         copyText(output.value);
@@ -628,7 +652,7 @@
 
   function closePanel() {
     stopPicking();
-    closeTemplateMenu();
+    closeMenu();
     if (panel) panel.classList.remove('jmd-panel--open');
   }
 
@@ -644,6 +668,144 @@
   }
 
   /* ------------------------------------------------------------------ *
+   * Generisches Dropdown-Menue unter einem Leisten-Button
+   *
+   * Dient sowohl den Panel-Vorlagen (Settings.PANEL_TEMPLATES, mit
+   * Farbtupfer) als auch den eigenen Vorlagen (settings.customTemplates,
+   * ohne Farbe) - Aufbau und Bedienung sind fuer beide identisch, nur der
+   * Inhalt unterscheidet sich.
+   * ------------------------------------------------------------------ */
+
+  /** Oeffnet das Menue unter dem Button; ein zweiter Klick schliesst es. */
+  function toggleMenu(anchorButton, options) {
+    if (menu && menu.__jmdAnchor === anchorButton) {
+      closeMenu();
+      return;
+    }
+    openMenu(anchorButton, options);
+  }
+
+  /** options = { label, items, onPick } - items je { id, label, hint, borderColor, bgColor }. */
+  function openMenu(anchorButton, options) {
+    closeMenu();
+
+    var node = document.createElement('div');
+    node.className = 'jmd-panelmenu';
+    node.dataset.jmdUi = 'panelmenu';
+    node.setAttribute('role', 'menu');
+    node.setAttribute('aria-label', options.label);
+    node.__jmdAnchor = anchorButton;
+
+    options.items.forEach(function (entry) {
+      node.appendChild(menuItem(entry, options.onPick));
+    });
+
+    document.body.appendChild(node);
+    menu = node;
+    anchorButton.setAttribute('aria-expanded', 'true');
+    placeMenu(node, anchorButton);
+
+    document.addEventListener('mousedown', onMenuOutside, true);
+    document.addEventListener('keydown', onMenuKey, true);
+    // Das Menue haengt an der Position des Buttons - beim Scrollen oder
+    // Groessenaendern muss es mitwandern.
+    window.addEventListener('scroll', followMenuAnchor, true);
+    window.addEventListener('resize', followMenuAnchor, true);
+
+    var first = node.querySelector('.jmd-panelmenu__item');
+    // Ohne preventScroll wuerde der Fokus die Seite verschieben - und damit
+    // das eben erst gesetzte Menue.
+    if (first) first.focus({ preventScroll: true });
+  }
+
+  function menuItem(entry, onPick) {
+    var item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'jmd-panelmenu__item';
+    item.setAttribute('role', 'menuitem');
+    item.dataset.template = entry.id;
+    item.title = entry.hint || '';
+
+    // Die Farbe der Vorlage traegt der Farbtupfer - eigene Vorlagen haben
+    // keine Farbe und bleiben schlicht.
+    if (entry.borderColor) {
+      item.style.setProperty('--jmd-panel-border', entry.borderColor);
+      item.style.setProperty('--jmd-panel-bg', entry.bgColor);
+
+      var swatch = document.createElement('span');
+      swatch.className = 'jmd-panelmenu__swatch';
+      swatch.setAttribute('aria-hidden', 'true');
+      item.appendChild(swatch);
+    }
+
+    var caption = document.createElement('span');
+    caption.textContent = entry.label;
+    item.appendChild(caption);
+
+    item.addEventListener('click', function (event) {
+      event.preventDefault();
+      closeMenu();
+      onPick(entry);
+    });
+    return item;
+  }
+
+  /** Unter den Button, notfalls darueber - das Menue bleibt im Sichtbereich. */
+  function placeMenu(node, anchorButton) {
+    var rect = anchorButton.getBoundingClientRect();
+    node.style.left = Math.round(rect.left) + 'px';
+    node.style.top = Math.round(rect.bottom + 4) + 'px';
+
+    var box = node.getBoundingClientRect();
+    if (box.right > window.innerWidth - 8) {
+      node.style.left = Math.round(Math.max(8, window.innerWidth - box.width - 8)) + 'px';
+    }
+    if (box.bottom > window.innerHeight - 8) {
+      node.style.top = Math.round(Math.max(8, rect.top - box.height - 4)) + 'px';
+    }
+  }
+
+  function closeMenu() {
+    if (!menu) return;
+    var anchorButton = menu.__jmdAnchor;
+    if (anchorButton) anchorButton.setAttribute('aria-expanded', 'false');
+    if (menu.parentNode) menu.parentNode.removeChild(menu);
+    menu = null;
+    document.removeEventListener('mousedown', onMenuOutside, true);
+    document.removeEventListener('keydown', onMenuKey, true);
+    window.removeEventListener('scroll', followMenuAnchor, true);
+    window.removeEventListener('resize', followMenuAnchor, true);
+  }
+
+  /** Menue dem Button nachfuehren; ist er weggescrollt, wird geschlossen. */
+  function followMenuAnchor() {
+    if (!menu) return;
+    var anchorButton = menu.__jmdAnchor;
+    if (!anchorButton || !anchorButton.isConnected) {
+      closeMenu();
+      return;
+    }
+    var rect = anchorButton.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      closeMenu();
+      return;
+    }
+    placeMenu(menu, anchorButton);
+  }
+
+  function onMenuOutside(event) {
+    if (!menu) return;
+    if (menu.contains(event.target)) return;
+    var anchorButton = menu.__jmdAnchor;
+    if (anchorButton && (anchorButton === event.target || anchorButton.contains(event.target))) return;
+    closeMenu();
+  }
+
+  function onMenuKey(event) {
+    if (event.key === 'Escape') closeMenu();
+  }
+
+  /* ------------------------------------------------------------------ *
    * Panel aus einer Vorlage einfuegen
    *
    * Die Vorlagen (Titel, Platzhalter, Farben) stehen in
@@ -651,130 +813,6 @@
    * Wiki-Markup fuer reine Textfelder, gleichwertiges HTML fuer den
    * Rich-Text-Editor.
    * ------------------------------------------------------------------ */
-
-  /** Oeffnet das Menue unter dem Button; ein zweiter Klick schliesst es. */
-  function toggleTemplateMenu(anchorButton, field) {
-    if (templateMenu && templateMenu.__jmdAnchor === anchorButton) {
-      closeTemplateMenu();
-      return;
-    }
-    openTemplateMenu(anchorButton, field);
-  }
-
-  function openTemplateMenu(anchorButton, field) {
-    closeTemplateMenu();
-
-    var menu = document.createElement('div');
-    menu.className = 'jmd-panelmenu';
-    menu.dataset.jmdUi = 'panelmenu';
-    menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', 'Panel-Vorlagen');
-    menu.__jmdAnchor = anchorButton;
-
-    Settings.PANEL_TEMPLATES.forEach(function (template) {
-      menu.appendChild(templateMenuItem(template, field));
-    });
-
-    document.body.appendChild(menu);
-    templateMenu = menu;
-    anchorButton.setAttribute('aria-expanded', 'true');
-    placeTemplateMenu(menu, anchorButton);
-
-    document.addEventListener('mousedown', onTemplateMenuOutside, true);
-    document.addEventListener('keydown', onTemplateMenuKey, true);
-    // Das Menue haengt an der Position des Buttons - beim Scrollen oder
-    // Groessenaendern muss es mitwandern.
-    window.addEventListener('scroll', followTemplateAnchor, true);
-    window.addEventListener('resize', followTemplateAnchor, true);
-
-    var first = menu.querySelector('.jmd-panelmenu__item');
-    // Ohne preventScroll wuerde der Fokus die Seite verschieben - und damit
-    // das eben erst gesetzte Menue.
-    if (first) first.focus({ preventScroll: true });
-  }
-
-  function templateMenuItem(template, field) {
-    var item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'jmd-panelmenu__item';
-    item.setAttribute('role', 'menuitem');
-    item.dataset.template = template.id;
-    item.title = template.hint;
-    // Die Farbe der Vorlage traegt der Farbtupfer, nicht nur die Beschriftung.
-    item.style.setProperty('--jmd-panel-border', template.borderColor);
-    item.style.setProperty('--jmd-panel-bg', template.bgColor);
-
-    var swatch = document.createElement('span');
-    swatch.className = 'jmd-panelmenu__swatch';
-    swatch.setAttribute('aria-hidden', 'true');
-    item.appendChild(swatch);
-
-    var caption = document.createElement('span');
-    caption.textContent = template.label;
-    item.appendChild(caption);
-
-    item.addEventListener('click', function (event) {
-      event.preventDefault();
-      closeTemplateMenu();
-      insertTemplate(field, template);
-    });
-    return item;
-  }
-
-  /** Unter den Button, notfalls darueber - das Menue bleibt im Sichtbereich. */
-  function placeTemplateMenu(menu, anchorButton) {
-    var rect = anchorButton.getBoundingClientRect();
-    menu.style.left = Math.round(rect.left) + 'px';
-    menu.style.top = Math.round(rect.bottom + 4) + 'px';
-
-    var box = menu.getBoundingClientRect();
-    if (box.right > window.innerWidth - 8) {
-      menu.style.left = Math.round(Math.max(8, window.innerWidth - box.width - 8)) + 'px';
-    }
-    if (box.bottom > window.innerHeight - 8) {
-      menu.style.top = Math.round(Math.max(8, rect.top - box.height - 4)) + 'px';
-    }
-  }
-
-  function closeTemplateMenu() {
-    if (!templateMenu) return;
-    var anchorButton = templateMenu.__jmdAnchor;
-    if (anchorButton) anchorButton.setAttribute('aria-expanded', 'false');
-    if (templateMenu.parentNode) templateMenu.parentNode.removeChild(templateMenu);
-    templateMenu = null;
-    document.removeEventListener('mousedown', onTemplateMenuOutside, true);
-    document.removeEventListener('keydown', onTemplateMenuKey, true);
-    window.removeEventListener('scroll', followTemplateAnchor, true);
-    window.removeEventListener('resize', followTemplateAnchor, true);
-  }
-
-  /** Menue dem Button nachfuehren; ist er weggescrollt, wird geschlossen. */
-  function followTemplateAnchor() {
-    if (!templateMenu) return;
-    var anchorButton = templateMenu.__jmdAnchor;
-    if (!anchorButton || !anchorButton.isConnected) {
-      closeTemplateMenu();
-      return;
-    }
-    var rect = anchorButton.getBoundingClientRect();
-    if (rect.bottom < 0 || rect.top > window.innerHeight) {
-      closeTemplateMenu();
-      return;
-    }
-    placeTemplateMenu(templateMenu, anchorButton);
-  }
-
-  function onTemplateMenuOutside(event) {
-    if (!templateMenu) return;
-    if (templateMenu.contains(event.target)) return;
-    var anchorButton = templateMenu.__jmdAnchor;
-    if (anchorButton && (anchorButton === event.target || anchorButton.contains(event.target))) return;
-    closeTemplateMenu();
-  }
-
-  function onTemplateMenuKey(event) {
-    if (event.key === 'Escape') closeTemplateMenu();
-  }
 
   /**
    * Fuegt das Panel an der gemerkten Cursorposition ein.
@@ -873,6 +911,59 @@
     } catch (error) {
       return false;   // Editor hat den Inhalt umgebaut - dann eben nicht
     }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Eigene Vorlagen einfuegen
+   *
+   * Die Vorlagen (Titel, Markup, Platzhalter) stehen in
+   * settings.customTemplates. Ein Platzhalter-Dialog kommt erst in
+   * Sub-Task 4 - bis dahin liefert defaultValues() jeden Platzhalternamen
+   * als seinen eigenen Wert, sodass nach dem Einfuegen nie "${...}" stehen
+   * bleibt.
+   * ------------------------------------------------------------------ */
+
+  function customTemplateItems() {
+    return settings.customTemplates.map(function (tpl) {
+      var count = tpl.placeholders.length;
+      return {
+        id: tpl.id,
+        label: tpl.title,
+        hint: 'Vorlage einfuegen' + (count ? ' (' + count + ' Platzhalter)' : '')
+      };
+    });
+  }
+
+  /** Bildet jeden Platzhalternamen auf sich selbst ab - Platzhalter fuer den Dialog aus Sub-Task 4. */
+  function defaultValues(template) {
+    var values = {};
+    template.placeholders.forEach(function (name) {
+      values[name] = name;
+    });
+    return values;
+  }
+
+  function insertCustomTemplate(field, template, values) {
+    if (!field) {
+      toast('Kein Jira-Eingabefeld gefunden.', true);
+      return;
+    }
+    target = field;
+
+    var markup = Settings.fillPlaceholders(template.templateMarkup, values || {});
+    if (!Editors.insertFormatted(field, markup, null, 'block')) {
+      toast('Einfuegen nicht moeglich.', true);
+      return;
+    }
+
+    if (template.placeholders.length) {
+      var first = template.placeholders[0];
+      // Im Feld steht der maskierte Wert (escapeValue) - gesucht werden muss
+      // darum ebenso maskiert, sonst greift die Markierung bei \ { } [ ] | nicht.
+      var inserted = Settings.fillPlaceholders('${' + first + '}', values || {});
+      focusPanelBody(field, inserted);
+    }
+    toast('Vorlage "' + template.title + '" eingefuegt.');
   }
 
   /* ------------------------------------------------------------------ *
@@ -1022,8 +1113,39 @@
     templateButton.addEventListener('click', function (event) {
       event.preventDefault();
       target = field;
-      toggleTemplateMenu(templateButton, field);
+      toggleMenu(templateButton, {
+        label: 'Panel-Vorlagen',
+        items: Settings.PANEL_TEMPLATES,
+        onPick: function (entry) {
+          insertTemplate(field, Settings.panelTemplate(entry.id));
+        }
+      });
     });
+
+    var customButton = document.createElement('button');
+    customButton.type = 'button';
+    customButton.className = 'jmd-fieldbar__btn jmd-fieldbar__btn--templates';
+    customButton.textContent = 'Vorlagen';
+    customButton.setAttribute('aria-haspopup', 'true');
+    customButton.setAttribute('aria-expanded', 'false');
+    customButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      if (!settings.customTemplates.length) return;
+      target = field;
+      toggleMenu(customButton, {
+        label: 'Eigene Vorlagen',
+        items: customTemplateItems(),
+        onPick: function (entry) {
+          var tpl = Settings.templateById(settings.customTemplates, entry.id);
+          if (!tpl) {
+            toast('Vorlage nicht mehr vorhanden.', true);
+            return;
+          }
+          insertCustomTemplate(field, tpl, defaultValues(tpl));
+        }
+      });
+    });
+    showCustomTemplatesButton(customButton);
 
     var panelButton = document.createElement('button');
     panelButton.type = 'button';
@@ -1045,6 +1167,7 @@
     bar.appendChild(pasteButton);
     bar.appendChild(codeButton);
     bar.appendChild(templateButton);
+    bar.appendChild(customButton);
     bar.appendChild(panelButton);
     bar.appendChild(lockButton);
     parent.insertBefore(bar, host);
@@ -1226,7 +1349,7 @@
     // offen und die Feldauswahl taub.
     EditLock.watch(function (event) {
       if (event.type !== 'mousedown') return;
-      onTemplateMenuOutside(event);
+      onMenuOutside(event);
       if (pickingTarget) onPickClick(event);
     });
 
@@ -1262,6 +1385,10 @@
       syncPanelState();
       updateFab();
       updateFieldbarToggles();
+      updateFieldbarTemplateButtons();
+      // Ein offenes Vorlagenmenue kann durch eine Aenderung in einem
+      // zweiten Tab veraltet sein (Vorlage geloescht/umbenannt).
+      closeMenu();
       refreshPreview();
     });
   }

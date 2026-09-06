@@ -280,6 +280,16 @@ test('options.js baut das DOM ohne innerHTML', function () {
   assert.ok(!/\.innerHTML\s*=/.test(options), 'options.js setzt innerHTML');
 });
 
+test('Vorlagenmenue in der Feldleiste nutzt eigene Vorlagen', function () {
+  var content = fs.readFileSync(abs('src/content.js'), 'utf8');
+  assert.ok(/function customTemplateItems\(/.test(content), 'customTemplateItems fehlt');
+  assert.ok(/function insertCustomTemplate\(/.test(content), 'insertCustomTemplate fehlt');
+  var matches = content.match(/\.innerHTML\s*=\s*([^;]+);/g) || [];
+  matches.forEach(function (line) {
+    assert.ok(/PANEL_HTML/.test(line), 'innerHTML nur mit fester Vorlage erlaubt: ' + line);
+  });
+});
+
 test('customTemplates liegt in LOCAL_KEYS', function () {
   var settings = fs.readFileSync(abs('src/settings.js'), 'utf8');
   var match = settings.match(/LOCAL_KEYS\s*=\s*\[([^\]]*)\]/);
