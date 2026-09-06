@@ -69,3 +69,6 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
   (Kurzformen dort in `ALIASES`).
 - Ein Commit, ein Scope; repoweit `chore(repo):`. Breaking Change fuer Nutzer:
   `feat(jira)!:` plus `CHANGELOG.md`-Eintrag.
+- **Header (erste Zeile) streng maximal 72 Zeichen** - `header-max-length` in
+  `commitlint.config.js` blockt die CI sonst hart. Betreff im Zweifel kuerzen,
+  Details in den Commit-Body.
