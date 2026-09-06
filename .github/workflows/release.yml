@@ -22,30 +22,30 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
+      # Bewusst ein harter Fehler statt eines stillen Uebersprungs: ein Release
+      # ohne Assets wird zum neuesten Release, und damit laeuft der Link
+      # /releases/latest/download/<ordner>.zip ins Leere. Das soll auffallen,
+      # solange es sich noch reparieren laesst.
       - name: Tag pruefen
-        id: gate
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.0$ ]]; then
-            echo "ok=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ok=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Tag '$TAG' ist keine neue Minor-Version (x.y.0) - keine ZIPs gebaut."
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.0$ ]]; then
+            echo "::error::Release '$TAG' ist keine Minor-Version (x.y.0). Es entstehen keine ZIPs, und dieses Release wird zum neuesten ohne Assets - der Download-Link laeuft danach ins Leere. Release loeschen oder als Prerelease markieren."
+            exit 1
           fi
 
       - uses: actions/checkout@v5
-        if: steps.gate.outputs.ok == 'true'
         with:
           ref: ${{ github.event.release.tag_name }}
 
       - uses: actions/setup-node@v5
-        if: steps.gate.outputs.ok == 'true'
         with:
           node-version: 20
 
       - name: Erweiterungen bauen und packen
-        if: steps.gate.outputs.ok == 'true'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
         run: |
           set -eo pipefail
           mkdir -p release
@@ -56,6 +56,22 @@ jobs:
             echo "::group::$dir"
 
             version=$(jq -r .version "$dir/manifest.json")
+
+            # manifest.json und package.json duerfen nie auseinanderlaufen -
+            # das waere immer ein Fehler, nicht bloss eine Unschoenheit.
+            if [ -f "$dir/package.json" ]; then
+              pkg_version=$(jq -r .version "$dir/package.json")
+              if [ "$version" != "$pkg_version" ]; then
+                echo "::error::$dir: manifest.json meldet $version, package.json meldet $pkg_version."
+                exit 1
+              fi
+            fi
+
+            # Abweichung vom Release-Tag ist nur eine Warnung: bei mehreren
+            # Erweiterungen im Repo kann ein Tag nicht fuer alle passen.
+            if [ "$version" != "${TAG#v}" ]; then
+              echo "::warning::$dir steht auf $version, das Release heisst ${TAG#v}."
+            fi
 
             if [ -f "$dir/package.json" ]; then
               if [ -f "$dir/package-lock.json" ]; then
@@ -98,7 +114,6 @@ jobs:
           ls -la release
 
       - name: ZIPs an das Release haengen
-        if: steps.gate.outputs.ok == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.release.tag_name }}
