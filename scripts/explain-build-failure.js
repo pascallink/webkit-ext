@@ -29,7 +29,9 @@ function env(name) {
 async function gh(path, asText = false) {
   const res = await fetch(`https://api.github.com${path}`, {
     headers: {
-      accept: asText ? 'text/plain' : 'application/vnd.github+json',
+      // Die Logs-Route liefert trotz JSON-Accept einen Redirect auf das
+      // Klartext-Log; 'text/plain' hier lehnt GitHub inzwischen mit 415 ab.
+      accept: 'application/vnd.github+json',
       authorization: `Bearer ${env('GITHUB_TOKEN')}`,
       'x-github-api-version': '2022-11-28',
     },
