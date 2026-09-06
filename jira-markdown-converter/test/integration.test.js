@@ -2221,6 +2221,51 @@ async function run() {
     await page.close();
   });
 
+  await test('Listen-Vorlage bekommt trotz Cursor mitten in der Zeile eigene Zeilen', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-list', title: 'Liste', templateMarkup: '* Punkt eins', placeholders: [] }
+      ]
+    }, SERVER);
+    await page.fill('#description', 'AB');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(1, 1);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-list"]');
+    assert.strictEqual(await page.inputValue('#description'), 'A\n* Punkt eins\nB');
+    await page.close();
+  });
+
+  await test('Mehrzeilige Vorlage ohne Blockzeichen behaelt ihre Randumbrueche', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        {
+          id: 'tpl-multiline',
+          title: 'Mehrzeilig',
+          templateMarkup: 'Zeile eins\n{code}\nx\n{code}',
+          placeholders: []
+        }
+      ]
+    }, SERVER);
+    await page.fill('#description', 'AB');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(1, 1);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-multiline"]');
+    assert.strictEqual(await page.inputValue('#description'), 'A\nZeile eins\n{code}\nx\n{code}\nB');
+    await page.close();
+  });
+
   await test('Rich-Text mit switchToMarkup schaltet um und fuegt Markup ein', async function () {
     var page = await newPage(browser, {
       switchToMarkup: true,

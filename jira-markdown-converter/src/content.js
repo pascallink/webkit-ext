@@ -936,12 +936,18 @@
 
   /**
    * Einzeilige Vorlagen sollen keine ungefragte Leerzeile erzeugen - 'block'
-   * ist nur noetig, wenn das Markup selbst ein Blockmakro (z.B. {panel}), eine
-   * Ueberschrift oder eine Tabellenzeile eroeffnet. Jira deutet all das nur am
-   * Zeilenanfang.
+   * ist nur noetig, wenn die Vorlage tatsaechlich mehrere Zeilen mitbringt
+   * oder ein Jira-Konstrukt eroeffnet, das nur am Zeilenanfang gilt:
+   * Blockmakro (z.B. {panel}), Ueberschrift, Tabellenzeile, Liste (Zeichen *
+   * oder # beliebig verschachtelt), Blockzitat (bq.) oder horizontale Linie
+   * (----).
+   * Blockhaftigkeit ist eine Eigenschaft der ganzen Vorlage, nicht nur ihres
+   * ersten Zeichens - eine mehrzeilige Vorlage ohne dieses erste Zeichen
+   * wuerde sonst ihre Randumbrueche verlieren.
    */
   function insertModeFor(markup) {
-    return /^\s*(\{|h[1-6]\.|\|)/.test(markup) ? 'block' : 'insert';
+    if (/\n/.test(markup)) return 'block';
+    return /^\s*(\{|h[1-6]\.|\||[*#]+\s|bq\.|----)/.test(markup) ? 'block' : 'insert';
   }
 
   function insertCustomTemplate(field, template, values) {
