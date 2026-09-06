@@ -268,6 +268,25 @@ test('Einfrieren ist Einstellung und Schloss', function () {
   assert.ok(/aria-pressed/.test(lock), 'Schloss meldet seinen Zustand nicht');
 });
 
+test('Optionsseite bietet eigene Vorlagen an', function () {
+  var html = fs.readFileSync(abs('options/options.html'), 'utf8');
+  assert.ok(/id="templateList"/.test(html), 'keine Liste fuer eigene Vorlagen');
+  assert.ok(/id="tplMarkup"/.test(html), 'kein Eingabefeld fuer das Vorlagen-Markup');
+  assert.ok(/id="tplSave"/.test(html), 'kein Knopf zum Speichern einer Vorlage');
+});
+
+test('options.js baut das DOM ohne innerHTML', function () {
+  var options = fs.readFileSync(abs('options/options.js'), 'utf8');
+  assert.ok(!/\.innerHTML\s*=/.test(options), 'options.js setzt innerHTML');
+});
+
+test('customTemplates liegt in LOCAL_KEYS', function () {
+  var settings = fs.readFileSync(abs('src/settings.js'), 'utf8');
+  var match = settings.match(/LOCAL_KEYS\s*=\s*\[([^\]]*)\]/);
+  assert.ok(match, 'LOCAL_KEYS nicht gefunden');
+  assert.ok(/customTemplates/.test(match[1]), 'customTemplates fehlt in LOCAL_KEYS: ' + match[1]);
+});
+
 test('kein nachgeladener Code im Paket', function () {
   // Harter Ablehnungsgrund im Store: Code, der nicht im Paket liegt.
   ['src/content.js', 'src/editors.js', 'src/converter.js', 'src/codedialog.js',

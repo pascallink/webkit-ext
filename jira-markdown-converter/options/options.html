@@ -172,6 +172,42 @@
     </section>
 
     <section class="card">
+      <h2>Eigene Vorlagen</h2>
+      <p class="hint">
+        Text-Vorlagen im Jira-Markup-Format fuer das Menue "Vorlagen" an der
+        Feldleiste. Platzhalter werden als <code>${Name}</code> geschrieben
+        (nicht <code>{{Name}}</code> - das ist im Wiki-Markup bereits
+        Monospace) und beim Einfuegen abgefragt; hoechstens 5 Platzhalter je
+        Vorlage.
+      </p>
+      <p class="hint">
+        Vorlagen liegen im lokalen Speicher dieses Browsers und wandern -
+        anders als die uebrigen Einstellungen - <b>nicht</b> auf andere
+        Geraete mit.
+      </p>
+
+      <div id="templateList" class="tpl-list"></div>
+
+      <div class="field">
+        <label class="label" for="tplTitle">Titel</label>
+        <input type="text" id="tplTitle" class="area" maxlength="60">
+
+        <label class="label" for="tplMarkup">Jira-Markup</label>
+        <textarea id="tplMarkup" class="area area--mono" rows="6" spellcheck="false"></textarea>
+
+        <label class="label" for="tplPlaceholders">Platzhalter (kommagetrennt, Reihenfolge im Dialog)</label>
+        <input type="text" id="tplPlaceholders" class="area" placeholder="Titel, Datum">
+
+        <p class="hint" id="tplError" role="alert"></p>
+
+        <div class="row">
+          <button type="button" class="btn" id="tplSave">Vorlage speichern</button>
+          <button type="button" class="btn" id="tplCancel">Abbrechen</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
       <h2>Ausprobieren</h2>
       <div class="try">
         <div>
