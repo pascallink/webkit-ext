@@ -2099,6 +2099,10 @@ async function run() {
     assert.strictEqual(await page.locator(TEMPLATE_DIALOG + '.jmd-dialog--open').count(), 0);
     var value = await page.inputValue('#description');
     assert.strictEqual(value, 'h3. Login schlaegt fehl\nFehler nach dem Absenden');
+    var focusedId = await page.evaluate(function () {
+      return document.activeElement && document.activeElement.id;
+    });
+    assert.strictEqual(focusedId, 'description', 'Fokus liegt nach dem Einfuegen nicht mehr im Zielfeld');
     await page.close();
   });
 
@@ -2115,6 +2119,26 @@ async function run() {
     await page.keyboard.press('Escape');
     assert.strictEqual(await page.locator(TEMPLATE_DIALOG + '.jmd-dialog--open').count(), 0);
     assert.strictEqual(await page.inputValue('#description'), '');
+    await page.close();
+  });
+
+  await test('Escape gibt den Fokus an den Vorlagen-Button zurueck', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-escape-focus', title: 'Bug-Report', templateMarkup: 'h3. ${Titel}', placeholders: ['Titel'] }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-escape-focus"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    await page.keyboard.press('Escape');
+    var focusReturned = await page.evaluate(function () {
+      var bar = document.querySelectorAll('.jmd-fieldbar')[0];
+      var button = bar.querySelector('.jmd-fieldbar__btn--templates');
+      return document.activeElement === button;
+    });
+    assert.strictEqual(focusReturned, true, 'Fokus ist nach Escape nicht auf den Vorlagen-Button zurueckgekehrt');
     await page.close();
   });
 

@@ -937,14 +937,14 @@
   function insertCustomTemplate(field, template, values) {
     if (!field) {
       toast('Kein Jira-Eingabefeld gefunden.', true);
-      return;
+      return false;
     }
     target = field;
 
     var markup = Settings.fillPlaceholders(template.templateMarkup, values || {});
     if (!Editors.insertFormatted(field, markup, null, 'block')) {
       toast('Einfuegen nicht moeglich.', true);
-      return;
+      return false;
     }
 
     if (template.placeholders.length) {
@@ -955,6 +955,7 @@
       focusPanelBody(field, inserted);
     }
     toast('Vorlage "' + template.title + '" eingefuegt.');
+    return true;
   }
 
   /* ------------------------------------------------------------------ *
@@ -1137,14 +1138,20 @@
             return;
           }
           Editors.rememberCaret(field);
+          // Redundant, da menuItem() das Menue schon vor onPick() schliesst -
+          // bleibt als Absicherung stehen, falls sich das dort mal aendert.
           closeMenu();
           TemplateDialog.open({
             title: tpl.title,
             placeholders: tpl.placeholders,
             target: Editors.describe(field),
+            // closeMenu() hat den Fokus bereits auf <body> zurueckfallen
+            // lassen (das fokussierte Menue-Element ist schon entfernt) -
+            // ohne diese explizite Angabe wuesste der Dialog beim Schliessen
+            // nicht mehr, wohin der Fokus zurueck soll.
+            opener: customButton,
             onInsert: function (values) {
-              insertCustomTemplate(field, tpl, values);
-              return true;
+              return insertCustomTemplate(field, tpl, values);
             }
           });
         }

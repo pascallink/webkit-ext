@@ -181,14 +181,18 @@
 
   /**
    * options: { title: Vorlagenname, placeholders: string[], target: Beschriftung
-   *            des Zielfeldes, onInsert: fn(values), onClose: fn }
+   *            des Zielfeldes, opener: Element fuer die Fokusrueckgabe,
+   *            onInsert: fn(values), onClose: fn }
    * onInsert darf false (oder ein Promise darauf) liefern - dann bleibt der
-   * Dialog offen.
+   * Dialog offen. opener ist optional - ohne Angabe zaehlt der Fokus beim
+   * Oeffnen (document.activeElement), das reicht aber nicht, wenn der
+   * Aufrufer den Fokus vorher schon verloren hat (z. B. weil ein Menue
+   * dazwischen geschlossen wurde).
    */
   function open(options) {
     handlers = options || {};
     create();
-    opener = document.activeElement;
+    opener = handlers.opener || document.activeElement;
 
     dialog.querySelector('[data-role="tpl-name"]').textContent = handlers.title || '-';
     dialog.querySelector('[data-role="tpl-target"]').textContent = handlers.target || '-';
@@ -202,11 +206,16 @@
 
   function close() {
     if (!dialog) return;
+    // Vor dem Entfernen der Klasse pruefen - .jmd-dialog ist display: none,
+    // danach waere der Fokus schon aus dem Dialog geblurrt.
+    var focusInDialog = dialog.contains(document.activeElement);
     dialog.classList.remove('jmd-dialog--open');
     var done = handlers && handlers.onClose;
     handlers = null;
-    // Fokus zurueck ins Jira-Feld, damit die Cursorposition erhalten bleibt.
-    if (opener && opener.isConnected && opener.focus) opener.focus();
+    // Der Fokus geht nur zurueck, wenn er noch im Dialog steht (Abbrechen,
+    // Escape, Klick daneben) - hat der Aufrufer nach dem Einfuegen bereits
+    // ins Jira-Feld fokussiert, darf das hier nicht ueberschrieben werden.
+    if (focusInDialog && opener && opener.isConnected && opener.focus) opener.focus();
     opener = null;
     if (done) done();
   }
