@@ -934,6 +934,16 @@
     });
   }
 
+  /**
+   * Einzeilige Vorlagen sollen keine ungefragte Leerzeile erzeugen - 'block'
+   * ist nur noetig, wenn das Markup selbst ein Blockmakro (z.B. {panel}), eine
+   * Ueberschrift oder eine Tabellenzeile eroeffnet. Jira deutet all das nur am
+   * Zeilenanfang.
+   */
+  function insertModeFor(markup) {
+    return /^\s*(\{|h[1-6]\.|\|)/.test(markup) ? 'block' : 'insert';
+  }
+
   function insertCustomTemplate(field, template, values) {
     if (!field) {
       toast('Kein Jira-Eingabefeld gefunden.', true);
@@ -942,20 +952,37 @@
     target = field;
 
     var markup = Settings.fillPlaceholders(template.templateMarkup, values || {});
-    if (!Editors.insertFormatted(field, markup, null, 'block')) {
-      toast('Einfuegen nicht moeglich.', true);
-      return false;
-    }
+    var mode = insertModeFor(markup);
 
-    if (template.placeholders.length) {
-      var first = template.placeholders[0];
-      // Im Feld steht der maskierte Wert (escapeValue) - gesucht werden muss
-      // darum ebenso maskiert, sonst greift die Markierung bei \ { } [ ] | nicht.
-      var inserted = Settings.fillPlaceholders('${' + first + '}', values || {});
-      focusPanelBody(field, inserted);
-    }
-    toast('Vorlage "' + template.title + '" eingefuegt.');
-    return true;
+    var switching = !isPlainField(field) && settings.switchToMarkup &&
+      Editors.isRichTextActive(field)
+      ? Editors.switchToMarkup(field)
+      : Promise.resolve(false);
+
+    return switching.then(function (switched) {
+      // Weder umgeschaltet noch als Textfeld: das Markup kommt unformatiert an.
+      var stayedRich = !switched && Editors.isRichTextActive(field);
+
+      if (!Editors.insertFormatted(field, markup, null, mode)) {
+        toast('Einfuegen nicht moeglich.', true);
+        return false;
+      }
+
+      if (template.placeholders.length) {
+        var first = template.placeholders[0];
+        // Im Feld steht der maskierte Wert (escapeValue) - gesucht werden muss
+        // darum ebenso maskiert, sonst greift die Markierung bei \ { } [ ] | nicht.
+        var inserted = Settings.fillPlaceholders('${' + first + '}', values || {});
+        focusPanelBody(field, inserted);
+      }
+
+      if (stayedRich) {
+        toast('Vorlage als Markup eingefuegt - der Editor zeigt es unformatiert.', false);
+      } else {
+        toast('Vorlage "' + template.title + '" eingefuegt.');
+      }
+      return true;
+    });
   }
 
   /* ------------------------------------------------------------------ *
