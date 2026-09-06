@@ -7,11 +7,12 @@
   "private": true,
   "stableZipAlias": true,
   "scripts": {
-    "test": "node test/converter.test.js && node test/settings.test.js && node test/package.test.js && node test/integration.test.js",
-    "test:unit": "node test/converter.test.js",
-    "test:settings": "node test/settings.test.js",
-    "test:package": "node test/package.test.js",
-    "test:integration": "node test/integration.test.js",
+    "test": "node test/run.js",
+    "test:all": "node test/run.js",
+    "test:module": "node test/run.js",
+    "test:node": "node test/run.js --node",
+    "test:browser": "node test/run.js --browser",
+    "test:converter": "node test/run.js converter",
     "lint": "eslint src test popup options",
     "store:assets": "node docs/store/build-assets.js"
   },
