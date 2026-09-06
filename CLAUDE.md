@@ -43,6 +43,22 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
   beobachten, nicht nachfassen, nicht anbieten es zu tun - Pascal kommt aktiv
   zurueck, wenn etwas ansteht. Siehe `.github/CI.md`.
 
+## Workflow & QA-Regeln
+
+- **Subtask-Abschluss (Sonnet):** Jede umsetzende Session beendet ihre Arbeit
+  verpflichtend mit einem standardisierten Review-Prompt fuer Opus, Form und
+  Inhalt gemaess [`.github/PLAN.template.md`](.github/PLAN.template.md).
+- **QA & Review (Opus):** Opus fuehrt das Review durch, prueft Code-Logik,
+  MV3-Konformitaet, Tests sowie Sicherheit und bewertet den PR.
+- **Korrektur-Routing (Opus-Abschluss):** Opus entscheidet am Ende des
+  Reviews dynamisch, wie viele Korrektur-Prompts noetig sind (0, 1 oder 2),
+  und gibt diese direkt gebrauchsfertig aus.
+- **Korrektur-Ausfuehrung:**
+  - **Haiku:** verarbeitet Prompts fuer triviale Aufgaben (Linter-Fehler,
+    Syntax, Formatierung, Umlaute, reine Doku- oder Typ-Fixes).
+  - **Sonnet:** verarbeitet Prompts fuer komplexe Logikfehler,
+    Architekturaenderungen, Testanpassungen oder gemischte Korrekturen.
+
 ## Commit-Konventionen
 
 `<typ>(<scope>): <Betreff im Imperativ, ohne Punkt>`, erzwungen per commitlint
@@ -53,3 +69,6 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
   (Kurzformen dort in `ALIASES`).
 - Ein Commit, ein Scope; repoweit `chore(repo):`. Breaking Change fuer Nutzer:
   `feat(jira)!:` plus `CHANGELOG.md`-Eintrag.
+- **Header (erste Zeile) streng maximal 72 Zeichen** - `header-max-length` in
+  `commitlint.config.js` blockt die CI sonst hart. Betreff im Zweifel kuerzen,
+  Details in den Commit-Body.
