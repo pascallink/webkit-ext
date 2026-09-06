@@ -73,7 +73,10 @@ PR 1, PR 3 auf PR 2 usw.). Lege den Plan als Markdown unter
    fuer Opus, der die Code-Aenderungen, deine Designentscheidungen, potenzielle
    Edge Cases und 3-4 konkrete Pruefpunkte fuer diesen PR zusammenfasst."
    Der Plan enthaelt dafuer einen eigenen Abschnitt mit der Ausgabeform (siehe
-   unten) und jeder Sub-Task nimmt ihn in seine Definition of Done auf.
+   unten). Die Ausgabe dieses Prompts ist ein zwingendes Kriterium der
+   Definition of Done - ohne ihn gilt der Sub-Task nicht als abgeschlossen,
+   unabhaengig davon, ob Lint, Tests und Push bereits gruen sind. Jeder
+   Sub-Task nimmt ihn entsprechend in seine Definition of Done auf.
 
 **Struktur fuer jeden Sub-Task im Plan**
 
@@ -91,7 +94,8 @@ PR 1, PR 3 auf PR 2 usw.). Lege den Plan als Markdown unter
   * [ ] `manifest.json` und `CONTENT_FILES` identisch (falls beruehrt)
   * [ ] Keine Umlaute, kein `console.log`
   * [ ] Commit und Push auf den Branch
-  * [ ] Review-Prompt fuer Opus ausgegeben
+  * [ ] Review-Prompt fuer Opus ausgegeben (zwingend - ohne ihn ist der
+    Sub-Task nicht abgeschlossen)
 * **Agent-Start-Prompt:** gebrauchsfertiger Prompt fuer die Session - nennt
   Repo, Projekt, die zu lesenden `CLAUDE.md`, Base Branch, Dateiliste,
   Abgrenzung ("nichts darueber hinaus"), die Abschlussbefehle und zuletzt die
@@ -127,7 +131,54 @@ Bekannte Luecken: <was bewusst offen blieb, oder "keine">
 Regeln dafuer: selbsttragend (der Reviewer sieht den Chatverlauf nicht, jede
 Behauptung nennt Datei und Funktion), Pruefpunkte sind Fragen an den Code und
 keine Zusammenfassung, bekannte Luecken ehrlich benennen, kein Selbstlob,
-hoechstens 40 Zeilen, Ausgabe als ein einzelner Codeblock.
+hoechstens 40 Zeilen. Verpflichtend: der Prompt wird immer als ein einzelner
+Codeblock exakt in obiger Vorlagenform ausgegeben, nie als Fliesstext oder auf
+mehrere Codebloecke verteilt.
+
+**Pflichtabschnitt im Plan: "Abschluss des Opus-Reviews: Korrektur-Prompts"**
+
+Nimm diesen Abschnitt woertlich in den Plan auf, direkt im Anschluss an den
+vorigen. Er gilt fuer die Opus-Session, die das Review durchfuehrt:
+
+```text
+Analysiere das Review-Ergebnis und gib am Ende deines Reviews genau EINE der
+folgenden drei Varianten aus:
+
+VARIANTE A: 0 Prompts (PR ist bereit zum Merge)
+STATUS: APPROVED
+Keine Korrekturen erforderlich. Der PR kann gemergt werden.
+
+VARIANTE B: 1 Prompt (fuer Haiku ODER Sonnet)
+Waehle Haiku bei reinen Linter/Typo/Format-Fixes. Waehle Sonnet bei
+Logikfehlern oder wenn gemischte Fehler am effizientesten in einem Rutsch
+behoben werden sollen.
+
+STATUS: FIX REQUIRED
+Empfohlenes Modell: [Haiku | Sonnet]
+
+--- PROMPT START ---
+[Gebrauchsfertiger Prompt mit genauer Anweisung, Dateien und Aufgaben]
+--- PROMPT END ---
+
+VARIANTE C: 2 Prompts (getrennte Uebergabe)
+Waehle diese Variante, wenn eine klare Trennung zwischen vielen trivialen
+Linter/Syntax-Fixes und komplexen Logik-Fixes sinnvoll ist, um Tokens zu
+sparen.
+
+STATUS: FIX REQUIRED (SPLIT)
+
+--- PROMPT 1 FOR HAIKU START ---
+[Gebrauchsfertiger Prompt fuer Linter, Typen, Umlaute, Formatierung]
+--- PROMPT 1 END ---
+
+--- PROMPT 2 FOR SONNET START ---
+[Gebrauchsfertiger Prompt fuer Logik, Architektur, Testanpassungen]
+--- PROMPT 2 END ---
+```
+
+Regeln dafuer: genau eine der drei Varianten, keine Mischform, kein Prompt
+ohne konkrete Datei- und Aufgabenangabe, Ausgabe ebenfalls als ein einzelner
+Codeblock in obiger Form.
 
 **Abschluss des Plans**
 
