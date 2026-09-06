@@ -25,6 +25,18 @@ function test(name, fn) {
   }
 }
 
+/** Wie test(), aber fuer Faelle, deren Pruefung ueber ein Promise laeuft. */
+function asyncTest(name, fn) {
+  return Promise.resolve().then(fn).then(function () {
+    passed++;
+    console.log('  ok   ' + name);
+  }, function (error) {
+    failed++;
+    console.log('  FAIL ' + name);
+    console.log('       ' + (error && error.message ? error.message.split('\n').join('\n       ') : error));
+  });
+}
+
 console.log('\nHosterkennung');
 test('einfacher Hostname', function () {
   assert.strictEqual(Settings.normalizeHost('jira.firma.de'), 'jira.firma.de');
@@ -186,5 +198,180 @@ test('Vorlage wird ueber die Kennung gefunden', function () {
   assert.strictEqual(Settings.panelTemplate(''), null);
 });
 
-console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');
-process.exit(failed === 0 ? 0 : 1);
+console.log('\nEigene Vorlagen');
+test('DEFAULTS.customTemplates ist ein leeres Array', function () {
+  assert.deepStrictEqual(Settings.DEFAULTS.customTemplates, []);
+});
+test('withDefaults(null).customTemplates ist leer', function () {
+  assert.deepStrictEqual(Settings.withDefaults(null).customTemplates, []);
+});
+test('kaputte customTemplates werden abgefangen', function () {
+  assert.deepStrictEqual(Settings.withDefaults({ customTemplates: 'kaputt' }).customTemplates, []);
+});
+test('Eintrag ohne Titel oder ohne Markup faellt raus', function () {
+  assert.strictEqual(Settings.normalizeTemplate({ title: '', templateMarkup: 'x' }), null);
+  assert.strictEqual(Settings.normalizeTemplate({ title: 'x', templateMarkup: '' }), null);
+  assert.strictEqual(Settings.normalizeTemplate({ title: '', templateMarkup: '' }), null);
+});
+test('mehr als 5 Platzhalter werden auf 5 gekuerzt', function () {
+  var entry = Settings.normalizeTemplate({
+    title: 'Viele Platzhalter',
+    templateMarkup: 'x',
+    placeholders: ['A', 'B', 'C', 'D', 'E', 'F']
+  });
+  assert.strictEqual(entry.placeholders.length, 5);
+  assert.deepStrictEqual(entry.placeholders, ['A', 'B', 'C', 'D', 'E']);
+});
+test('doppelte Platzhalternamen werden entfernt', function () {
+  var entry = Settings.normalizeTemplate({
+    title: 'Duplikate',
+    templateMarkup: 'x',
+    placeholders: ['A', 'A', 'B']
+  });
+  assert.deepStrictEqual(entry.placeholders, ['A', 'B']);
+});
+test('mehr als MAX_TEMPLATES Eintraege werden gekuerzt', function () {
+  var list = [];
+  for (var i = 0; i < Settings.MAX_TEMPLATES + 5; i++) {
+    list.push({ title: 'Vorlage ' + i, templateMarkup: 'x' });
+  }
+  assert.strictEqual(Settings.normalizeTemplates(list).length, Settings.MAX_TEMPLATES);
+});
+test('doppelte id wird verworfen', function () {
+  var list = Settings.normalizeTemplates([
+    { id: 'gleich', title: 'Erste', templateMarkup: 'x' },
+    { id: 'gleich', title: 'Zweite', templateMarkup: 'y' }
+  ]);
+  assert.strictEqual(list.length, 1);
+  assert.strictEqual(list[0].title, 'Erste');
+});
+test('fillPlaceholders ersetzt einen einzelnen Platzhalter', function () {
+  assert.strictEqual(Settings.fillPlaceholders('h3. ${Titel}', { Titel: 'Login' }), 'h3. Login');
+});
+test('fillPlaceholders ersetzt mehrfache Vorkommen', function () {
+  assert.strictEqual(Settings.fillPlaceholders('${A} ${A}', { A: 'x' }), 'x x');
+});
+test('unbelegter Platzhalter faellt auf den Namen zurueck', function () {
+  assert.strictEqual(Settings.fillPlaceholders('${Datum}', {}), 'Datum');
+});
+test('escapeValue maskiert alle fuenf Sonderzeichen', function () {
+  assert.strictEqual(Settings.escapeValue('a{b}c|d[e]'), 'a\\{b\\}c\\|d\\[e\\]');
+});
+test('escapeValue entfernt Zeilenumbrueche', function () {
+  assert.ok(Settings.escapeValue('erste\nzweite').indexOf('\n') === -1);
+});
+test('escapeValue maskiert den Backslash genau einmal', function () {
+  assert.strictEqual(Settings.escapeValue('C:\\tmp'), 'C:\\\\tmp');
+});
+test('placeholdersInMarkup findet Namen ohne Duplikate', function () {
+  assert.deepStrictEqual(Settings.placeholdersInMarkup('${A} ${B} ${A}'), ['A', 'B']);
+});
+
+console.log('\nGeteilter Storage');
+
+/**
+ * Setzt globalThis.chrome fuer die Dauer von fn und macht das danach wieder
+ * rueckgaengig. fn wird sofort aufgerufen (kein Umweg ueber ein weiteres
+ * Promise), damit chrome beim tatsaechlichen Lesen/Schreiben feststeht -
+ * die Faelle laufen ohnehin nacheinander, nicht parallel.
+ */
+async function withChromeStub(stub, fn) {
+  var previous = globalThis.chrome;
+  globalThis.chrome = stub;
+  try {
+    return await fn();
+  } finally {
+    globalThis.chrome = previous;
+  }
+}
+
+function storageStub(syncStore, localStore) {
+  return {
+    runtime: { lastError: null },
+    storage: {
+      sync: {
+        get: function (defaults, cb) {
+          cb(Object.assign({}, defaults, syncStore));
+        },
+        set: function (values, cb) {
+          Object.assign(syncStore, values);
+          if (cb) cb();
+        }
+      },
+      local: {
+        get: function (defaults, cb) {
+          cb(Object.assign({}, defaults, localStore));
+        },
+        set: function (values, cb) {
+          Object.assign(localStore, values);
+          if (cb) cb();
+        }
+      }
+    }
+  };
+}
+
+async function runStorageTests() {
+  await asyncTest('save() legt customTemplates nur in local ab', async function () {
+    var syncStore = {};
+    var localStore = {};
+    await withChromeStub(storageStub(syncStore, localStore), function () {
+      return Settings.save({ customTemplates: [{ title: 'T', templateMarkup: 'x' }] });
+    });
+    assert.ok(!Object.prototype.hasOwnProperty.call(syncStore, 'customTemplates'));
+    assert.strictEqual(localStore.customTemplates.length, 1);
+  });
+
+  await asyncTest('save() legt convertOnPaste nur in sync ab', async function () {
+    var syncStore = {};
+    var localStore = {};
+    await withChromeStub(storageStub(syncStore, localStore), function () {
+      return Settings.save({ convertOnPaste: false });
+    });
+    assert.strictEqual(syncStore.convertOnPaste, false);
+    assert.ok(!Object.prototype.hasOwnProperty.call(localStore, 'convertOnPaste'));
+  });
+
+  await asyncTest('load() fuehrt beide Bereiche zusammen', async function () {
+    var syncStore = { convertOnPaste: false };
+    var localStore = { customTemplates: [{ id: 'a', title: 'T', templateMarkup: 'x', placeholders: [] }] };
+    var settings = await withChromeStub(storageStub(syncStore, localStore), function () {
+      return Settings.load();
+    });
+    assert.strictEqual(settings.convertOnPaste, false);
+    assert.strictEqual(settings.customTemplates.length, 1);
+    assert.strictEqual(settings.customTemplates[0].title, 'T');
+  });
+
+  await asyncTest('ein lastError in local laesst die uebrigen Einstellungen unberuehrt', async function () {
+    var stub = storageStub({ convertOnPaste: false }, {});
+    stub.storage.local.get = function (defaults, cb) {
+      stub.runtime.lastError = { message: 'kaputt' };
+      cb(defaults);
+      stub.runtime.lastError = null;
+    };
+    var settings = await withChromeStub(stub, function () {
+      return Settings.load();
+    });
+    assert.strictEqual(settings.convertOnPaste, false);
+    assert.deepStrictEqual(settings.customTemplates, []);
+  });
+
+  await asyncTest('ohne chrome liefert load() weiterhin die Defaults', async function () {
+    var previous = globalThis.chrome;
+    delete globalThis.chrome;
+    var settings;
+    try {
+      settings = await Settings.load();
+    } finally {
+      globalThis.chrome = previous;
+    }
+    assert.strictEqual(settings.convertOnPaste, true);
+    assert.deepStrictEqual(settings.customTemplates, []);
+  });
+}
+
+runStorageTests().then(function () {
+  console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');
+  process.exit(failed === 0 ? 0 : 1);
+});

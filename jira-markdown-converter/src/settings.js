@@ -39,10 +39,136 @@
     convertAlerts: true,
     convertHtml: true,
     // Zusaetzliche Hosts (Jira Server / Data Center), z. B. 'jira.firma.de'.
-    extraHosts: []
+    extraHosts: [],
+    // Eigene Vorlagen mit Platzhaltern (${Name}), siehe
+    // docs/plans/issue-31-vorlagen.md. Liegen in chrome.storage.local, nicht
+    // in sync - LOCAL_KEYS weiter unten haelt fest, warum.
+    customTemplates: []
   };
 
   var CONVERTER_KEYS = ['escapeBraces', 'keepCodeLanguage', 'convertAlerts', 'convertHtml'];
+
+  // customTemplates gehoert nicht nach chrome.storage.sync: der Bereich
+  // erlaubt nur 8192 Byte je Item, und customTemplates waere ein einziges
+  // Item - nach wenigen Vorlagen ein stilles, unsichtbares Limit.
+  var LOCAL_KEYS = ['customTemplates'];
+
+  var MAX_TEMPLATES = 50;
+  var MAX_PLACEHOLDERS = 5;
+  var MAX_TEMPLATE_LENGTH = 5000;
+  var MAX_TITLE_LENGTH = 60;
+  var MAX_PLACEHOLDER_LENGTH = 40;
+
+  var PLACEHOLDER_PATTERN = /\$\{\s*([^}\r\n]{1,40}?)\s*\}/g;
+
+  /** Frisches RegExp je Aufruf - ein globales RegExp haelt sonst lastIndex. */
+  function placeholderRegex() {
+    return new RegExp(PLACEHOLDER_PATTERN.source, 'g');
+  }
+
+  function newTemplateId() {
+    return 'tpl-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5);
+  }
+
+  function normalizePlaceholders(list) {
+    if (!Array.isArray(list)) return [];
+    var seen = {};
+    var result = [];
+    for (var i = 0; i < list.length && result.length < MAX_PLACEHOLDERS; i++) {
+      if (typeof list[i] !== 'string') continue;
+      var name = list[i].trim().slice(0, MAX_PLACEHOLDER_LENGTH);
+      if (!name || seen[name]) continue;
+      seen[name] = true;
+      result.push(name);
+    }
+    return result;
+  }
+
+  /** Liefert einen sauberen Vorlageneintrag oder null bei fehlendem Titel/Markup. */
+  function normalizeTemplate(entry) {
+    if (!entry || typeof entry !== 'object') return null;
+    var title = String(entry.title || '').trim().slice(0, MAX_TITLE_LENGTH);
+    if (!title) return null;
+    var templateMarkup = String(entry.templateMarkup || '').replace(/\r\n/g, '\n').slice(0, MAX_TEMPLATE_LENGTH);
+    if (!templateMarkup) return null;
+    return {
+      id: entry.id && typeof entry.id === 'string' ? entry.id : newTemplateId(),
+      title: title,
+      templateMarkup: templateMarkup,
+      placeholders: normalizePlaceholders(entry.placeholders)
+    };
+  }
+
+  function normalizeTemplates(list) {
+    if (!Array.isArray(list)) return [];
+    var seenIds = {};
+    var result = [];
+    for (var i = 0; i < list.length && result.length < MAX_TEMPLATES; i++) {
+      var normalized = normalizeTemplate(list[i]);
+      if (!normalized || seenIds[normalized.id]) continue;
+      seenIds[normalized.id] = true;
+      result.push(normalized);
+    }
+    return result;
+  }
+
+  /** Vorlage zu einer Kennung, sonst null (Muster: panelTemplate). */
+  function templateById(list, id) {
+    var templates = Array.isArray(list) ? list : [];
+    for (var i = 0; i < templates.length; i++) {
+      if (templates[i].id === id) return templates[i];
+    }
+    return null;
+  }
+
+  /**
+   * Haertet eine Platzhalter-Eingabe gegen das Jira-Markup: { und } starten
+   * Makros, [ und ] Links, | trennt Tabellenzellen - alle fuenf werden mit
+   * Backslash maskiert (Backslash zuerst, sonst maskiert der zweite Schritt
+   * seine eigene Maskierung erneut).
+   */
+  function escapeValue(value) {
+    var text = String(value || '');
+    text = text.replace(/[\r\n\t]/g, ' ');
+    text = text.replace(/\\/g, '\\\\');
+    text = text.replace(/\{/g, '\\{');
+    text = text.replace(/\}/g, '\\}');
+    text = text.replace(/\[/g, '\\[');
+    text = text.replace(/\]/g, '\\]');
+    text = text.replace(/\|/g, '\\|');
+    return text;
+  }
+
+  /**
+   * Ersetzt jedes ${Name} durch den (maskierten) Wert. Unbelegte Namen
+   * fallen auf sich selbst zurueck, damit im Ticket nie ${...} stehen
+   * bleibt. Einmaliger Durchlauf - ein Wert, der selbst wie ein Platzhalter
+   * aussieht, wird nicht erneut ersetzt.
+   */
+  function fillPlaceholders(markup, values) {
+    var source = String(markup || '');
+    var input = values || {};
+    return source.replace(placeholderRegex(), function (match, name) {
+      var value = input[name];
+      if (value === undefined || value === null || value === '') return name;
+      return escapeValue(value);
+    });
+  }
+
+  /** Liste der im Markup vorkommenden Platzhalternamen, ohne Duplikate. */
+  function placeholdersInMarkup(markup) {
+    var source = String(markup || '');
+    var regex = placeholderRegex();
+    var seen = {};
+    var result = [];
+    var match;
+    while ((match = regex.exec(source)) !== null) {
+      if (seen[match[1]]) continue;
+      seen[match[1]] = true;
+      result.push(match[1]);
+    }
+    return result;
+  }
 
   function withDefaults(stored) {
     var result = {};
@@ -65,7 +191,58 @@
     if (['html', 'jira', 'markdown'].indexOf(result.richEditorFormat) === -1) {
       result.richEditorFormat = 'html';
     }
+    result.customTemplates = normalizeTemplates(result.customTemplates);
     return result;
+  }
+
+  /** Verteilt Schluessel auf sync (Einstellungen) und local (Vorlagen). */
+  function splitKeys(source) {
+    var sync = {};
+    var local = {};
+    var key;
+    for (key in source) {
+      if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
+      if (LOCAL_KEYS.indexOf(key) !== -1) {
+        local[key] = source[key];
+      } else {
+        sync[key] = source[key];
+      }
+    }
+    return { sync: sync, local: local };
+  }
+
+  var DEFAULTS_SPLIT = splitKeys(DEFAULTS);
+  var SYNC_DEFAULTS = DEFAULTS_SPLIT.sync;
+  var LOCAL_DEFAULTS = DEFAULTS_SPLIT.local;
+
+  /** Liest einen Storage-Bereich als Promise; ein Fehler liefert die Defaults. */
+  function readArea(area, defaults) {
+    return new Promise(function (resolve) {
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage[area]) {
+        resolve(defaults);
+        return;
+      }
+      chrome.storage[area].get(defaults, function (stored) {
+        if (chrome.runtime.lastError) {
+          resolve(defaults);
+          return;
+        }
+        resolve(stored);
+      });
+    });
+  }
+
+  /** Schreibt einen Storage-Bereich als Promise. */
+  function writeArea(area, values) {
+    return new Promise(function (resolve, reject) {
+      chrome.storage[area].set(values, function () {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve();
+      });
+    });
   }
 
   function converterOptions(settings) {
@@ -77,41 +254,34 @@
   }
 
   function load() {
-    return new Promise(function (resolve) {
-      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
-        resolve(withDefaults(null));
-        return;
-      }
-      chrome.storage.sync.get(DEFAULTS, function (stored) {
-        if (chrome.runtime.lastError) {
-          resolve(withDefaults(null));
-          return;
-        }
-        resolve(withDefaults(stored));
-      });
+    return Promise.all([
+      readArea('sync', SYNC_DEFAULTS),
+      readArea('local', LOCAL_DEFAULTS)
+    ]).then(function (parts) {
+      return withDefaults(Object.assign({}, parts[0], parts[1]));
     });
   }
 
   function save(settings) {
+    var split = splitKeys(withDefaults(settings));
     return new Promise(function (resolve, reject) {
-      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync) {
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync || !chrome.storage.local) {
         resolve();
         return;
       }
-      chrome.storage.sync.set(withDefaults(settings), function () {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-          return;
-        }
+      Promise.all([
+        writeArea('sync', split.sync),
+        writeArea('local', split.local)
+      ]).then(function () {
         resolve();
-      });
+      }, reject);
     });
   }
 
   function onChange(callback) {
     if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.onChanged) return;
     chrome.storage.onChanged.addListener(function (changes, area) {
-      if (area !== 'sync') return;
+      if (area !== 'sync' && area !== 'local') return;
       load().then(callback);
     });
   }
@@ -239,6 +409,17 @@
     save: save,
     onChange: onChange,
     normalizeHost: normalizeHost,
-    hostPattern: hostPattern
+    hostPattern: hostPattern,
+    MAX_TEMPLATES: MAX_TEMPLATES,
+    MAX_PLACEHOLDERS: MAX_PLACEHOLDERS,
+    MAX_TEMPLATE_LENGTH: MAX_TEMPLATE_LENGTH,
+    MAX_TITLE_LENGTH: MAX_TITLE_LENGTH,
+    MAX_PLACEHOLDER_LENGTH: MAX_PLACEHOLDER_LENGTH,
+    normalizeTemplate: normalizeTemplate,
+    normalizeTemplates: normalizeTemplates,
+    templateById: templateById,
+    escapeValue: escapeValue,
+    fillPlaceholders: fillPlaceholders,
+    placeholdersInMarkup: placeholdersInMarkup
   };
 });
