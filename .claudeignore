@@ -1,6 +1,12 @@
 # Kontext-Ausschluesse fuer Claude Code (Token-Budget).
 # Alles hier ist generiert, binaer oder reproduzierbar.
 #
+# Massstab: ausgeschlossen wird, was Claude nie lesen muss, um zu arbeiten -
+# nicht, was gerade gross ist. Eine Regel hier nimmt die Datei aus Suche UND
+# Lesezugriff; Quelltext, Tests, Fixtures und Doku bleiben deshalb drin, auch
+# wenn sie Tokens kosten. Wer hier Doku ausschliesst, spart einmal Kontext und
+# zahlt es beim naechsten Mal doppelt, weil die Grundlage fehlt.
+#
 # Monorepo-Aufbau: jeder Top-Level-Ordner mit manifest.json ist ein eigenes
 # Projekt mit eigenem package.json. Alle Regeln greifen daher rekursiv (**/),
 # damit ein neues Projekt nichts nachtragen muss.
@@ -86,6 +92,9 @@ extensions.txt
 **/*.webp
 **/*.ico
 **/*.svg
+# Ausnahme: handgepflegte SVG-Quellen. Aus logo.svg entsteht das Store-Logo
+# (docs/store/build-assets.js) - wer es aendern soll, muss es lesen koennen.
+!**/docs/store/assets/*.svg
 **/*.pdf
 **/*.woff
 **/*.woff2
