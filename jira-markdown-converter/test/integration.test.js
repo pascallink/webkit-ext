@@ -91,9 +91,15 @@ async function newPage(browser, settings, fixture) {
   }
   await page.addScriptTag({ content: CHROME_STUB });
   if (settings) {
+    // customTemplates gehoert in den local-Bereich - sonst ueberschreibt der
+    // leere local-Standardwert die hier uebergebenen Vorlagen beim Laden.
+    var sync = Object.assign({}, settings);
+    var local = { customTemplates: sync.customTemplates || [] };
+    delete sync.customTemplates;
     await page.evaluate(function (values) {
-      window.__settings = values;
-    }, settings);
+      window.__settings = values.sync;
+      window.__local = values.local;
+    }, { sync: sync, local: local });
   }
   for (var i = 0; i < SOURCES.length; i++) {
     await page.addScriptTag({ content: readSource(SOURCES[i]) });
@@ -1903,6 +1909,90 @@ async function run() {
     var hint = await page.locator('#tplError').innerText();
     assert.ok(/Tippfehler/.test(hint), 'Hinweis: ' + hint);
     assert.strictEqual(await page.locator('.tpl-item').count(), 1);
+    await page.close();
+  });
+
+  console.log('\nEigene Vorlagen in der Feldleiste');
+  var TEMPLATES_BUTTON = '.jmd-fieldbar__btn--templates';
+
+  await test('ohne Vorlagen ist der Button deaktiviert', async function () {
+    var page = await newPage(browser, null, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    var button = page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON);
+    assert.strictEqual(await button.isDisabled(), true);
+    await page.close();
+  });
+
+  await test('mit zwei Vorlagen oeffnet der Klick ein Menue mit zwei Eintraegen', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-1', title: 'Bug-Report', templateMarkup: 'h3. ${Titel}', placeholders: ['Titel'] },
+        { id: 'tpl-2', title: 'Ohne Platzhalter', templateMarkup: 'Text', placeholders: [] }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    var button = page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON);
+    assert.strictEqual(await button.isDisabled(), false);
+    await button.click();
+    await page.waitForSelector('.jmd-panelmenu');
+    var labels = await page.evaluate(function () {
+      return Array.prototype.map.call(document.querySelectorAll('.jmd-panelmenu__item'), function (item) {
+        return item.textContent;
+      });
+    });
+    assert.deepStrictEqual(labels, ['Bug-Report', 'Ohne Platzhalter']);
+    await page.close();
+  });
+
+  await test('Vorlage ohne Platzhalter landet vollstaendig im Feld', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-plain', title: 'Ohne Platzhalter', templateMarkup: 'h3. Fixer Text', placeholders: [] }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-plain"]');
+    assert.strictEqual(await page.inputValue('#description'), 'h3. Fixer Text');
+    await page.close();
+  });
+
+  await test('Vorlage mit Platzhaltern schreibt Markup ohne ${', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        {
+          id: 'tpl-ph',
+          title: 'Mit Platzhaltern',
+          templateMarkup: 'h3. ${Titel}\n${Beschreibung}',
+          placeholders: ['Titel', 'Beschreibung']
+        }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-ph"]');
+    var value = await page.inputValue('#description');
+    assert.strictEqual(value, 'h3. Titel\nBeschreibung');
+    assert.ok(value.indexOf('${') === -1, 'Platzhalter ist unersetzt geblieben: ' + value);
+    await page.close();
+  });
+
+  await test('Escape und ein zweiter Klick schliessen das Menue', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-1', title: 'Bug-Report', templateMarkup: 'Text', placeholders: [] }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    var button = page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON);
+    await button.click();
+    await page.waitForSelector('.jmd-panelmenu');
+    await page.keyboard.press('Escape');
+    assert.strictEqual(await page.locator('.jmd-panelmenu').count(), 0, 'Escape hat nicht geschlossen');
+    await button.click();
+    await page.waitForSelector('.jmd-panelmenu');
+    await button.click();
+    assert.strictEqual(await page.locator('.jmd-panelmenu').count(), 0, 'zweiter Klick hat nicht geschlossen');
     await page.close();
   });
 
