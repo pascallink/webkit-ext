@@ -28,11 +28,28 @@ alle Agenten und sind nicht neu zu verhandeln.
    markup, null, 'block')`.** `editors.js` bekommt keine neue Funktion; die
    Cursorlogik (`rememberCaret` / `restoreCaret`) steht bereits.
 
-4. **Storage-Limit ist eine harte Grenze, keine Kosmetik.**
-   `chrome.storage.sync` erlaubt 8192 Byte pro Item. `customTemplates` ist ein
-   Item. Deshalb: max. 20 Vorlagen, max. 2000 Zeichen Markup je Vorlage, und
-   eine Gesamtpruefung (`templatesFit`) bei 7500 Byte JSON. Die Optionsseite
-   meldet den Ueberlauf, statt ihn beim Speichern verschlucken zu lassen.
+4. **Vorlagen liegen in `chrome.storage.local`, alle uebrigen Einstellungen
+   bleiben in `chrome.storage.sync`.**
+   `storage.sync` erlaubt 8192 Byte **pro Item**; `customTemplates` waere ein
+   einziges Item und damit nach wenigen Vorlagen voll - ein Limit, das der
+   Nutzer weder sieht noch versteht. `storage.local` bietet mindestens 5 MB
+   (ab Chrome 114: 10 MB), das Feature braucht keine kuenstliche Obergrenze.
+   Die Berechtigung `storage` deckt beide Bereiche ab, das Manifest bleibt
+   unveraendert.
+
+   Konsequenzen, die jeder Sub-Task mittragen muss:
+   * `Settings.load()` liest aus **beiden** Bereichen und fuehrt sie zusammen.
+   * `Settings.save()` teilt auf: `customTemplates` nach `local`, der Rest nach
+     `sync`. Vorlagen duerfen nie in `sync` landen, sonst ist das 8-KB-Limit
+     zurueck.
+   * `Settings.onChange()` reagiert auf `area === 'sync'` **und**
+     `area === 'local'`.
+   * Grenzen bleiben trotzdem gesetzt, aber als Vernunftgrenze statt als
+     Speicherzwang: 50 Vorlagen, 5000 Zeichen Markup je Vorlage.
+   * Der Preis: Vorlagen wandern **nicht** auf andere Geraete mit. Das gehoert
+     sichtbar in die Optionsseite und in die README, nicht in eine Fussnote.
+   * `chrome.storage.local` ist im Content-Script genauso lesbar wie `sync` -
+     an der Verteilung an `content.js` aendert sich nichts.
 
 5. **Rich-Text-Editor: Markup wird als Text eingefuegt.** Anders als bei den
    Panel-Vorlagen gibt es zu einer freien Markup-Vorlage kein aequivalentes
@@ -48,14 +65,15 @@ alle Agenten und sind nicht neu zu verhandeln.
 ## Datenmodell
 
 ```js
-// Teil von DEFAULTS in src/settings.js
+// Teil von DEFAULTS in src/settings.js - gespeichert wird der Schluessel
+// aber in chrome.storage.local, nicht in sync (Architekturentscheidung 4).
 customTemplates: []
 
 // Ein Eintrag nach der Normalisierung:
 {
   id: 'tpl-1730000000000-4f2',   // stabil, wird nie neu vergeben
   title: 'Bug-Report',           // 1..60 Zeichen, ohne Umlaute erlaubt aber ungeprueft
-  templateMarkup: 'h3. ${Titel}\n\n{panel}${Beschreibung}{panel}',  // 1..2000 Zeichen
+  templateMarkup: 'h3. ${Titel}\n\n{panel}${Beschreibung}{panel}',  // 1..5000 Zeichen
   placeholders: ['Titel', 'Beschreibung']   // 0..5 Eintraege, je 1..40 Zeichen, eindeutig
 }
 ```
@@ -73,12 +91,20 @@ customTemplates: []
 
 ---
 
-## Sub-Task 1: Schema und Fuelllogik in `src/settings.js`
+## Sub-Task 1: Schema, geteilter Storage und Fuelllogik in `src/settings.js`
 
 * **Git Branch:** `feature/issue-templates-part-1` (Base Branch: `main`)
-* **Scope / Ziel:** `customTemplates` als Einstellung verankern, Eingaben
-  robust normalisieren und die Platzhalter-Ersetzung als reine, in Node
-  testbare Funktion bereitstellen. Keine Oberflaeche, kein DOM.
+* **Scope / Ziel:** `customTemplates` als Einstellung verankern, den Storage
+  auf `sync` (Einstellungen) und `local` (Vorlagen) aufteilen, Eingaben robust
+  normalisieren und die Platzhalter-Ersetzung als reine, in Node testbare
+  Funktion bereitstellen. Keine Oberflaeche, kein DOM.
+
+  Der geteilte Storage ist der heikelste Teil dieses Sub-Tasks: `load`, `save`
+  und `onChange` sind die Strecke, ueber die Popup, Optionsseite und
+  Content-Script **alle** Einstellungen beziehen. Geht dort etwas kaputt, ist
+  nicht nur das neue Feature betroffen. Die bestehenden Tests in
+  `test/settings.test.js` und `test/integration.test.js` sind die Absicherung -
+  sie muessen unveraendert gruen bleiben.
 
 * **Dateiebene:**
   * Zu erstellen: -
@@ -89,9 +115,12 @@ customTemplates: []
   1. In `src/settings.js` in `DEFAULTS` `customTemplates: []` ergaenzen
      (hinter `extraHosts`), mit Kommentar in der Tonlage der Nachbarzeilen.
   2. Konstanten direkt unter `DEFAULTS` anlegen:
-     `MAX_TEMPLATES = 20`, `MAX_PLACEHOLDERS = 5`,
-     `MAX_TEMPLATE_LENGTH = 2000`, `MAX_TITLE_LENGTH = 60`,
-     `MAX_PLACEHOLDER_LENGTH = 40`, `TEMPLATES_BYTE_BUDGET = 7500`.
+     `MAX_TEMPLATES = 50`, `MAX_PLACEHOLDERS = 5`,
+     `MAX_TEMPLATE_LENGTH = 5000`, `MAX_TITLE_LENGTH = 60`,
+     `MAX_PLACEHOLDER_LENGTH = 40`. Kein Byte-Budget - die Vorlagen liegen in
+     `chrome.storage.local`, die Grenzen sind Vernunft, nicht Speicherzwang.
+     Ausserdem `LOCAL_KEYS = ['customTemplates']` mit Kommentar, warum dieser
+     eine Schluessel nicht in `sync` gehoert.
   3. `PLACEHOLDER_PATTERN = /\$\{\s*([^}\r\n]{1,40}?)\s*\}/g` ergaenzen.
      Wichtig: bei jedem Einsatz `lastIndex` zuruecksetzen oder pro Aufruf ein
      frisches RegExp bauen - ein globales RegExp haelt Zustand.
@@ -111,11 +140,28 @@ customTemplates: []
      auf `MAX_TEMPLATES` kuerzen.
   7. `function templateById(list, id)` - Eintrag oder `null` (Muster:
      `panelTemplate`).
-  8. `function templatesBytes(list)` - Byte-Laenge von `JSON.stringify(list)`;
-     in Node ueber `Buffer.byteLength` nicht verfuegbar machen, sondern
-     umgebungsneutral ueber `encodeURIComponent(...).replace(/%[0-9A-F]{2}/g,
-     'x').length` rechnen. `function templatesFit(list)` - `templatesBytes(list)
-     <= TEMPLATES_BYTE_BUDGET`.
+  8. Den Storage aufteilen. Drei kleine Helfer, dann `load`/`save` umbauen:
+     * `function splitKeys(source)` - liefert `{ sync: {...}, local: {...} }`,
+       verteilt nach `LOCAL_KEYS`. Ein Schluessel landet in genau einem der
+       beiden Objekte.
+     * `SYNC_DEFAULTS` und `LOCAL_DEFAULTS` einmalig aus
+       `splitKeys(DEFAULTS)` ableiten - `chrome.storage.*.get` bekommt nur die
+       Defaults seines eigenen Bereichs.
+     * `function readArea(area, defaults)` - kapselt einen `get`-Aufruf als
+       Promise und faengt `chrome.runtime.lastError` ab, indem es dann die
+       Defaults liefert. Ein fehlender Bereich darf die andere Haelfte nicht
+       mit herunterreissen.
+     Danach:
+     * `load()` ruft beide `readArea`-Aufrufe ueber `Promise.all` und gibt
+       `withDefaults(Object.assign({}, syncTeil, localTeil))` zurueck. Der
+       bisherige Kurzschluss "kein `chrome.storage` -> Defaults" bleibt.
+     * `save(settings)` normalisiert wie bisher ueber `withDefaults`, teilt
+       dann per `splitKeys` auf und schreibt mit zwei `set`-Aufrufen, die
+       ueber `Promise.all` zusammenlaufen. Scheitert einer, lehnt das Promise
+       mit der Meldung aus `chrome.runtime.lastError` ab.
+     * `onChange(callback)` prueft kuenftig `if (area !== 'sync' && area !==
+       'local') return;` - sonst bemerkt das Content-Script neue Vorlagen erst
+       nach einem Reload.
   9. `function escapeValue(value)` - haertet eine Benutzereingabe gegen das
      Markup: `String(value || '')`, Zeilenumbrueche und Tabs zu einem
      Leerzeichen, dann `\\`, `{`, `}`, `[`, `]`, `|` je mit `\` voranstellen
@@ -133,8 +179,9 @@ customTemplates: []
  13. Alle neuen Funktionen und Konstanten im `return`-Objekt exportieren:
      `MAX_TEMPLATES`, `MAX_PLACEHOLDERS`, `MAX_TEMPLATE_LENGTH`,
      `MAX_TITLE_LENGTH`, `MAX_PLACEHOLDER_LENGTH`, `normalizeTemplate`,
-     `normalizeTemplates`, `templateById`, `templatesBytes`, `templatesFit`,
-     `escapeValue`, `fillPlaceholders`, `placeholdersInMarkup`.
+     `normalizeTemplates`, `templateById`, `escapeValue`, `fillPlaceholders`,
+     `placeholdersInMarkup`. `splitKeys`, `readArea`, `SYNC_DEFAULTS` und
+     `LOCAL_DEFAULTS` bleiben modulintern.
  14. In `test/settings.test.js` einen neuen Abschnitt
      `console.log('\nEigene Vorlagen');` am Ende vor der Auswertungszeile
      ergaenzen, mit mindestens diesen Faellen:
@@ -154,20 +201,49 @@ customTemplates: []
      * `escapeValue('a{b}c|d[e]')` maskiert alle fuenf Zeichen.
      * `escapeValue('erste\nzweite')` enthaelt keinen Zeilenumbruch.
      * `escapeValue('C:\\tmp')` maskiert den Backslash genau einmal.
-     * `templatesFit` ist `false` fuer 20 Vorlagen mit je 2000 Zeichen.
      * `placeholdersInMarkup('${A} ${B} ${A}')` ergibt `['A', 'B']`.
- 15. Pruefen: `npm run lint --prefix jira-markdown-converter` und
+ 15. Zweiter Testabschnitt `console.log('\nGeteilter Storage');` mit einem
+     `chrome`-Stub, den der Test selbst baut (`global.chrome = { storage: {
+     sync: {...}, local: {...} }, runtime: { lastError: null } }`) und danach
+     wieder abraeumt. Weil `load` und `save` Promises liefern, laeuft dieser
+     Abschnitt asynchron - entweder die Datei auf eine `main()`-Kette mit
+     `await` umstellen oder die Faelle in einem `Promise`-Nachlauf vor der
+     Auswertungszeile abarbeiten. Faelle:
+     * `save()` legt `customTemplates` **nur** in `local` ab; das an `sync`
+       uebergebene Objekt enthaelt den Schluessel nicht.
+     * `save()` legt `convertOnPaste` **nur** in `sync` ab.
+     * `load()` fuehrt beide Bereiche zusammen: Einstellung aus `sync`,
+       Vorlagen aus `local`.
+     * Liefert `local.get` einen `lastError`, kommen die uebrigen
+       Einstellungen aus `sync` trotzdem an, `customTemplates` ist `[]`.
+     * Ohne `chrome` liefert `load()` weiter die Defaults.
+ 16. In `test/integration.test.js` den `CHROME_STUB` um einen
+     `local`-Bereich erweitern - gleiche Bauart wie `sync`, aber auf einem
+     eigenen Speicher `window.__local` (Startwert `{}`). Ohne diesen Schritt
+     laufen die Tests der Sub-Tasks 2 bis 5 in ein `undefined`. Die
+     bestehenden Testfaelle bleiben dabei unveraendert.
+ 17. Pruefen: `npm run lint --prefix jira-markdown-converter` und
      `npm test --prefix jira-markdown-converter`.
 
 * **Definition of Done:**
   * [ ] `customTemplates` steht in `DEFAULTS` und wird von `withDefaults`
         normalisiert.
+  * [ ] `save()` schreibt `customTemplates` ausschliesslich nach
+        `chrome.storage.local`, alle uebrigen Schluessel ausschliesslich nach
+        `chrome.storage.sync`.
+  * [ ] `load()` fuehrt beide Bereiche zusammen und ueberlebt einen Fehler in
+        einem der beiden.
+  * [ ] `onChange` feuert fuer `sync` und `local`.
+  * [ ] `CHROME_STUB` in `test/integration.test.js` kennt `storage.local`;
+        alle bestehenden Integrationstests bleiben unveraendert gruen.
   * [ ] Alle in Schritt 13 genannten Symbole sind exportiert.
   * [ ] `settings.js` bleibt ES5 (`var`, keine Pfeilfunktionen, kein `let`).
   * [ ] Kein DOM-Zugriff in `settings.js`.
   * [ ] Alle Testfaelle aus Schritt 14 vorhanden und gruen.
   * [ ] `npm run lint --prefix jira-markdown-converter` ohne Befund.
   * [ ] `npm test --prefix jira-markdown-converter` komplett gruen.
+  * [ ] Kein neuer Eintrag in `permissions` von `manifest.json` - `storage`
+        deckt beide Bereiche ab.
   * [ ] Commit `feat(jira): schema und fuelllogik fuer eigene vorlagen`
         auf `feature/issue-templates-part-1`, gepusht.
 
@@ -183,11 +259,21 @@ customTemplates: []
   > feature/issue-templates-part-1`.
   >
   > Setze **ausschliesslich Sub-Task 1** aus dem Plan um: Schema
-  > `customTemplates`, Normalisierung, Storage-Budget-Pruefung, `escapeValue`
-  > und `fillPlaceholders` in `jira-markdown-converter/src/settings.js` plus die
-  > dort aufgelisteten Tests in `jira-markdown-converter/test/settings.test.js`.
-  > Fasse keine anderen Dateien an - keine Oberflaeche, kein `content.js`, kein
-  > `manifest.json`.
+  > `customTemplates`, Normalisierung, `escapeValue` und `fillPlaceholders` in
+  > `jira-markdown-converter/src/settings.js`, dazu der geteilte Storage
+  > (Vorlagen nach `chrome.storage.local`, alle uebrigen Einstellungen weiter
+  > nach `chrome.storage.sync`) und die im Plan aufgelisteten Tests in
+  > `jira-markdown-converter/test/settings.test.js`. Ausserdem den
+  > `CHROME_STUB` in `test/integration.test.js` um `storage.local` erweitern.
+  > Fasse sonst keine Dateien an - keine Oberflaeche, kein `content.js`, kein
+  > `manifest.json` (`storage` deckt beide Bereiche bereits ab).
+  >
+  > Achtung, das ist die empfindliche Stelle: `load`, `save` und `onChange`
+  > versorgen Popup, Optionsseite und Content-Script mit **allen**
+  > Einstellungen. `customTemplates` darf nie nach `sync` geschrieben werden,
+  > und `onChange` muss kuenftig auf `sync` **und** `local` reagieren. Alle
+  > bestehenden Tests muessen unveraendert gruen bleiben - wenn nicht, hast du
+  > die Aufteilung falsch gebaut, nicht den Test.
   >
   > Randbedingungen: ES5 (`var`, `'use strict'`), UMD-Muster von `settings.js`
   > nicht aufbrechen, Kommentare auf Deutsch **ohne Umlaute** (`ue`, `ae`,
@@ -227,8 +313,13 @@ customTemplates: []
        `tplMarkup` (`textarea class="area area--mono" rows="6"`),
        `tplPlaceholders` (`input type="text"`, kommagetrennt),
        `tplSave` (Button, Beschriftung "Vorlage speichern"),
-       `tplCancel` (Button, "Abbrechen"), `<p class="hint" id="tplError"
-       role="alert"></p>` und `<p class="hint" id="tplBudget"></p>`.
+       `tplCancel` (Button, "Abbrechen") und `<p class="hint" id="tplError"
+       role="alert"></p>`.
+     * In den Hinweistext gehoert ein Satz zur Ablage: Vorlagen liegen im
+       lokalen Speicher des Browsers und wandern **nicht** auf andere Geraete
+       mit - anders als die uebrigen Einstellungen. Das ist eine bewusste
+       Entscheidung (kein 8-KB-Limit), keine Panne, und der Nutzer erfaehrt
+       sie an der Stelle, an der er die Vorlagen anlegt.
   2. In `options/options.js`:
      * Modulzustand `var editingId = null;` und
        `var templates = [];` ergaenzen.
@@ -245,8 +336,9 @@ customTemplates: []
      * `parsePlaceholders(value)` - an `,` trennen, trimmen, leere raus.
      * `validateTemplate(entry)` liefert eine Fehlermeldung oder `''`. Faelle:
        Titel leer, Markup leer, mehr als `Settings.MAX_PLACEHOLDERS`
-       Platzhalter, doppelte Platzhalternamen, Titel oder Markup zu lang,
-       mehr als `Settings.MAX_TEMPLATES` Eintraege, `!Settings.templatesFit`.
+       Platzhalter, doppelte Platzhalternamen, Titel oder Markup zu lang
+       (`Settings.MAX_TITLE_LENGTH`, `Settings.MAX_TEMPLATE_LENGTH`),
+       mehr als `Settings.MAX_TEMPLATES` Eintraege.
        Zusaetzlich als **Warnung** (nicht blockierend, in `tplError` mit
        anderer Formulierung): im Markup steht ein `${Name}`, der nicht in der
        Platzhalterliste vorkommt, oder umgekehrt - Abgleich ueber
@@ -257,8 +349,6 @@ customTemplates: []
        `renderTemplates()`.
      * "Bearbeiten" fuellt das Formular und setzt `editingId`; "Loeschen"
        entfernt den Eintrag nach `window.confirm` und speichert.
-     * `tplBudget` zeigt dauerhaft `Settings.templatesBytes(templates)` von
-       7500 Byte an.
      * Ein einziger Listener auf `templateList` (Delegation ueber
        `data-tpl-action`), keine Listener pro Zeile.
   3. In `options/options.css` die Klassen `.tpl-list`, `.tpl-item`,
@@ -269,17 +359,23 @@ customTemplates: []
      `'Optionsseite bietet eigene Vorlagen an'` ergaenzen: `options.html`
      enthaelt `id="templateList"`, `id="tplMarkup"` und `id="tplSave"`.
      Zweiter Test: `options/options.js` enthaelt kein `.innerHTML =`.
+     Dritter Test: `src/settings.js` fuehrt `customTemplates` in `LOCAL_KEYS` -
+     eine billige Absicherung gegen ein spaeteres Zurueckrutschen in den
+     8-KB-Bereich von `storage.sync`.
   5. In `test/integration.test.js` einen Abschnitt fuer die Optionsseite
      ergaenzen. Muster: eigene Hilfsfunktion `optionsPage(browser, settings)`,
      die `page.addInitScript({ content: CHROME_STUB })` **vor**
      `page.goto('file://' + path.join(root, 'options', 'options.html'))`
      setzt - die Seite laedt `settings.js` selbst per `<script>`, der Stub muss
-     vorher stehen. Testfaelle:
+     vorher stehen. Der Stub kennt seit Sub-Task 1 auch `storage.local`.
+     Testfaelle:
      * Anlegen einer Vorlage erzeugt eine Zeile in `#templateList`.
      * Sechs Platzhalter erzeugen eine Fehlermeldung in `#tplError` und legen
        nichts an.
      * Bearbeiten aendert den Titel, ohne die `id` zu wechseln.
      * Loeschen entfernt die Zeile (`window.confirm` im Test stubben).
+     * Eine angelegte Vorlage landet in `window.__local`, **nicht** in
+       `window.__settings` (dem `sync`-Speicher des Stubs).
   6. Pruefen: `npm run lint --prefix jira-markdown-converter`,
      `npm test --prefix jira-markdown-converter`. Fehlt der Browser:
      `npx --prefix jira-markdown-converter playwright install chromium`.
@@ -288,7 +384,9 @@ customTemplates: []
   * [ ] Vorlagen lassen sich anlegen, bearbeiten und loeschen; ein Reload der
         Optionsseite zeigt sie wieder.
   * [ ] Mehr als 5 Platzhalter werden mit sichtbarer Meldung abgelehnt.
-  * [ ] Ueberschreiten des Storage-Budgets wird gemeldet, nicht verschluckt.
+  * [ ] Die Seite sagt, dass Vorlagen lokal bleiben und nicht mitwandern.
+  * [ ] Vorlagen landen in `storage.local`, die uebrigen Einstellungen in
+        `storage.sync` - per Integrationstest belegt.
   * [ ] Kein `innerHTML` in `options/options.js`.
   * [ ] Bestehende Einstellungen (Checkboxen, Hosts) speichern unveraendert
         weiter - `customTemplates` gehen beim Umschalten einer Checkbox nicht
@@ -303,9 +401,12 @@ customTemplates: []
   > `jira-markdown-converter`. Lies `CLAUDE.md` (Root und Projekt) und
   > `jira-markdown-converter/docs/plans/issue-31-vorlagen.md`. Sub-Task 1 ist
   > bereits gemergt oder liegt im Base-Branch: `src/settings.js` exportiert
-  > `normalizeTemplate`, `normalizeTemplates`, `templateById`, `templatesFit`,
-  > `templatesBytes`, `placeholdersInMarkup`, `MAX_TEMPLATES`,
-  > `MAX_PLACEHOLDERS`. Sieh dir diese Signaturen an, bevor du beginnst.
+  > `normalizeTemplate`, `normalizeTemplates`, `templateById`,
+  > `placeholdersInMarkup`, `MAX_TEMPLATES`, `MAX_PLACEHOLDERS`,
+  > `MAX_TITLE_LENGTH`, `MAX_TEMPLATE_LENGTH`. Sieh dir diese Signaturen an,
+  > bevor du beginnst. `Settings.save()` legt `customTemplates` selbsttaetig in
+  > `chrome.storage.local` ab - die Optionsseite ruft weiterhin nur
+  > `Settings.save(...)` und kennt die Aufteilung nicht.
   >
   > Branch: `git fetch origin && git checkout -b feature/issue-templates-part-2
   > origin/feature/issue-templates-part-1`.
@@ -320,7 +421,8 @@ customTemplates: []
   > `createElement` + `textContent`), deutsche UI-Texte **ohne Umlaute**,
   > Optik aus `options.css` uebernehmen statt neue Farben zu erfinden.
   > `readForm()` muss `customTemplates` mitfuehren, sonst loeschen die
-  > Checkboxen die Vorlagen.
+  > Checkboxen die Vorlagen. In den Hinweistext gehoert, dass Vorlagen nur auf
+  > diesem Geraet liegen.
   >
   > Pruefe mit `npm run lint --prefix jira-markdown-converter` und
   > `npm test --prefix jira-markdown-converter` (bei fehlendem Browser vorher
@@ -706,10 +808,14 @@ customTemplates: []
 * **Schritt-fuer-Schritt Anweisungen:**
   1. `README.md` (Projekt): Abschnitt "Eigene Vorlagen" - was das Feature
      kann, wie `${Name}` funktioniert, dass hoechstens 5 Platzhalter je
-     Vorlage erlaubt sind, und die Einschraenkung beim Rich-Text-Editor
-     (Markup kommt unformatiert an, wenn nicht auf Markup-Modus umgeschaltet
-     wird). Keine neuen Bildverweise - `test/package.test.js` prueft, dass
-     jedes referenzierte Bild existiert.
+     Vorlage erlaubt sind, und zwei Einschraenkungen im Klartext:
+     * Vorlagen liegen im lokalen Speicher des Browsers und wandern **nicht**
+       auf andere Geraete mit - im Gegensatz zu den uebrigen Einstellungen.
+       Grund in einem Halbsatz: der Sync-Speicher fasst nur 8 KB je Eintrag.
+     * Im Rich-Text-Editor kommt das Markup unformatiert an, solange nicht auf
+       den Markup-Modus umgeschaltet wird.
+     Keine neuen Bildverweise - `test/package.test.js` prueft, dass jedes
+     referenzierte Bild existiert.
   2. `CHANGELOG.md`: Eintrag unter der naechsten Minor-Version
      (`## 1.3.0`), Stil der vorhandenen Eintraege uebernehmen. Versionsnummern
      in `package.json` und `manifest.json` **nicht** von Hand anfassen - das
@@ -720,15 +826,18 @@ customTemplates: []
      anhaengen.
   4. `docs/store/listing-de.md` und `listing-en.md`: Feature in die
      Funktionsliste aufnehmen, Tonlage der vorhandenen Texte halten.
-  5. Pruefen, ob `docs/store/permissions.md` eine Anpassung braucht - es
-     kommen **keine** neuen Berechtigungen dazu; wenn dort Features
-     aufgezaehlt sind, den Punkt ergaenzen, sonst unveraendert lassen.
+  5. `docs/store/permissions.md` pruefen: es kommen **keine** neuen
+     Berechtigungen dazu, `storage` deckt `sync` und `local` gemeinsam ab.
+     Steht dort, wofuer `storage` gebraucht wird, den lokalen Vorlagenspeicher
+     ergaenzen - das ist die Art Angabe, nach der eine Store-Pruefung fragt.
   6. Pruefen: `npm run lint --prefix jira-markdown-converter`,
      `npm test --prefix jira-markdown-converter`.
 
 * **Definition of Done:**
-  * [ ] README beschreibt Vorlagen, `${Name}`-Syntax, 5er-Grenze und die
-        Rich-Text-Einschraenkung.
+  * [ ] README beschreibt Vorlagen, `${Name}`-Syntax, 5er-Grenze, die
+        Rich-Text-Einschraenkung und die geraetelokale Ablage.
+  * [ ] `docs/store/permissions.md` nennt den lokalen Vorlagenspeicher, ohne
+        neue Berechtigungen zu behaupten.
   * [ ] CHANGELOG-Eintrag unter `## 1.3.0` vorhanden.
   * [ ] `CLAUDE.md` nennt `templatedialog.js` und bleibt unter 40 Zeilen.
   * [ ] Store-Listings in beiden Sprachen aktualisiert.
@@ -749,7 +858,11 @@ customTemplates: []
   > Setze **ausschliesslich Sub-Task 6** um: Dokumentation des Features
   > "Eigene Vorlagen" in `README.md`, `CHANGELOG.md` (unter `## 1.3.0`),
   > `CLAUDE.md` (Strukturtabelle und UMD-Liste, Datei bleibt unter 40 Zeilen)
-  > sowie `docs/store/listing-de.md` und `listing-en.md`. Kein Produktivcode,
+  > sowie `docs/store/listing-de.md`, `listing-en.md` und
+  > `docs/store/permissions.md`. Zwei Punkte muessen im README stehen: Vorlagen
+  > liegen nur auf diesem Geraet (`chrome.storage.local`), und im
+  > Rich-Text-Editor kommt Markup ohne Umschalten unformatiert an. Kein
+  > Produktivcode,
   > keine neuen Bildverweise, **keine** Versionsnummern von Hand aendern - das
   > erledigt die CI.
   >
@@ -771,10 +884,19 @@ customTemplates: []
 * Nach jedem Merge auf `main` hebt `version-bump.yml` die Patch-Stelle an.
   Die Minor-Version `1.3.0` wird erst nach part-6 von Hand gesetzt und
   getaggt - erst das erzeugt ZIPs (siehe `.github/CI.md`).
-* Groesstes Restrisiko ist das 8-KB-Limit von `chrome.storage.sync`. Wird es
-  in der Praxis eng, ist der naechste Schritt `chrome.storage.local` fuer
-  `customTemplates` bei gleichbleibendem Schema - das ist bewusst nicht Teil
-  dieses Plans.
+* Der geteilte Storage aus Sub-Task 1 ist die riskanteste Aenderung des
+  ganzen Plans: `load`, `save` und `onChange` versorgen jede Oberflaeche der
+  Erweiterung. Ein Fehler dort trifft nicht das neue Feature, sondern alle
+  Einstellungen. Absicherung sind die bestehenden Tests - bleiben sie
+  unveraendert gruen, stimmt die Aufteilung.
+* Vorlagen wandern nicht zwischen Geraeten. Das ist der bezahlte Preis fuer
+  den Wegfall des 8-KB-Limits und muss an drei Stellen sichtbar sein:
+  Optionsseite, README und Store-Listing. Falls das spaeter stoert, ist der
+  naechste Schritt Export/Import als JSON-Datei - nicht der Ruecksprung nach
+  `sync`.
+* `chrome.storage.local` wird beim Deinstallieren der Erweiterung geleert und
+  liegt ausserhalb des Browser-Profil-Sync. Ein Nutzer, der seine Vorlagen
+  aufbewahren will, braucht den Export - siehe oben.
 * Zweites Risiko: Jira 9.12 baut das DOM staendig um. Die Leiste haengt an
   `addButtonBar`; der neue Button erbt dieses Verhalten und braucht keine
   eigene Beobachtung.
