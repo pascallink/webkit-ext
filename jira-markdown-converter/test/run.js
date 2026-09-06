@@ -29,8 +29,6 @@ var MODULES_DIR = path.join(TEST_DIR, 'modules');
  * ihr handgeschriebenes test()/process.exit() nicht auswerten.
  */
 var LEGACY = [
-  { file: path.join(TEST_DIR, 'settings.test.js'), type: 'node' },
-  { file: path.join(TEST_DIR, 'package.test.js'), type: 'node' },
   { file: path.join(TEST_DIR, 'integration.test.js'), type: 'browser' }
 ];
 
