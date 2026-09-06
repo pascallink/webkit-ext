@@ -115,7 +115,7 @@
       return 'Hoechstens ' + Settings.MAX_PLACEHOLDERS + ' Platzhalter je Vorlage erlaubt (' +
         markupNames.length + ' im Markup gefunden).';
     }
-    var seen = {};
+    var seen = Object.create(null);
     for (var i = 0; i < entry.placeholders.length; i++) {
       if (seen[entry.placeholders[i]]) return 'Platzhalter "' + entry.placeholders[i] + '" ist doppelt.';
       seen[entry.placeholders[i]] = true;
@@ -129,7 +129,7 @@
   /** Hinweis (nicht blockierend), wenn Markup und Platzhalterliste auseinanderlaufen. */
   function placeholderWarning(entry) {
     var markupNames = Settings.placeholdersInMarkup(entry.templateMarkup);
-    var hintSet = {};
+    var hintSet = Object.create(null);
     entry.placeholders.forEach(function (name) {
       hintSet[name] = true;
     });
@@ -139,7 +139,7 @@
     if (missing.length) {
       return 'Im Markup steht ${' + missing[0] + '}, das nicht in der Platzhalterliste steht.';
     }
-    var markupSet = {};
+    var markupSet = Object.create(null);
     markupNames.forEach(function (name) {
       markupSet[name] = true;
     });
@@ -330,7 +330,7 @@
     save();
     renderTemplates();
     resetTemplateForm();
-    setTplMessage(placeholderWarning(normalized), false);
+    setTplMessage(placeholderWarning(entry), false);
   });
 
   document.getElementById('tplCancel').addEventListener('click', resetTemplateForm);

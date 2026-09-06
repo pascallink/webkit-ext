@@ -125,7 +125,9 @@ async function optionsPage(browser, settings) {
     });
   }
   await page.goto('file://' + path.join(root, 'options', 'options.html'));
-  await page.waitForSelector('#templateList');
+  // #templateList steht statisch im HTML - erst ein Kind zeigt, dass
+  // renderTemplates() (nach Settings.load()) tatsaechlich gelaufen ist.
+  await page.waitForSelector('#templateList > *');
   return page;
 }
 
@@ -1862,6 +1864,42 @@ async function run() {
     var sync = await page.evaluate(function () { return window.__settings.customTemplates; });
     assert.strictEqual(local.length, 1);
     assert.strictEqual(sync, undefined);
+    await page.close();
+  });
+
+  await test('Platzhaltername "constructor" laesst sich speichern', async function () {
+    var page = await optionsPage(browser);
+    await page.fill('#tplTitle', 'Proto');
+    await page.fill('#tplMarkup', 'h3. ${constructor} und ${Datum}');
+    await page.fill('#tplPlaceholders', 'constructor, Datum');
+    await page.click('#tplSave');
+    var error = await page.locator('#tplError').innerText();
+    assert.strictEqual(error, '');
+    assert.strictEqual(await page.locator('.tpl-item').count(), 1);
+    await page.close();
+  });
+
+  await test('fehlender Platzhalter in der Liste ist nur eine Warnung', async function () {
+    var page = await optionsPage(browser);
+    await page.fill('#tplTitle', 'Unvollstaendige Liste');
+    await page.fill('#tplMarkup', 'h3. ${Titel} ${Datum}');
+    await page.fill('#tplPlaceholders', 'Titel');
+    await page.click('#tplSave');
+    var hint = await page.locator('#tplError').innerText();
+    assert.ok(/Datum/.test(hint), 'Hinweis: ' + hint);
+    assert.strictEqual(await page.locator('.tpl-item').count(), 1);
+    await page.close();
+  });
+
+  await test('Tippfehler in der Platzhalterliste ist nur eine Warnung', async function () {
+    var page = await optionsPage(browser);
+    await page.fill('#tplTitle', 'Tippfehler');
+    await page.fill('#tplMarkup', 'h3. ${Titel}');
+    await page.fill('#tplPlaceholders', 'Titel, Tippfehler');
+    await page.click('#tplSave');
+    var hint = await page.locator('#tplError').innerText();
+    assert.ok(/Tippfehler/.test(hint), 'Hinweis: ' + hint);
+    assert.strictEqual(await page.locator('.tpl-item').count(), 1);
     await page.close();
   });
 
