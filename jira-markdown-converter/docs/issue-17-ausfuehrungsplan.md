@@ -52,6 +52,54 @@ settings -> converter -> editors -> codedialog -> editlock
 > `src/background.js` fuehrt dieselbe Liste als `var CONTENT_FILES = [...]`.
 > `package.test.js` vergleicht beide mit `deepStrictEqual`. Immer beide aendern.
 
+## Abschluss jeder Session: Review-Prompt fuer Opus
+
+Jeder Sub-Task endet nicht mit dem Push. Die Sonnet-Session gibt zum Schluss
+**einen Review-Prompt zum Kopieren aus**, mit dem Pascal den PR von Opus
+gegenreichen laesst. Der Auftrag an die Session lautet woertlich:
+
+> Erstelle einen Review-Prompt fuer Opus, der die Code-Aenderungen, deine
+> Designentscheidungen, potenzielle Edge Cases und 3-4 konkrete Pruefpunkte
+> fuer diesen PR zusammenfasst.
+
+Form der Ausgabe - ein einzelner Codeblock, sonst nichts drumherum:
+
+```text
+Review von PR "<Titel>" (Branch feature/issue-17-part-<X>, Base <Base>).
+Projekt: jira-markdown-converter, MV3-Erweiterung, ES5 + UMD, keine Deps.
+
+Aenderungen
+- <Datei>: <was und warum, ein Satz>
+- ...
+
+Designentscheidungen
+- <Entscheidung>: <Alternative, die verworfen wurde, und der Grund>
+- ...
+
+Edge Cases, die ich bedacht habe
+- <Fall> -> <Verhalten>
+- ...
+
+Bitte pruefe gezielt
+1. <konkreter Pruefpunkt mit Datei und Funktion>
+2. <...>
+3. <...>
+(4. <...>)
+
+Bekannte Luecken: <was bewusst offen blieb, oder "keine">
+```
+
+Regeln fuer diesen Prompt:
+
+* **Selbsttragend.** Opus sieht den Chatverlauf der Session nicht. Jede
+  Behauptung nennt Datei und Funktion.
+* **Pruefpunkte sind Fragen an den Code, keine Zusammenfassung.** Gut:
+  "raeumt `waitForElement` den MutationObserver auch im Timeout-Zweig ab?".
+  Schlecht: "bitte die neuen Tests anschauen".
+* **Ehrlich bei den Luecken.** Was nicht getestet ist, steht drin - erfundene
+  Sicherheit kostet die Runde.
+* Kein Selbstlob, keine Wiederholung des Plans, hoechstens 40 Zeilen.
+
 ## Uebersicht der Sub-Tasks
 
 | # | Branch | Base | Ergebnis |
@@ -132,6 +180,7 @@ settings -> converter -> editors -> codedialog -> editlock
   * [ ] `src/otrslink.js` enthaelt kein `document`, kein `window`, kein `console.log`
   * [ ] Keine Umlaute in Kommentaren und Meldungen
   * [ ] Commit `feat(jira): otrs-verweise zerlegen` und Push auf `feature/issue-17-part-1`
+  * [ ] Review-Prompt fuer Opus ausgegeben (Form siehe oben)
 
 * **Agent-Start-Prompt:**
 
@@ -163,6 +212,12 @@ Abschluss:
 Beides muss gruen sein. Dann committen als
 "feat(jira): otrs-verweise zerlegen" und mit
 git push -u origin feature/issue-17-part-1 pushen. PR gegen main anlegen.
+
+Zum Schluss, nach dem Push: Erstelle einen Review-Prompt fuer Opus, der die
+Code-Aenderungen, deine Designentscheidungen, potenzielle Edge Cases und 3-4
+konkrete Pruefpunkte fuer diesen PR zusammenfasst. Halte dich an die Form im
+Abschnitt "Abschluss jeder Session: Review-Prompt fuer Opus" des Plans und gib
+ihn als einzelnen Codeblock aus.
 ```
 
 ---
@@ -246,6 +301,7 @@ git push -u origin feature/issue-17-part-1 pushen. PR gegen main anlegen.
   * [ ] `waitForElement` raeumt Observer und Timer in allen Ausgaengen ab
   * [ ] Kein `console.log`, keine Umlaute
   * [ ] Commit `feat(jira): dom-helfer fuer aui-dialoge` und Push auf `feature/issue-17-part-2`
+  * [ ] Review-Prompt fuer Opus ausgegeben (Form siehe oben)
 
 * **Agent-Start-Prompt:**
 
@@ -278,6 +334,12 @@ muessen gruen sein; fehlt der Browser:
 npx --prefix jira-markdown-converter playwright install chromium.
 Commit "feat(jira): dom-helfer fuer aui-dialoge",
 git push -u origin feature/issue-17-part-2, PR gegen feature/issue-17-part-1.
+
+Zum Schluss, nach dem Push: Erstelle einen Review-Prompt fuer Opus, der die
+Code-Aenderungen, deine Designentscheidungen, potenzielle Edge Cases und 3-4
+konkrete Pruefpunkte fuer diesen PR zusammenfasst. Halte dich an die Form im
+Abschnitt "Abschluss jeder Session: Review-Prompt fuer Opus" des Plans und gib
+ihn als einzelnen Codeblock aus.
 ```
 
 ---
@@ -360,6 +422,7 @@ git push -u origin feature/issue-17-part-2, PR gegen feature/issue-17-part-1.
   * [ ] `previousReference` wird vor dem Ueberschreiben gelesen
   * [ ] `manifest.json` und `CONTENT_FILES` identisch
   * [ ] Commit `feat(jira): otrs-verweis in drei feldern eintragen` und Push
+  * [ ] Review-Prompt fuer Opus ausgegeben (Form siehe oben)
 
 * **Agent-Start-Prompt:**
 
@@ -391,6 +454,12 @@ src/content.js und keine Oberflaeche in diesem Schritt.
 Abschluss: npm run lint und npm test (--prefix jira-markdown-converter) gruen.
 Commit "feat(jira): otrs-verweis in drei feldern eintragen",
 git push -u origin feature/issue-17-part-3, PR gegen feature/issue-17-part-2.
+
+Zum Schluss, nach dem Push: Erstelle einen Review-Prompt fuer Opus, der die
+Code-Aenderungen, deine Designentscheidungen, potenzielle Edge Cases und 3-4
+konkrete Pruefpunkte fuer diesen PR zusammenfasst. Halte dich an die Form im
+Abschnitt "Abschluss jeder Session: Review-Prompt fuer Opus" des Plans und gib
+ihn als einzelnen Codeblock aus.
 ```
 
 ---
@@ -453,6 +522,7 @@ git push -u origin feature/issue-17-part-3, PR gegen feature/issue-17-part-2.
   * [ ] Dialog laesst sich per Tastatur vollstaendig bedienen
   * [ ] `manifest.json` und `CONTENT_FILES` identisch
   * [ ] Commit `feat(jira): dialog fuer den otrs-link-helfer` und Push
+  * [ ] Review-Prompt fuer Opus ausgegeben (Form siehe oben)
 
 * **Agent-Start-Prompt:**
 
@@ -486,6 +556,12 @@ Umlaute, kein console.log. src/content.js bleibt in diesem Schritt unberuehrt.
 Abschluss: npm run lint und npm test (--prefix jira-markdown-converter) gruen.
 Commit "feat(jira): dialog fuer den otrs-link-helfer",
 git push -u origin feature/issue-17-part-4, PR gegen feature/issue-17-part-3.
+
+Zum Schluss, nach dem Push: Erstelle einen Review-Prompt fuer Opus, der die
+Code-Aenderungen, deine Designentscheidungen, potenzielle Edge Cases und 3-4
+konkrete Pruefpunkte fuer diesen PR zusammenfasst. Halte dich an die Form im
+Abschnitt "Abschluss jeder Session: Review-Prompt fuer Opus" des Plans und gib
+ihn als einzelnen Codeblock aus.
 ```
 
 ---
@@ -562,6 +638,7 @@ git push -u origin feature/issue-17-part-4, PR gegen feature/issue-17-part-3.
   * [ ] Schalter `otrsHelper` in Popup und Optionsseite vorhanden
   * [ ] `otrsFieldName` auf der Optionsseite pflegbar
   * [ ] Commit `feat(jira): otrs-link-helfer verdrahten` und Push
+  * [ ] Review-Prompt fuer Opus ausgegeben (Form siehe oben)
 
 * **Agent-Start-Prompt:**
 
@@ -597,6 +674,12 @@ Die Module aus Sub-Task 1-4 nur benutzen, nicht umbauen.
 Abschluss: npm run lint und npm test (--prefix jira-markdown-converter) gruen.
 Commit "feat(jira): otrs-link-helfer verdrahten",
 git push -u origin feature/issue-17-part-5, PR gegen feature/issue-17-part-4.
+
+Zum Schluss, nach dem Push: Erstelle einen Review-Prompt fuer Opus, der die
+Code-Aenderungen, deine Designentscheidungen, potenzielle Edge Cases und 3-4
+konkrete Pruefpunkte fuer diesen PR zusammenfasst. Halte dich an die Form im
+Abschnitt "Abschluss jeder Session: Review-Prompt fuer Opus" des Plans und gib
+ihn als einzelnen Codeblock aus.
 ```
 
 ---
@@ -644,6 +727,7 @@ git push -u origin feature/issue-17-part-5, PR gegen feature/issue-17-part-4.
   * [ ] Keine neuen Berechtigungen im Manifest
   * [ ] Keine Umlaute in allen geaenderten Texten
   * [ ] Commit `docs(jira): otrs-link-helfer dokumentieren` und Push
+  * [ ] Review-Prompt fuer Opus ausgegeben (Form siehe oben)
 
 * **Agent-Start-Prompt:**
 
@@ -673,6 +757,12 @@ Abschluss:
   npm install && npm run lint:commits
 Alles gruen. Commit "docs(jira): otrs-link-helfer dokumentieren",
 git push -u origin feature/issue-17-part-6, PR gegen feature/issue-17-part-5.
+
+Zum Schluss, nach dem Push: Erstelle einen Review-Prompt fuer Opus, der die
+Code-Aenderungen, deine Designentscheidungen, potenzielle Edge Cases und 3-4
+konkrete Pruefpunkte fuer diesen PR zusammenfasst. Halte dich an die Form im
+Abschnitt "Abschluss jeder Session: Review-Prompt fuer Opus" des Plans und gib
+ihn als einzelnen Codeblock aus.
 ```
 
 ---
