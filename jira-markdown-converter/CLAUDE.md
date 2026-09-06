@@ -21,8 +21,8 @@ Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per
 - Drei Jira-Editorvarianten immer mitdenken: `<textarea>` (Server/DC),
   ProseMirror (Cloud), CodeMirror/Ace. Erkennung nur in `editors.js`.
 - Leere `catch`-Bloecke sind Absicht: Jira baut das DOM staendig um.
-- Neue Content-Script-Datei in `manifest.json` eintragen; Reihenfolge ist
-  abhaengigkeitsgetrieben: settings -> converter -> editors -> codedialog -> templatedialog -> editlock -> content.
+- Neue Content-Script-Datei in `manifest.json` eintragen; Reihenfolge dort
+  ist abhaengigkeitsgetrieben: `settings.js` zuerst, `content.js` zuletzt.
 
 ## Struktur
 

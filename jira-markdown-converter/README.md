@@ -179,8 +179,8 @@ h3. ${Titel}
 In der Buttonleiste am Feld holt der Button *Vorlagen* die eigenen Vorlagen
 ins Menue. Hat die gewaehlte Vorlage Platzhalter, oeffnet sich vorher ein
 kleiner Dialog mit einem Eingabefeld je Platzhalter (`Strg+Enter` fuegt ein,
-`Escape` schliesst ohne einzufuegen); ohne Platzhalter wird sofort
-eingefuegt. Ein unausgefuellter Platzhalter landet als sein eigener Name im
+`Enter` im letzten Feld ebenso, `Escape` schliesst ohne einzufuegen); ohne
+Platzhalter wird sofort eingefuegt. Ein unausgefuellter Platzhalter landet als sein eigener Name im
 Ticket, nie als `${...}`. Eingegebene Werte werden gegen das Jira-Markup
 gehaertet: `\`, `{`, `}`, `[`, `]` und `|` erscheinen maskiert, damit ein Wert
 kein Makro eroeffnet oder eine Tabellenzelle aufbricht.
@@ -395,7 +395,7 @@ zurueck - es geht also nichts verloren.
 **Einschraenkung:** landet der Text dabei am Anfang des Feldes statt an der
 Cursorposition, liegt das am Umschalten selbst - die Schreibflaeche wechselt
 vom Editor-Rahmen in die Textarea, und die dort gemerkte Auswahl laesst sich
-nicht auf das neue Feld uebertragen. Das gilt fuer Panel-Vorlagen genauso wie
+nicht auf die Textarea uebertragen. Das gilt fuer Panel-Vorlagen genauso wie
 fuer eigene Vorlagen.
 
 ## Cursorposition
@@ -442,13 +442,15 @@ Erreichbar ueber das Popup („Einstellungen") oder
 * Konvertierung: Codesprache uebernehmen, Hinweisbloecke als Panel, einfaches
   HTML uebersetzen, geschweifte Klammern maskieren
 * Eigene Jira-Adressen (Jira Server / Data Center)
+* Eigene Vorlagen anlegen, bearbeiten und loeschen (Titel, Markup,
+  bis zu 5 Platzhalter)
 * Ein Probierfeld mit Sofortvorschau
 
 ## Berechtigungen
 
 | Berechtigung | Wofuer |
 | --- | --- |
-| `storage` | Einstellungen speichern |
+| `storage` | Einstellungen speichern, eigene Vorlagen geraetelokal ablegen |
 | `contextMenus` | Eintrag im Rechtsklick-Menue |
 | `scripting` | Nachladen auf selbst eingetragenen Jira-Adressen |
 | `activeTab` | Adresse der aktuellen Seite fuer die Freigabe im Popup |
@@ -468,14 +470,14 @@ Warum es fuer selbst gehostete Instanzen das breite Muster `*://*/*` unter
 jira-markdown-converter/
 ├── manifest.json
 ├── src/
-│   ├── converter.js   Markdown -> Jira (ohne DOM, auch in Node nutzbar)
-│   ├── editors.js     Jira-Felder finden, lesen, beschreiben
-│   ├── codedialog.js  Dialog "Code einfuegen"
+│   ├── converter.js         Markdown -> Jira (ohne DOM, auch in Node nutzbar)
+│   ├── editors.js           Jira-Felder finden, lesen, beschreiben
+│   ├── codedialog.js        Dialog "Code einfuegen"
 │   ├── templatedialog.js  Dialog fuer Platzhalterwerte eigener Vorlagen
-│   ├── editlock.js    Bearbeitungsmodus einfrieren (Schloss)
-│   ├── content.js     Bedienelemente, Einfuege-Automatik
-│   ├── settings.js    gemeinsame Einstellungen
-│   ├── background.js  Tastenkuerzel, Kontextmenue, eigene Hosts
+│   ├── editlock.js          Bearbeitungsmodus einfrieren (Schloss)
+│   ├── content.js           Bedienelemente, Einfuege-Automatik
+│   ├── settings.js          gemeinsame Einstellungen
+│   ├── background.js        Tastenkuerzel, Kontextmenue, eigene Hosts
 │   ├── content.css
 │   └── codedialog.css
 ├── popup/             Konverter in der Symbolleiste
