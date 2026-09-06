@@ -58,28 +58,46 @@
   var MAX_TEMPLATE_LENGTH = 5000;
   var MAX_TITLE_LENGTH = 60;
   var MAX_PLACEHOLDER_LENGTH = 40;
+  var MAX_ID_LENGTH = 64;
 
-  var PLACEHOLDER_PATTERN = /\$\{\s*([^}\r\n]{1,40}?)\s*\}/g;
+  var PLACEHOLDER_SOURCE = '\\$\\{\\s*([^}\\r\\n]{1,' + MAX_PLACEHOLDER_LENGTH + '}?)\\s*\\}';
 
   /** Frisches RegExp je Aufruf - ein globales RegExp haelt sonst lastIndex. */
   function placeholderRegex() {
-    return new RegExp(PLACEHOLDER_PATTERN.source, 'g');
+    return new RegExp(PLACEHOLDER_SOURCE, 'g');
   }
 
   function newTemplateId() {
     return 'tpl-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5);
   }
 
-  function normalizePlaceholders(list) {
-    if (!Array.isArray(list)) return [];
-    var seen = {};
+  /**
+   * Reiht die im Markup vorkommenden Platzhalternamen an - Wahrheit ist das
+   * Markup, `hint` (die frueher gespeicherte placeholders-Liste) legt nur
+   * fest, in welcher Reihenfolge Namen auftauchen, die auch im Markup stehen.
+   * `Object.create(null)` statt `{}`: sonst waeren Namen wie `constructor`
+   * oder `toString` ueber die Prototype-Kette sofort "gesehen".
+   */
+  function normalizePlaceholders(markupNames, hint) {
+    var markupSet = Object.create(null);
+    for (var m = 0; m < markupNames.length; m++) {
+      markupSet[markupNames[m]] = true;
+    }
+    var seen = Object.create(null);
     var result = [];
-    for (var i = 0; i < list.length && result.length < MAX_PLACEHOLDERS; i++) {
-      if (typeof list[i] !== 'string') continue;
-      var name = list[i].trim().slice(0, MAX_PLACEHOLDER_LENGTH);
-      if (!name || seen[name]) continue;
-      seen[name] = true;
-      result.push(name);
+    if (Array.isArray(hint)) {
+      for (var i = 0; i < hint.length && result.length < MAX_PLACEHOLDERS; i++) {
+        if (typeof hint[i] !== 'string') continue;
+        var name = hint[i].trim().slice(0, MAX_PLACEHOLDER_LENGTH);
+        if (!name || seen[name] || !markupSet[name]) continue;
+        seen[name] = true;
+        result.push(name);
+      }
+    }
+    for (var j = 0; j < markupNames.length && result.length < MAX_PLACEHOLDERS; j++) {
+      if (seen[markupNames[j]]) continue;
+      seen[markupNames[j]] = true;
+      result.push(markupNames[j]);
     }
     return result;
   }
@@ -91,21 +109,25 @@
     if (!title) return null;
     var templateMarkup = String(entry.templateMarkup || '').replace(/\r\n/g, '\n').slice(0, MAX_TEMPLATE_LENGTH);
     if (!templateMarkup) return null;
+    var id = typeof entry.id === 'string' ? entry.id.trim().slice(0, MAX_ID_LENGTH) : '';
     return {
-      id: entry.id && typeof entry.id === 'string' ? entry.id : newTemplateId(),
+      id: id || newTemplateId(),
       title: title,
       templateMarkup: templateMarkup,
-      placeholders: normalizePlaceholders(entry.placeholders)
+      placeholders: normalizePlaceholders(placeholdersInMarkup(templateMarkup), entry.placeholders)
     };
   }
 
   function normalizeTemplates(list) {
     if (!Array.isArray(list)) return [];
-    var seenIds = {};
+    var seenIds = Object.create(null);
     var result = [];
     for (var i = 0; i < list.length && result.length < MAX_TEMPLATES; i++) {
       var normalized = normalizeTemplate(list[i]);
-      if (!normalized || seenIds[normalized.id]) continue;
+      if (!normalized) continue;
+      while (seenIds[normalized.id]) {
+        normalized.id = newTemplateId();
+      }
       seenIds[normalized.id] = true;
       result.push(normalized);
     }
@@ -128,7 +150,7 @@
    * seine eigene Maskierung erneut).
    */
   function escapeValue(value) {
-    var text = String(value || '');
+    var text = value === undefined || value === null ? '' : String(value);
     text = text.replace(/[\r\n\t]/g, ' ');
     text = text.replace(/\\/g, '\\\\');
     text = text.replace(/\{/g, '\\{');
@@ -149,8 +171,8 @@
     var source = String(markup || '');
     var input = values || {};
     return source.replace(placeholderRegex(), function (match, name) {
-      var value = input[name];
-      if (value === undefined || value === null || value === '') return name;
+      var value = Object.prototype.hasOwnProperty.call(input, name) ? input[name] : undefined;
+      if (value === undefined || value === null || value === '') return escapeValue(name);
       return escapeValue(value);
     });
   }
@@ -159,7 +181,7 @@
   function placeholdersInMarkup(markup) {
     var source = String(markup || '');
     var regex = placeholderRegex();
-    var seen = {};
+    var seen = Object.create(null);
     var result = [];
     var match;
     while ((match = regex.exec(source)) !== null) {
@@ -232,9 +254,13 @@
     });
   }
 
-  /** Schreibt einen Storage-Bereich als Promise. */
+  /** Schreibt einen Storage-Bereich als Promise; ein fehlender Bereich wird uebersprungen. */
   function writeArea(area, values) {
     return new Promise(function (resolve, reject) {
+      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage[area]) {
+        resolve();
+        return;
+      }
       chrome.storage[area].set(values, function () {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
@@ -264,25 +290,28 @@
 
   function save(settings) {
     var split = splitKeys(withDefaults(settings));
-    return new Promise(function (resolve, reject) {
-      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.sync || !chrome.storage.local) {
-        resolve();
-        return;
-      }
-      Promise.all([
-        writeArea('sync', split.sync),
-        writeArea('local', split.local)
-      ]).then(function () {
-        resolve();
-      }, reject);
-    });
+    return Promise.all([
+      writeArea('sync', split.sync),
+      writeArea('local', split.local)
+    ]).then(function () {});
   }
 
+  /**
+   * save() schreibt sync und local einzeln, Chrome meldet also zwei
+   * onChanged-Events pro save(). Ohne Buendelung liefe der Callback (baut
+   * z. B. den FAB neu auf) zweimal je Speichervorgang. Ein Timeout-Debounce
+   * fasst beide Events zu einem einzigen load() zusammen.
+   */
   function onChange(callback) {
     if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.onChanged) return;
+    var timer = null;
     chrome.storage.onChanged.addListener(function (changes, area) {
       if (area !== 'sync' && area !== 'local') return;
-      load().then(callback);
+      if (timer !== null) return;
+      timer = setTimeout(function () {
+        timer = null;
+        load().then(callback);
+      }, 0);
     });
   }
 

@@ -213,11 +213,10 @@ test('Eintrag ohne Titel oder ohne Markup faellt raus', function () {
   assert.strictEqual(Settings.normalizeTemplate({ title: 'x', templateMarkup: '' }), null);
   assert.strictEqual(Settings.normalizeTemplate({ title: '', templateMarkup: '' }), null);
 });
-test('mehr als 5 Platzhalter werden auf 5 gekuerzt', function () {
+test('mehr als 5 Platzhalter im Markup werden auf 5 gekuerzt', function () {
   var entry = Settings.normalizeTemplate({
     title: 'Viele Platzhalter',
-    templateMarkup: 'x',
-    placeholders: ['A', 'B', 'C', 'D', 'E', 'F']
+    templateMarkup: '${A}${B}${C}${D}${E}${F}${G}'
   });
   assert.strictEqual(entry.placeholders.length, 5);
   assert.deepStrictEqual(entry.placeholders, ['A', 'B', 'C', 'D', 'E']);
@@ -225,10 +224,27 @@ test('mehr als 5 Platzhalter werden auf 5 gekuerzt', function () {
 test('doppelte Platzhalternamen werden entfernt', function () {
   var entry = Settings.normalizeTemplate({
     title: 'Duplikate',
-    templateMarkup: 'x',
+    templateMarkup: '${A} ${A} ${B}',
     placeholders: ['A', 'A', 'B']
   });
   assert.deepStrictEqual(entry.placeholders, ['A', 'B']);
+});
+test('placeholders im Eintrag sind nur ein Reihenfolge-Hinweis', function () {
+  // Markup entscheidet, welche Namen es gibt; die alte Liste ordnet nur.
+  var entry = Settings.normalizeTemplate({
+    title: 'Reihenfolge',
+    templateMarkup: '${A} ${B} ${C}',
+    placeholders: ['C', 'A']
+  });
+  assert.deepStrictEqual(entry.placeholders, ['C', 'A', 'B']);
+});
+test('Platzhalter mit Prototype-Namen ueberleben die Normalisierung', function () {
+  var entry = Settings.normalizeTemplate({
+    title: 'T',
+    templateMarkup: '${toString} ${constructor}',
+    placeholders: ['toString', 'constructor']
+  });
+  assert.deepStrictEqual(entry.placeholders, ['toString', 'constructor']);
 });
 test('mehr als MAX_TEMPLATES Eintraege werden gekuerzt', function () {
   var list = [];
@@ -237,13 +253,32 @@ test('mehr als MAX_TEMPLATES Eintraege werden gekuerzt', function () {
   }
   assert.strictEqual(Settings.normalizeTemplates(list).length, Settings.MAX_TEMPLATES);
 });
-test('doppelte id wird verworfen', function () {
+test('doppelte id bekommt eine neue Kennung statt zu verschwinden', function () {
   var list = Settings.normalizeTemplates([
     { id: 'gleich', title: 'Erste', templateMarkup: 'x' },
     { id: 'gleich', title: 'Zweite', templateMarkup: 'y' }
   ]);
-  assert.strictEqual(list.length, 1);
-  assert.strictEqual(list[0].title, 'Erste');
+  assert.strictEqual(list.length, 2);
+  assert.strictEqual(list[0].id, 'gleich');
+  assert.notStrictEqual(list[1].id, 'gleich');
+  assert.strictEqual(list[1].title, 'Zweite');
+});
+test('Vorlage mit id __proto__ ueberlebt', function () {
+  var list = Settings.normalizeTemplates([
+    { id: '__proto__', title: 'A', templateMarkup: 'x' },
+    { id: 'b', title: 'B', templateMarkup: 'y' }
+  ]);
+  assert.strictEqual(list.length, 2);
+});
+test('lange id wird auf 64 Zeichen gekappt', function () {
+  var entry = Settings.normalizeTemplate({ id: 'x'.repeat(5000), title: 'T', templateMarkup: 'y' });
+  assert.strictEqual(entry.id.length, 64);
+});
+test('leere oder reine Whitespace-id bekommt eine neue Kennung', function () {
+  var leer = Settings.normalizeTemplate({ id: '', title: 'T', templateMarkup: 'y' });
+  var blank = Settings.normalizeTemplate({ id: '   ', title: 'T', templateMarkup: 'y' });
+  assert.strictEqual(leer.id.indexOf('tpl-'), 0);
+  assert.strictEqual(blank.id.indexOf('tpl-'), 0);
 });
 test('fillPlaceholders ersetzt einen einzelnen Platzhalter', function () {
   assert.strictEqual(Settings.fillPlaceholders('h3. ${Titel}', { Titel: 'Login' }), 'h3. Login');
@@ -254,6 +289,19 @@ test('fillPlaceholders ersetzt mehrfache Vorkommen', function () {
 test('unbelegter Platzhalter faellt auf den Namen zurueck', function () {
   assert.strictEqual(Settings.fillPlaceholders('${Datum}', {}), 'Datum');
 });
+test('unbelegtes ${toString} liefert keinen Funktionsrumpf', function () {
+  assert.strictEqual(Settings.fillPlaceholders('${toString}', {}), 'toString');
+  assert.strictEqual(Settings.fillPlaceholders('${constructor}', {}), 'constructor');
+  assert.strictEqual(Settings.fillPlaceholders('${valueOf}', {}), 'valueOf');
+  assert.strictEqual(Settings.fillPlaceholders('${hasOwnProperty}', {}), 'hasOwnProperty');
+});
+test('unbelegter Platzhalter wird maskiert', function () {
+  assert.strictEqual(Settings.fillPlaceholders('${a|b}', {}), 'a\\|b');
+});
+test('numerischer Platzhalterwert 0 bleibt erhalten', function () {
+  assert.strictEqual(Settings.fillPlaceholders('N=${N}', { N: 0 }), 'N=0');
+  assert.strictEqual(Settings.fillPlaceholders('B=${B}', { B: false }), 'B=false');
+});
 test('escapeValue maskiert alle fuenf Sonderzeichen', function () {
   assert.strictEqual(Settings.escapeValue('a{b}c|d[e]'), 'a\\{b\\}c\\|d\\[e\\]');
 });
@@ -262,6 +310,12 @@ test('escapeValue entfernt Zeilenumbrueche', function () {
 });
 test('escapeValue maskiert den Backslash genau einmal', function () {
   assert.strictEqual(Settings.escapeValue('C:\\tmp'), 'C:\\\\tmp');
+});
+test('escapeValue behaelt falsy Werte wie 0 und false', function () {
+  assert.strictEqual(Settings.escapeValue(0), '0');
+  assert.strictEqual(Settings.escapeValue(false), 'false');
+  assert.strictEqual(Settings.escapeValue(undefined), '');
+  assert.strictEqual(Settings.escapeValue(null), '');
 });
 test('placeholdersInMarkup findet Namen ohne Duplikate', function () {
   assert.deepStrictEqual(Settings.placeholdersInMarkup('${A} ${B} ${A}'), ['A', 'B']);
@@ -285,6 +339,17 @@ async function withChromeStub(stub, fn) {
   }
 }
 
+/** Sammelt registrierte Listener, damit ein Test onChanged-Events simulieren kann. */
+function onChangedStub() {
+  var listeners = [];
+  return {
+    addListener: function (fn) { listeners.push(fn); },
+    trigger: function (changes, area) {
+      listeners.forEach(function (fn) { fn(changes, area); });
+    }
+  };
+}
+
 function storageStub(syncStore, localStore) {
   return {
     runtime: { lastError: null },
@@ -306,7 +371,8 @@ function storageStub(syncStore, localStore) {
           Object.assign(localStore, values);
           if (cb) cb();
         }
-      }
+      },
+      onChanged: onChangedStub()
     }
   };
 }
@@ -368,6 +434,44 @@ async function runStorageTests() {
     }
     assert.strictEqual(settings.convertOnPaste, true);
     assert.deepStrictEqual(settings.customTemplates, []);
+  });
+
+  await asyncTest('fehlender local-Bereich laesst sync trotzdem schreiben', async function () {
+    var syncStore = {};
+    var stub = storageStub(syncStore, {});
+    delete stub.storage.local;
+    await withChromeStub(stub, function () {
+      return Settings.save({ convertOnPaste: false, customTemplates: [{ title: 'T', templateMarkup: 'x' }] });
+    });
+    assert.strictEqual(syncStore.convertOnPaste, false);
+  });
+
+  await asyncTest('fehlender sync-Bereich laesst local trotzdem schreiben', async function () {
+    var localStore = {};
+    var stub = storageStub({}, localStore);
+    delete stub.storage.sync;
+    await withChromeStub(stub, function () {
+      return Settings.save({ customTemplates: [{ title: 'T', templateMarkup: 'x' }] });
+    });
+    assert.strictEqual(localStore.customTemplates.length, 1);
+  });
+
+  await asyncTest('zwei onChanged-Events pro save() loesen nur ein load() aus', async function () {
+    var stub = storageStub({}, {});
+    var calls = 0;
+    await withChromeStub(stub, function () {
+      return new Promise(function (resolve) {
+        Settings.onChange(function () {
+          calls++;
+        });
+        stub.storage.onChanged.trigger({}, 'sync');
+        stub.storage.onChanged.trigger({}, 'local');
+        setTimeout(function () {
+          assert.strictEqual(calls, 1);
+          resolve();
+        }, 20);
+      });
+    });
   });
 }
 
