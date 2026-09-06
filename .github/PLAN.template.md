@@ -67,6 +67,13 @@ PR 1, PR 3 auf PR 2 usw.). Lege den Plan als Markdown unter
 6. **Doku und Version** bilden den letzten Sub-Task (README, CHANGELOG,
    `CLAUDE.md` des Projekts, `docs/store/`, Version in `package.json` **und**
    `manifest.json` synchron).
+7. **Review-Prompt am Ende jeder Session:** Jeder Sub-Task endet nicht mit dem
+   Push. Die umsetzende Session gibt einen gebrauchsfertigen Review-Prompt fuer
+   ein staerkeres Modell aus - Auftrag woertlich: "Erstelle einen Review-Prompt
+   fuer Opus, der die Code-Aenderungen, deine Designentscheidungen, potenzielle
+   Edge Cases und 3-4 konkrete Pruefpunkte fuer diesen PR zusammenfasst."
+   Der Plan enthaelt dafuer einen eigenen Abschnitt mit der Ausgabeform (siehe
+   unten) und jeder Sub-Task nimmt ihn in seine Definition of Done auf.
 
 **Struktur fuer jeden Sub-Task im Plan**
 
@@ -84,9 +91,43 @@ PR 1, PR 3 auf PR 2 usw.). Lege den Plan als Markdown unter
   * [ ] `manifest.json` und `CONTENT_FILES` identisch (falls beruehrt)
   * [ ] Keine Umlaute, kein `console.log`
   * [ ] Commit und Push auf den Branch
+  * [ ] Review-Prompt fuer Opus ausgegeben
 * **Agent-Start-Prompt:** gebrauchsfertiger Prompt fuer die Session - nennt
   Repo, Projekt, die zu lesenden `CLAUDE.md`, Base Branch, Dateiliste,
-  Abgrenzung ("nichts darueber hinaus") und die Abschlussbefehle.
+  Abgrenzung ("nichts darueber hinaus"), die Abschlussbefehle und zuletzt die
+  Aufforderung, den Review-Prompt auszugeben.
+
+**Pflichtabschnitt im Plan: "Abschluss jeder Session: Review-Prompt fuer Opus"**
+
+Nimm diesen Abschnitt woertlich in den Plan auf, damit jede Session dieselbe
+Form liefert:
+
+```text
+Review von PR "<Titel>" (Branch <Branch>, Base <Base>).
+Projekt: <projekt>, MV3-Erweiterung, ES5 + UMD, keine Deps.
+
+Aenderungen
+- <Datei>: <was und warum, ein Satz>
+
+Designentscheidungen
+- <Entscheidung>: <verworfene Alternative und der Grund>
+
+Edge Cases, die ich bedacht habe
+- <Fall> -> <Verhalten>
+
+Bitte pruefe gezielt
+1. <konkreter Pruefpunkt mit Datei und Funktion>
+2. <...>
+3. <...>
+(4. <...>)
+
+Bekannte Luecken: <was bewusst offen blieb, oder "keine">
+```
+
+Regeln dafuer: selbsttragend (der Reviewer sieht den Chatverlauf nicht, jede
+Behauptung nennt Datei und Funktion), Pruefpunkte sind Fragen an den Code und
+keine Zusammenfassung, bekannte Luecken ehrlich benennen, kein Selbstlob,
+hoechstens 40 Zeilen, Ausgabe als ein einzelner Codeblock.
 
 **Abschluss des Plans**
 
