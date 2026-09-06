@@ -116,14 +116,18 @@ customTemplates: []
 
 ## Uebersicht der Sub-Tasks
 
-| # | Branch | Base | Ergebnis |
-| --- | --- | --- | --- |
-| 1 | `feature/issue-templates-part-1` | `main` | Schema, Validierung, Fuelllogik in `settings.js` |
-| 2 | `feature/issue-templates-part-2` | part-1 | CRUD-Oberflaeche in `options/` |
-| 3 | `feature/issue-templates-part-3` | part-2 | Dropdown "Vorlagen" in der Feldleiste |
-| 4 | `feature/issue-templates-part-4` | part-3 | Modal-Dialog fuer die Platzhalterwerte |
-| 5 | `feature/issue-templates-part-5` | part-4 | Cursor, Rich-Text-Pfad, Escaping haerten |
-| 6 | `feature/issue-templates-part-6` | part-5 | Doku, Changelog, Store-Unterlagen |
+Die `feature/...`-Namen aus der ersten Planfassung wurden nie benutzt - die
+Sub-Tasks laufen als `claude/...`-Branches und werden **einzeln nach `main`
+gemergt**. Base ist damit immer `main`, nicht der Vorgaengerbranch.
+
+| # | Branch | Base | Ergebnis | Stand |
+| --- | --- | --- | --- | --- |
+| 1 | `claude/ap-1-sub-task-1-tfabtt` | `main` | Schema, Validierung, Fuelllogik in `settings.js` | gemergt (PR #44) |
+| 2 | `claude/ap-1-sub-task-2` | `main` | CRUD-Oberflaeche in `options/` | gemergt (PR #48) |
+| 3 | `claude/issue-31-subtask-3-lm1ejx` | `main` | Dropdown "Vorlagen" in der Feldleiste | gemergt (PR #51) |
+| 4 | `claude/issue-31-subtask-4-<suffix>` | `main` | Modal-Dialog fuer die Platzhalterwerte | offen |
+| 5 | `claude/issue-31-subtask-5-<suffix>` | `main` | Cursor, Rich-Text-Pfad, Escaping haerten | offen |
+| 6 | `claude/issue-31-subtask-6-<suffix>` | `main` | Doku, Changelog, Store-Unterlagen | offen |
 
 ---
 
@@ -629,10 +633,52 @@ customTemplates: []
 
 ---
 
+## Stand nach Sub-Task 3 (gemergt, PR #51)
+
+Was in `main` liegt und in Sub-Task 4 und 5 **nicht** noch einmal gebaut oder
+versehentlich zurueckgedreht werden darf:
+
+* Das Panel-Menue ist zum generischen Dropdown verallgemeinert: `openMenu`,
+  `toggleMenu`, `menuItem`, `closeMenu`, `placeMenu`, `followMenuAnchor`,
+  `onMenuOutside`, `onMenuKey`, Signatur `options = { label, items, onPick }`.
+  Die alten `*TemplateMenu`-Namen gibt es nicht mehr.
+* Der Leisten-Button "Vorlagen" (`.jmd-fieldbar__btn--templates`) sitzt
+  zwischen "Panel" und "Editor" und ist ohne eigene Vorlagen `disabled`
+  (`showCustomTemplatesButton`, `updateFieldbarTemplateButtons`).
+* `customTemplateItems()`, `defaultValues()` und `insertCustomTemplate(field,
+  template, values)` stehen in `src/content.js`.
+* **Abweichung vom Plan:** Die Testhilfe `newPage()` in
+  `test/integration.test.js` verteilt `customTemplates` selbst nach
+  `window.__local`; `window.__settings` bekommt den Rest. Grund: `load()`
+  fuehrt sync und local per `Object.assign({}, sync, local)` zusammen, und
+  `LOCAL_DEFAULTS` bringt immer sein eigenes `customTemplates: []` mit, das
+  jeden sync-Wert ueberschreibt. Neue Tests geben `customTemplates` einfach
+  im Settings-Objekt an `newPage()` mit - die Aufteilung passiert dort.
+  `src/settings.js` bleibt dafuer unveraendert, die Aufteilung nach
+  `LOCAL_KEYS` ist eine bewusste Produktionszusage (8-KB-Limit von
+  `chrome.storage.sync`).
+* **Schritt 7 aus Sub-Task 3 wurde zurueckgenommen:** Die CSS-Variante
+  `.jmd-panelmenu__item--plain` existiert nicht mehr. Sie war wirkungslos -
+  ohne Farbtupfer hat der Menue-Eintrag nur ein Flex-Kind, es gibt keinen
+  `gap` zu kollabieren. Nicht wieder anlegen.
+* Aus dem Review vorgezogen (urspruenglich Sub-Task 5): `insertCustomTemplate`
+  markiert den ersten Platzhalter ueber
+  `Settings.fillPlaceholders('${' + first + '}', values || {})`, sucht also
+  den **maskierten** Wert. Diese Zeile nicht vereinfachen - `escapeValue`
+  maskiert `\ { } [ ] |`, ein unmaskierter Suchbegriff findet nichts.
+* Ebenfalls vorgezogen: fehlende Vorlage im `onPick`-Handler meldet
+  `toast('Vorlage nicht mehr vorhanden.', true)`, und `Settings.onChange` ruft
+  `closeMenu()`, damit ein offenes Menue nach einer Aenderung in einem zweiten
+  Tab nicht veraltet weiterlebt.
+
+Testbestand in `main`: converter 108, settings 61, package 30,
+integration 124.
+
+---
+
 ## Sub-Task 4: Modal-Dialog fuer die Platzhalterwerte
 
-* **Git Branch:** `feature/issue-templates-part-4`
-  (Base Branch: `feature/issue-templates-part-3`)
+* **Git Branch:** `claude/issue-31-subtask-4-<suffix>` (Base Branch: `main`)
 * **Scope / Ziel:** Eigenes UMD-Modul `src/templatedialog.js` nach dem Vorbild
   von `codedialog.js`: bis zu 5 Eingabefelder, Werte zurueck an den Aufrufer.
   Das Modul kennt weder Jira-Felder noch Einstellungen.
@@ -688,12 +734,23 @@ customTemplates: []
        return true; } })`.
      * `closeMenu()` vor dem Oeffnen des Dialogs aufrufen.
      * Das Feld vor dem Oeffnen ueber `Editors.rememberCaret(field)` merken.
+     * Den Toast `'Vorlage nicht mehr vorhanden.'` fuer `templateById(...) ===
+       null` beibehalten - er kam aus dem Review zu Sub-Task 3.
+     * `defaultValues()` wird durch den Dialog ueberfluessig und **ersatzlos
+       entfernt**; ohne Platzhalter geht `{}` an `insertCustomTemplate`, mit
+       Platzhaltern die Werte aus dem Dialog. Stehen lassen hiesse toter Code.
+     * Die Markierungszeile in `insertCustomTemplate`
+       (`Settings.fillPlaceholders('${' + first + '}', values || {})`) bleibt
+       unveraendert - sie sucht bewusst den maskierten Wert und trifft mit
+       echten Dialogeingaben erst recht.
   6. `test/package.test.js`: Ladereihenfolge-Test um `templatedialog.js`
      erweitern; die `innerHTML`-Regel um
      `'src/templatedialog.js': /DIALOG_HTML/` ergaenzen; Test, dass Manifest
      und `background.js` weiterhin dieselbe Dateiliste fuehren.
   7. `test/integration.test.js`: `SOURCES` um `src/templatedialog.js` an der
-     richtigen Position erweitern. Testfaelle:
+     richtigen Position erweitern. `customTemplates` wie bisher einfach im
+     Settings-Objekt an `newPage()` uebergeben - die Helferfunktion legt sie
+     selbst nach `window.__local`. Testfaelle:
      * Vorlage mit zwei Platzhaltern oeffnet den Dialog mit genau zwei
        Eingabefeldern und den richtigen Beschriftungen;
      * Vorlage mit fuenf Platzhaltern zeigt fuenf Felder;
@@ -725,8 +782,13 @@ customTemplates: []
   > `src/codedialog.js` als Vorbild - Aufbau, UMD-Kopf, `DIALOG_HTML`,
   > Fokusrueckgabe an `opener` - und weiche davon nicht ab.
   >
-  > Branch: `git fetch origin && git checkout -b feature/issue-templates-part-4
-  > origin/feature/issue-templates-part-3`.
+  > Lies zuerst den Abschnitt "Stand nach Sub-Task 3" im Plan - er haelt fest,
+  > was bereits in `main` liegt und nicht zurueckgedreht werden darf.
+  >
+  > Branch: `git fetch origin main && git checkout -b
+  > claude/issue-31-subtask-4-<suffix> origin/main`. Sub-Task 3 ist als PR #51
+  > nach `main` gemergt; die `feature/...`-Branches aus der ersten Planfassung
+  > existieren nicht.
   >
   > Setze **ausschliesslich Sub-Task 4** um: neues Modul
   > `src/templatedialog.js` (`JiraTemplateDialog`) fuer bis zu 5
@@ -747,8 +809,11 @@ customTemplates: []
   > Pruefe mit `npm run lint --prefix jira-markdown-converter` und
   > `npm test --prefix jira-markdown-converter`. Danach committen als
   > `feat(jira): dialog fuer platzhalterwerte`,
-  > `git push -u origin feature/issue-templates-part-4`, PR gegen
-  > `feature/issue-templates-part-3` anlegen und Ergebnis melden.
+  > `git push -u origin claude/issue-31-subtask-4-<suffix>`, PR gegen `main`
+  > anlegen und Ergebnis melden. Erwartung vor dem Push: Lint sauber und
+  > **alle vier** Testdateien gruen, Integrationstests eingeschlossen - laeuft
+  > `test/integration.test.js` in deiner Umgebung nicht, melde das, statt das
+  > Ergebnis ohne sie zu berichten.
   >
   > Zum Schluss, als **letzte Ausgabe** dieser Session: Erstelle einen
   > Review-Prompt fuer Opus, der die Code-Aenderungen, deine
@@ -763,8 +828,8 @@ customTemplates: []
 
 ## Sub-Task 5: Cursorposition, Rich-Text-Pfad und Escaping haerten
 
-* **Git Branch:** `feature/issue-templates-part-5`
-  (Base Branch: `feature/issue-templates-part-4`)
+* **Git Branch:** `claude/issue-31-subtask-5-<suffix>`
+  (Base Branch: `main`, nach dem Merge von Sub-Task 4)
 * **Scope / Ziel:** Der Weg vom Menue ueber den Dialog zurueck ins Feld
   verliert die Cursorposition nicht, der Rich-Text-Editor wird bedient, und
   Benutzereingaben koennen das Markup nicht zerlegen. Nur Haertung - keine
@@ -807,7 +872,8 @@ customTemplates: []
      nachbauen.
   6. Fehlerfaelle mit Toast, nicht still: kein Feld, `insertFormatted` liefert
      `false`, Vorlage inzwischen geloescht (`Settings.templateById` gibt
-     `null`).
+     `null`). **Der letzte Fall ist seit Sub-Task 3 erledigt** - nur pruefen,
+     nicht doppelt bauen.
   7. Tests in `test/settings.test.js`: Faelle fuer `!`-Maskierung und fuer
      Werte, die selbst wie ein Platzhalter aussehen
      (`fillPlaceholders('${A}', { A: '${B}' })` darf **nicht** rekursiv weiter
@@ -822,7 +888,10 @@ customTemplates: []
        schaltet um und fuegt Markup ein;
      * Rich-Text-Fixture ohne `switchToMarkup` fuegt Markup als Text ein und
        stuerzt nicht ab;
-     * Wert mit `{`, `|` und `[` landet maskiert im Feld.
+     * Wert mit `{`, `|` und `[` landet maskiert im Feld. Der verwandte Fall
+       "Platzhalter mit Sonderzeichen wird maskiert markiert" existiert
+       bereits seit Sub-Task 3 - hier geht es um den Dialogwert, nicht um den
+       Platzhalternamen.
   9. Pruefen: `npm run lint --prefix jira-markdown-converter`,
      `npm test --prefix jira-markdown-converter`.
 
@@ -851,8 +920,12 @@ customTemplates: []
   > den Umgang mit `switchToMarkup` und `focusPanelBody`; in `src/editors.js`
   > `rememberCaret`, `restoreCaret` und `insertIntoTextarea`.
   >
-  > Branch: `git fetch origin && git checkout -b feature/issue-templates-part-5
-  > origin/feature/issue-templates-part-4`.
+  > Lies zuerst den Abschnitt "Stand nach Sub-Task 3" im Plan.
+  >
+  > Branch: `git fetch origin main && git checkout -b
+  > claude/issue-31-subtask-5-<suffix> origin/main` (nachdem Sub-Task 4 nach
+  > `main` gemergt ist). Die `feature/...`-Branches aus der ersten Planfassung
+  > existieren nicht.
   >
   > Setze **ausschliesslich Sub-Task 5** um: Haertung der Einfuegestrecke fuer
   > eigene Vorlagen - Cursorposition ueber den Dialog hinweg halten,
@@ -867,8 +940,10 @@ customTemplates: []
   > Pruefe mit `npm run lint --prefix jira-markdown-converter` und
   > `npm test --prefix jira-markdown-converter`. Danach committen als
   > `fix(jira): vorlagen an der cursorposition und mit sicherem escaping
-  > einfuegen`, `git push -u origin feature/issue-templates-part-5`, PR gegen
-  > `feature/issue-templates-part-4` anlegen und Ergebnis melden.
+  > einfuegen`, `git push -u origin claude/issue-31-subtask-5-<suffix>`, PR
+  > gegen `main` anlegen und Ergebnis melden. Erwartung vor dem Push: Lint
+  > sauber und **alle vier** Testdateien gruen, Integrationstests
+  > eingeschlossen.
   >
   > Zum Schluss, als **letzte Ausgabe** dieser Session: Erstelle einen
   > Review-Prompt fuer Opus, der die Code-Aenderungen, deine
@@ -883,8 +958,8 @@ customTemplates: []
 
 ## Sub-Task 6: Dokumentation, Changelog und Store-Unterlagen
 
-* **Git Branch:** `feature/issue-templates-part-6`
-  (Base Branch: `feature/issue-templates-part-5`)
+* **Git Branch:** `claude/issue-31-subtask-6-<suffix>`
+  (Base Branch: `main`, nach dem Merge von Sub-Task 5)
 * **Scope / Ziel:** Das Feature nach aussen beschreiben. Kein Produktivcode.
 
 * **Dateiebene:**
@@ -945,8 +1020,10 @@ customTemplates: []
   > `.github/CI.md` und
   > `jira-markdown-converter/docs/plans/issue-31-vorlagen.md`.
   >
-  > Branch: `git fetch origin && git checkout -b feature/issue-templates-part-6
-  > origin/feature/issue-templates-part-5`.
+  > Branch: `git fetch origin main && git checkout -b
+  > claude/issue-31-subtask-6-<suffix> origin/main` (nachdem Sub-Task 5 nach
+  > `main` gemergt ist). Die `feature/...`-Branches aus der ersten Planfassung
+  > existieren nicht.
   >
   > Setze **ausschliesslich Sub-Task 6** um: Dokumentation des Features
   > "Eigene Vorlagen" in `README.md`, `CHANGELOG.md` (unter `## 1.3.0`),
@@ -964,8 +1041,8 @@ customTemplates: []
   > Pruefe mit `npm run lint --prefix jira-markdown-converter` und
   > `npm test --prefix jira-markdown-converter`. Danach committen als
   > `docs(jira): eigene vorlagen dokumentieren`,
-  > `git push -u origin feature/issue-templates-part-6`, PR gegen
-  > `feature/issue-templates-part-5` anlegen und Ergebnis melden.
+  > `git push -u origin claude/issue-31-subtask-6-<suffix>`, PR gegen `main`
+  > anlegen und Ergebnis melden.
   >
   > Zum Schluss, als **letzte Ausgabe** dieser Session: Erstelle einen
   > Review-Prompt fuer Opus, der die Code-Aenderungen, deine
