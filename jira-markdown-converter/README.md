@@ -25,6 +25,9 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    * *Code* – oeffnet den Dialog fuer einen Codeblock.
    * *Panel* – stellt vier farbige Panels zur Auswahl und fuegt das gewaehlte
      an der Cursorposition ein.
+   * *Vorlagen* – stellt die eigenen, in den Einstellungen angelegten
+     Vorlagen zur Auswahl und fuegt die gewaehlte an der Cursorposition ein.
+     Ohne eigene Vorlagen ist der Button abgeschaltet.
    * *Editor* – oeffnet das Eingabefeld mit Vorschau.
    * *Schloss* – zeigt an, dass das Feld im Bearbeitungsmodus festgehalten
      wird, und gibt es auf Klick wieder frei. Das Festhalten passiert von
@@ -160,6 +163,38 @@ Titel, Platzhalter und Farben stehen an einer Stelle – `PANEL_TEMPLATES` in
 `src/settings.js`. Die Ausgabe erzeugen `panelMarkup` und `panelHtml` in
 `src/converter.js` aus derselben Vorlage, damit Markup- und HTML-Zweig nicht
 auseinanderlaufen.
+
+## Eigene Vorlagen
+
+Ueber die Einstellungsseite lassen sich eigene Textbausteine anlegen: Titel,
+Markup und bis zu 5 Platzhalter je Vorlage. Ein Platzhalter steht im Markup
+als `${Name}`, zum Beispiel:
+
+```
+h3. ${Titel}
+
+{panel}${Beschreibung}{panel}
+```
+
+In der Buttonleiste am Feld holt der Button *Vorlagen* die eigenen Vorlagen
+ins Menue. Hat die gewaehlte Vorlage Platzhalter, oeffnet sich vorher ein
+kleiner Dialog mit einem Eingabefeld je Platzhalter (`Strg+Enter` fuegt ein,
+`Escape` schliesst ohne einzufuegen); ohne Platzhalter wird sofort
+eingefuegt. Ein unausgefuellter Platzhalter landet als sein eigener Name im
+Ticket, nie als `${...}`. Eingegebene Werte werden gegen das Jira-Markup
+gehaertet: `\`, `{`, `}`, `[`, `]` und `|` erscheinen maskiert, damit ein Wert
+kein Makro eroeffnet oder eine Tabellenzelle aufbricht.
+
+Zwei Einschraenkungen gehoeren dazu:
+
+* **Vorlagen bleiben auf diesem Geraet.** Anders als die uebrigen
+  Einstellungen liegen sie in `chrome.storage.local`, nicht in
+  `chrome.storage.sync`, und wandern darum nicht auf andere Geraete mit -
+  `chrome.storage.sync` fasst nur 8 KB je Eintrag, das waere schon nach
+  wenigen Vorlagen voll.
+* **Im Rich-Text-Editor kommt das Markup unformatiert an**, solange nicht auf
+  den Markup-Modus umgeschaltet wird - anders als bei formatiert eingefuegtem
+  Markdown gibt es zu einer freien Vorlage kein aequivalentes HTML.
 
 ## Bearbeitung einfrieren
 
@@ -357,6 +392,12 @@ Beschriftung (*Markup*, *Quelltext*, *Bearbeitungsmodus*, *Visual*, *Source*
 greift der Klick nicht, faellt die Erweiterung auf das formatierte Einfuegen
 zurueck - es geht also nichts verloren.
 
+**Einschraenkung:** landet der Text dabei am Anfang des Feldes statt an der
+Cursorposition, liegt das am Umschalten selbst - die Schreibflaeche wechselt
+vom Editor-Rahmen in die Textarea, und die dort gemerkte Auswahl laesst sich
+nicht auf das neue Feld uebertragen. Das gilt fuer Panel-Vorlagen genauso wie
+fuer eigene Vorlagen.
+
 ## Cursorposition
 
 Eingefuegt wird an der Stelle, an der die Schreibmarke zuletzt im Jira-Feld
@@ -430,6 +471,7 @@ jira-markdown-converter/
 │   ├── converter.js   Markdown -> Jira (ohne DOM, auch in Node nutzbar)
 │   ├── editors.js     Jira-Felder finden, lesen, beschreiben
 │   ├── codedialog.js  Dialog "Code einfuegen"
+│   ├── templatedialog.js  Dialog fuer Platzhalterwerte eigener Vorlagen
 │   ├── editlock.js    Bearbeitungsmodus einfrieren (Schloss)
 │   ├── content.js     Bedienelemente, Einfuege-Automatik
 │   ├── settings.js    gemeinsame Einstellungen

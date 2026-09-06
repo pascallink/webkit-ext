@@ -16,14 +16,13 @@ Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per
 - **ES5**: `var`, `'use strict'`, kein Bundler, keine Runtime-Deps.
 - **UMD-Pflicht** fuer wiederverwendbare Module (`module.exports` + Global):
   `JiraMarkdown`, `JiraMdSettings`, `JiraEditors`, `JiraCodeDialog`,
-  `JiraEditLock`. Ohne das Muster laden die Node-Tests das Modul nicht.
+  `JiraEditLock`, `JiraTemplateDialog` - sonst laden die Node-Tests das Modul nicht.
 - `converter.js` bleibt **DOM-frei** - reine Textumwandlung, laeuft in Node.
 - Drei Jira-Editorvarianten immer mitdenken: `<textarea>` (Server/DC),
   ProseMirror (Cloud), CodeMirror/Ace. Erkennung nur in `editors.js`.
 - Leere `catch`-Bloecke sind Absicht: Jira baut das DOM staendig um.
 - Neue Content-Script-Datei in `manifest.json` eintragen; Reihenfolge ist
-  abhaengigkeitsgetrieben: settings -> converter -> editors -> codedialog ->
-  editlock -> content.
+  abhaengigkeitsgetrieben: settings -> converter -> editors -> codedialog -> templatedialog -> editlock -> content.
 
 ## Struktur
 
@@ -33,7 +32,7 @@ Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per
 | `src/content.js` | Haupteinstieg im Tab (IIFE, Guard `__jiraMarkdownConverterLoaded`). |
 | `src/converter.js` | `markdownToJira()` - Kern der Umwandlung. |
 | `src/editors.js` | Felderkennung und Schreibzugriff. |
-| `src/codedialog.js`, `src/editlock.js` | Code-Dialog (umgeht den Parser); Inline-Bearbeitung offen halten. |
+| `src/codedialog.js`, `src/templatedialog.js`, `src/editlock.js` | Code-Dialog (umgeht den Parser); Dialog fuer Platzhalterwerte eigener Vorlagen; Inline-Bearbeitung offen halten. |
 | `src/settings.js` | Defaults + `chrome.storage` fuer alle Kontexte. |
 | `src/background.js` | Service-Worker: Shortcut, Kontextmenue, weitere Hosts. |
 | `popup/`, `options/`, `test/` | UI-Seiten bzw. Node-Runner (Fixtures in `test/fixtures/`). |

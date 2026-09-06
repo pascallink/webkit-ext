@@ -42,6 +42,9 @@ WHAT IT ADDS
   {code} block at the cursor. Code never passes through the Markdown parser.
 - A "Panel from template" menu: four coloured Jira panels (info, note, warning,
   default) at the press of a button, placeholder text selected afterwards.
+- Custom templates: your own text snippets with up to 5 placeholders, inserted
+  from the field's button bar - with a dialog for the values whenever the
+  template has placeholders.
 - Auto-convert on paste: text that looks like Markdown is converted while it is
   pasted. Ctrl+Z undoes it, and the automation can be switched off anywhere.
 - Freeze editing: the description field stays open while you edit it, so a
