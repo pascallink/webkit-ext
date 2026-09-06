@@ -2159,6 +2159,167 @@ async function run() {
     await page.close();
   });
 
+  console.log('\nEigene Vorlagen haerten');
+
+  await test('Vorlage fuegt an der zuletzt gesetzten Cursorposition ein', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-caret', title: 'Status', templateMarkup: 'Status: Erledigt', placeholders: [] }
+      ]
+    }, SERVER);
+    await page.fill('#description', 'oben\n\nunten');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(5, 5);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-caret"]');
+    assert.strictEqual(await page.inputValue('#description'), 'oben\nStatus: Erledigt\nunten');
+    await page.close();
+  });
+
+  await test('Vorlage ersetzt eine bestehende Auswahl', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-replace', title: 'Ersatz', templateMarkup: 'ERSATZ', placeholders: [] }
+      ]
+    }, SERVER);
+    await page.fill('#description', 'oben ALT unten');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(5, 8);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-replace"]');
+    assert.strictEqual(await page.inputValue('#description'), 'oben ERSATZ unten');
+    await page.close();
+  });
+
+  await test('Einzeilige Vorlage erzeugt keine zusaetzliche Leerzeile', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-oneline', title: 'Einzeiler', templateMarkup: 'MITTE', placeholders: [] }
+      ]
+    }, SERVER);
+    await page.fill('#description', 'AB');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(1, 1);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-oneline"]');
+    assert.strictEqual(await page.inputValue('#description'), 'AMITTEB');
+    await page.close();
+  });
+
+  await test('Listen-Vorlage bekommt trotz Cursor mitten in der Zeile eigene Zeilen', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-list', title: 'Liste', templateMarkup: '* Punkt eins', placeholders: [] }
+      ]
+    }, SERVER);
+    await page.fill('#description', 'AB');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(1, 1);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-list"]');
+    assert.strictEqual(await page.inputValue('#description'), 'A\n* Punkt eins\nB');
+    await page.close();
+  });
+
+  await test('Mehrzeilige Vorlage ohne Blockzeichen behaelt ihre Randumbrueche', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        {
+          id: 'tpl-multiline',
+          title: 'Mehrzeilig',
+          templateMarkup: 'Zeile eins\n{code}\nx\n{code}',
+          placeholders: []
+        }
+      ]
+    }, SERVER);
+    await page.fill('#description', 'AB');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(1, 1);
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-multiline"]');
+    assert.strictEqual(await page.inputValue('#description'), 'A\nZeile eins\n{code}\nx\n{code}\nB');
+    await page.close();
+  });
+
+  await test('Rich-Text mit switchToMarkup schaltet um und fuegt Markup ein', async function () {
+    var page = await newPage(browser, {
+      switchToMarkup: true,
+      customTemplates: [
+        { id: 'tpl-rte-switch', title: 'Status', templateMarkup: 'Status: Erledigt', placeholders: [] }
+      ]
+    }, RTE);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-rte-switch"]');
+    await page.waitForFunction(function () {
+      return window.__mode === 'markup';
+    }, null, { timeout: 4000 });
+    assert.strictEqual(await page.inputValue('#description'), 'Status: Erledigt');
+    var pastes = await page.evaluate(function () { return window.__pastes; });
+    assert.deepStrictEqual(pastes, [], 'es haette nichts im Rich-Text-Editor landen duerfen');
+    await page.close();
+  });
+
+  await test('Rich-Text ohne switchToMarkup fuegt Markup als Text ein', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-rte-plain', title: 'Status', templateMarkup: 'h3. Status: Erledigt', placeholders: [] }
+      ]
+    }, RTE);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-rte-plain"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var pastes = await page.evaluate(function () { return window.__pastes; });
+    assert.strictEqual(pastes[0].text.indexOf('Status: Erledigt') !== -1, true, 'Markup fehlt: ' + pastes[0].text);
+    assert.ok(!pastes[0].html, 'Rich-Text haette kein HTML bekommen duerfen');
+    assert.strictEqual(await page.evaluate(function () { return window.__mode; }), 'rich');
+    await page.close();
+  });
+
+  await test('Dialogwert mit Sonderzeichen landet maskiert im Feld', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-value-escape', title: 'Mit Wert', templateMarkup: 'h3. ${Wert}', placeholders: ['Wert'] }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-value-escape"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    await page.fill('[data-role="tpl-fields"] input[data-name="Wert"]', 'A{B}C|D[E]F');
+    await page.click('[data-tpl-action="insert"]');
+    assert.strictEqual(await page.inputValue('#description'), 'h3. A\\{B\\}C\\|D\\[E\\]F');
+    await page.close();
+  });
+
   await browser.close();
 
   console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');

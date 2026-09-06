@@ -320,6 +320,18 @@ test('escapeValue behaelt falsy Werte wie 0 und false', function () {
 test('placeholdersInMarkup findet Namen ohne Duplikate', function () {
   assert.deepStrictEqual(Settings.placeholdersInMarkup('${A} ${B} ${A}'), ['A', 'B']);
 });
+test('escapeValue laesst ein einzelnes Ausrufezeichen stehen', function () {
+  assert.strictEqual(Settings.escapeValue('Fertig!'), 'Fertig!');
+});
+test('escapeValue maskiert zwei oder mehr Ausrufezeichen', function () {
+  assert.strictEqual(Settings.escapeValue('!bild.png!'), '\\!bild.png\\!');
+  assert.strictEqual(Settings.escapeValue('!!!'), '\\!\\!\\!');
+});
+test('fillPlaceholders ersetzt nicht rekursiv', function () {
+  // Der Wert sieht selbst wie ein Platzhalter aus - das darf nicht zu einem
+  // zweiten Ersetzungsdurchlauf fuehren, sonst waere Nutzereingabe Markup.
+  assert.strictEqual(Settings.fillPlaceholders('${A}', { A: '${B}' }), '$\\{B\\}');
+});
 
 console.log('\nGeteilter Storage');
 

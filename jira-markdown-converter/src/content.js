@@ -934,6 +934,22 @@
     });
   }
 
+  /**
+   * Einzeilige Vorlagen sollen keine ungefragte Leerzeile erzeugen - 'block'
+   * ist nur noetig, wenn die Vorlage tatsaechlich mehrere Zeilen mitbringt
+   * oder ein Jira-Konstrukt eroeffnet, das nur am Zeilenanfang gilt:
+   * Blockmakro (z.B. {panel}), Ueberschrift, Tabellenzeile, Liste (Zeichen *
+   * oder # beliebig verschachtelt), Blockzitat (bq.) oder horizontale Linie
+   * (----).
+   * Blockhaftigkeit ist eine Eigenschaft der ganzen Vorlage, nicht nur ihres
+   * ersten Zeichens - eine mehrzeilige Vorlage ohne dieses erste Zeichen
+   * wuerde sonst ihre Randumbrueche verlieren.
+   */
+  function insertModeFor(markup) {
+    if (/\n/.test(markup)) return 'block';
+    return /^\s*(\{|h[1-6]\.|\||[*#]+\s|bq\.|----)/.test(markup) ? 'block' : 'insert';
+  }
+
   function insertCustomTemplate(field, template, values) {
     if (!field) {
       toast('Kein Jira-Eingabefeld gefunden.', true);
@@ -942,20 +958,37 @@
     target = field;
 
     var markup = Settings.fillPlaceholders(template.templateMarkup, values || {});
-    if (!Editors.insertFormatted(field, markup, null, 'block')) {
-      toast('Einfuegen nicht moeglich.', true);
-      return false;
-    }
+    var mode = insertModeFor(markup);
 
-    if (template.placeholders.length) {
-      var first = template.placeholders[0];
-      // Im Feld steht der maskierte Wert (escapeValue) - gesucht werden muss
-      // darum ebenso maskiert, sonst greift die Markierung bei \ { } [ ] | nicht.
-      var inserted = Settings.fillPlaceholders('${' + first + '}', values || {});
-      focusPanelBody(field, inserted);
-    }
-    toast('Vorlage "' + template.title + '" eingefuegt.');
-    return true;
+    var switching = !isPlainField(field) && settings.switchToMarkup &&
+      Editors.isRichTextActive(field)
+      ? Editors.switchToMarkup(field)
+      : Promise.resolve(false);
+
+    return switching.then(function (switched) {
+      // Weder umgeschaltet noch als Textfeld: das Markup kommt unformatiert an.
+      var stayedRich = !switched && Editors.isRichTextActive(field);
+
+      if (!Editors.insertFormatted(field, markup, null, mode)) {
+        toast('Einfuegen nicht moeglich.', true);
+        return false;
+      }
+
+      if (template.placeholders.length) {
+        var first = template.placeholders[0];
+        // Im Feld steht der maskierte Wert (escapeValue) - gesucht werden muss
+        // darum ebenso maskiert, sonst greift die Markierung bei \ { } [ ] | nicht.
+        var inserted = Settings.fillPlaceholders('${' + first + '}', values || {});
+        focusPanelBody(field, inserted);
+      }
+
+      if (stayedRich) {
+        toast('Vorlage als Markup eingefuegt - der Editor zeigt es unformatiert.', false);
+      } else {
+        toast('Vorlage "' + template.title + '" eingefuegt.');
+      }
+      return true;
+    });
   }
 
   /* ------------------------------------------------------------------ *

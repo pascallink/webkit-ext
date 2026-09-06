@@ -148,7 +148,10 @@
    * Haertet eine Platzhalter-Eingabe gegen das Jira-Markup: { und } starten
    * Makros, [ und ] Links, | trennt Tabellenzellen - alle fuenf werden mit
    * Backslash maskiert (Backslash zuerst, sonst maskiert der zweite Schritt
-   * seine eigene Maskierung erneut).
+   * seine eigene Maskierung erneut). Fuehrende Zeichen, die Jira am
+   * Zeilenanfang als Liste oder Ueberschrift liest (*, #, h1. ...), bleiben
+   * unmaskiert - Platzhalterwerte landen immer einzeilig mitten im Markup,
+   * nie am Zeilenanfang.
    */
   function escapeValue(value) {
     var text = value === undefined || value === null ? '' : String(value);
@@ -159,6 +162,11 @@
     text = text.replace(/\[/g, '\\[');
     text = text.replace(/\]/g, '\\]');
     text = text.replace(/\|/g, '\\|');
+    // Erst ein zweites ! macht aus "!bild.png!" ein Jira-Bild - ein
+    // einzelnes ! (z.B. in einem Ausruf) ist unkritisch und bleibt stehen.
+    if ((text.match(/!/g) || []).length > 1) {
+      text = text.replace(/!/g, '\\!');
+    }
     return text;
   }
 
