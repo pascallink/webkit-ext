@@ -12,6 +12,7 @@
   var Editors = window.JiraEditors;
   var Settings = window.JiraMdSettings;
   var CodeDialog = window.JiraCodeDialog;
+  var TemplateDialog = window.JiraTemplateDialog;
   var EditLock = window.JiraEditLock;
 
   var settings = Settings.DEFAULTS;
@@ -917,10 +918,9 @@
    * Eigene Vorlagen einfuegen
    *
    * Die Vorlagen (Titel, Markup, Platzhalter) stehen in
-   * settings.customTemplates. Ein Platzhalter-Dialog kommt erst in
-   * Sub-Task 4 - bis dahin liefert defaultValues() jeden Platzhalternamen
-   * als seinen eigenen Wert, sodass nach dem Einfuegen nie "${...}" stehen
-   * bleibt.
+   * settings.customTemplates. Vorlagen ohne Platzhalter werden sofort
+   * eingefuegt, Vorlagen mit Platzhaltern holen die Werte ueber
+   * TemplateDialog.
    * ------------------------------------------------------------------ */
 
   function customTemplateItems() {
@@ -934,26 +934,17 @@
     });
   }
 
-  /** Bildet jeden Platzhalternamen auf sich selbst ab - Platzhalter fuer den Dialog aus Sub-Task 4. */
-  function defaultValues(template) {
-    var values = {};
-    template.placeholders.forEach(function (name) {
-      values[name] = name;
-    });
-    return values;
-  }
-
   function insertCustomTemplate(field, template, values) {
     if (!field) {
       toast('Kein Jira-Eingabefeld gefunden.', true);
-      return;
+      return false;
     }
     target = field;
 
     var markup = Settings.fillPlaceholders(template.templateMarkup, values || {});
     if (!Editors.insertFormatted(field, markup, null, 'block')) {
       toast('Einfuegen nicht moeglich.', true);
-      return;
+      return false;
     }
 
     if (template.placeholders.length) {
@@ -964,6 +955,7 @@
       focusPanelBody(field, inserted);
     }
     toast('Vorlage "' + template.title + '" eingefuegt.');
+    return true;
   }
 
   /* ------------------------------------------------------------------ *
@@ -1141,7 +1133,27 @@
             toast('Vorlage nicht mehr vorhanden.', true);
             return;
           }
-          insertCustomTemplate(field, tpl, defaultValues(tpl));
+          if (!tpl.placeholders.length) {
+            insertCustomTemplate(field, tpl, {});
+            return;
+          }
+          Editors.rememberCaret(field);
+          // Redundant, da menuItem() das Menue schon vor onPick() schliesst -
+          // bleibt als Absicherung stehen, falls sich das dort mal aendert.
+          closeMenu();
+          TemplateDialog.open({
+            title: tpl.title,
+            placeholders: tpl.placeholders,
+            target: Editors.describe(field),
+            // closeMenu() hat den Fokus bereits auf <body> zurueckfallen
+            // lassen (das fokussierte Menue-Element ist schon entfernt) -
+            // ohne diese explizite Angabe wuesste der Dialog beim Schliessen
+            // nicht mehr, wohin der Fokus zurueck soll.
+            opener: customButton,
+            onInsert: function (values) {
+              return insertCustomTemplate(field, tpl, values);
+            }
+          });
         }
       });
     });

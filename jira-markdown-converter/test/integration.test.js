@@ -75,7 +75,7 @@ var CHROME_STUB = [
 ].join('\n');
 
 var SOURCES = ['src/settings.js', 'src/converter.js', 'src/editors.js', 'src/codedialog.js',
-  'src/editlock.js', 'src/content.js'];
+  'src/templatedialog.js', 'src/editlock.js', 'src/content.js'];
 var STYLES = ['src/content.css', 'src/codedialog.css'];
 
 function readSource(file) {
@@ -1914,6 +1914,7 @@ async function run() {
 
   console.log('\nEigene Vorlagen in der Feldleiste');
   var TEMPLATES_BUTTON = '.jmd-fieldbar__btn--templates';
+  var TEMPLATE_DIALOG = '.jmd-dialog[data-jmd-ui="template-dialog"]';
 
   await test('ohne Vorlagen ist der Button deaktiviert', async function () {
     var page = await newPage(browser, null, SERVER);
@@ -1954,10 +1955,12 @@ async function run() {
     await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
     await page.click('.jmd-panelmenu__item[data-template="tpl-plain"]');
     assert.strictEqual(await page.inputValue('#description'), 'h3. Fixer Text');
+    assert.strictEqual(await page.locator(TEMPLATE_DIALOG + '.jmd-dialog--open').count(), 0,
+      'Vorlage ohne Platzhalter hat den Dialog geoeffnet');
     await page.close();
   });
 
-  await test('Vorlage mit Platzhaltern schreibt Markup ohne ${', async function () {
+  await test('Vorlage mit Platzhaltern schreibt Markup ohne ${ nach dem Dialog', async function () {
     var page = await newPage(browser, {
       customTemplates: [
         {
@@ -1971,13 +1974,17 @@ async function run() {
     await page.waitForSelector('.jmd-fieldbar');
     await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
     await page.click('.jmd-panelmenu__item[data-template="tpl-ph"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    await page.fill('[data-role="tpl-fields"] input[data-name="Titel"]', 'Titel');
+    await page.fill('[data-role="tpl-fields"] input[data-name="Beschreibung"]', 'Beschreibung');
+    await page.click('[data-tpl-action="insert"]');
     var value = await page.inputValue('#description');
     assert.strictEqual(value, 'h3. Titel\nBeschreibung');
     assert.ok(value.indexOf('${') === -1, 'Platzhalter ist unersetzt geblieben: ' + value);
     await page.close();
   });
 
-  await test('Platzhalter mit Sonderzeichen wird maskiert markiert', async function () {
+  await test('Platzhalter mit Sonderzeichen wird nach dem Dialog maskiert markiert', async function () {
     var page = await newPage(browser, {
       customTemplates: [
         {
@@ -1991,6 +1998,9 @@ async function run() {
     await page.waitForSelector('.jmd-fieldbar');
     await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
     await page.click('.jmd-panelmenu__item[data-template="tpl-special"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    await page.fill('[data-role="tpl-fields"] input[data-name="Modul [Bereich]"]', 'Modul [Bereich]');
+    await page.click('[data-tpl-action="insert"]');
     var selection = await page.evaluate(function () {
       var field = document.querySelector('#description');
       return {
@@ -2019,6 +2029,133 @@ async function run() {
     await page.waitForSelector('.jmd-panelmenu');
     await button.click();
     assert.strictEqual(await page.locator('.jmd-panelmenu').count(), 0, 'zweiter Klick hat nicht geschlossen');
+    await page.close();
+  });
+
+  console.log('\nPlatzhalter-Dialog');
+
+  await test('Vorlage mit zwei Platzhaltern oeffnet den Dialog mit zwei Feldern', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        {
+          id: 'tpl-two',
+          title: 'Bug-Report',
+          templateMarkup: 'h3. ${Titel}\n${Beschreibung}',
+          placeholders: ['Titel', 'Beschreibung']
+        }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-two"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    var labels = await page.evaluate(function () {
+      return Array.prototype.map.call(document.querySelectorAll('[data-role="tpl-fields"] label'), function (label) {
+        return label.textContent;
+      });
+    });
+    assert.deepStrictEqual(labels, ['Titel', 'Beschreibung']);
+    assert.strictEqual(await page.locator('[data-role="tpl-fields"] input').count(), 2);
+    await page.close();
+  });
+
+  await test('Vorlage mit fuenf Platzhaltern zeigt fuenf Felder', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        {
+          id: 'tpl-five',
+          title: 'Viele Platzhalter',
+          templateMarkup: '${A} ${B} ${C} ${D} ${E}',
+          placeholders: ['A', 'B', 'C', 'D', 'E']
+        }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-five"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    assert.strictEqual(await page.locator('[data-role="tpl-fields"] input').count(), 5);
+    await page.close();
+  });
+
+  await test('Eingabe und "Einfuegen" schreibt die Werte ins Feld', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        {
+          id: 'tpl-insert',
+          title: 'Bug-Report',
+          templateMarkup: 'h3. ${Titel}\n${Beschreibung}',
+          placeholders: ['Titel', 'Beschreibung']
+        }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-insert"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    await page.fill('[data-role="tpl-fields"] input[data-name="Titel"]', 'Login schlaegt fehl');
+    await page.fill('[data-role="tpl-fields"] input[data-name="Beschreibung"]', 'Fehler nach dem Absenden');
+    await page.click('[data-tpl-action="insert"]');
+    assert.strictEqual(await page.locator(TEMPLATE_DIALOG + '.jmd-dialog--open').count(), 0);
+    var value = await page.inputValue('#description');
+    assert.strictEqual(value, 'h3. Login schlaegt fehl\nFehler nach dem Absenden');
+    var focusedId = await page.evaluate(function () {
+      return document.activeElement && document.activeElement.id;
+    });
+    assert.strictEqual(focusedId, 'description', 'Fokus liegt nach dem Einfuegen nicht mehr im Zielfeld');
+    await page.close();
+  });
+
+  await test('Escape schliesst den Dialog ohne einzufuegen', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-escape', title: 'Bug-Report', templateMarkup: 'h3. ${Titel}', placeholders: ['Titel'] }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-escape"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    await page.keyboard.press('Escape');
+    assert.strictEqual(await page.locator(TEMPLATE_DIALOG + '.jmd-dialog--open').count(), 0);
+    assert.strictEqual(await page.inputValue('#description'), '');
+    await page.close();
+  });
+
+  await test('Escape gibt den Fokus an den Vorlagen-Button zurueck', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-escape-focus', title: 'Bug-Report', templateMarkup: 'h3. ${Titel}', placeholders: ['Titel'] }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-escape-focus"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    await page.keyboard.press('Escape');
+    var focusReturned = await page.evaluate(function () {
+      var bar = document.querySelectorAll('.jmd-fieldbar')[0];
+      var button = bar.querySelector('.jmd-fieldbar__btn--templates');
+      return document.activeElement === button;
+    });
+    assert.strictEqual(focusReturned, true, 'Fokus ist nach Escape nicht auf den Vorlagen-Button zurueckgekehrt');
+    await page.close();
+  });
+
+  await test('Strg+Enter fuegt die Vorlage ein', async function () {
+    var page = await newPage(browser, {
+      customTemplates: [
+        { id: 'tpl-ctrl-enter', title: 'Bug-Report', templateMarkup: 'h3. ${Titel}', placeholders: ['Titel'] }
+      ]
+    }, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.locator('.jmd-fieldbar').first().locator(TEMPLATES_BUTTON).click();
+    await page.click('.jmd-panelmenu__item[data-template="tpl-ctrl-enter"]');
+    await page.waitForSelector(TEMPLATE_DIALOG + '.jmd-dialog--open');
+    await page.fill('[data-role="tpl-fields"] input[data-name="Titel"]', 'Schnelltest');
+    await page.keyboard.press('Control+Enter');
+    assert.strictEqual(await page.locator(TEMPLATE_DIALOG + '.jmd-dialog--open').count(), 0);
+    assert.strictEqual(await page.inputValue('#description'), 'h3. Schnelltest');
     await page.close();
   });
 

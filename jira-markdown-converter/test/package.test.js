@@ -99,6 +99,8 @@ test('Content-Script laedt Abhaengigkeiten in richtiger Reihenfolge', function (
   assert.ok(js.indexOf('src/converter.js') < js.indexOf('src/codedialog.js'), 'converter vor codedialog');
   assert.ok(js.indexOf('src/editlock.js') < js.indexOf('src/content.js'), 'editlock vor content');
   assert.ok(js.indexOf('src/editors.js') < js.indexOf('src/editlock.js'), 'editors vor editlock');
+  assert.ok(js.indexOf('src/codedialog.js') < js.indexOf('src/templatedialog.js'), 'codedialog vor templatedialog');
+  assert.ok(js.indexOf('src/templatedialog.js') < js.indexOf('src/editlock.js'), 'templatedialog vor editlock');
 });
 
 test('Popup und Optionsseite vorhanden', function () {
@@ -191,14 +193,18 @@ test('Content-Dateien im Service-Worker stimmen mit dem Manifest ueberein', func
 
 console.log('\nQuellcode');
 test('keine console-Ausgaben im Auslieferungscode', function () {
-  ['src/content.js', 'src/editors.js', 'src/converter.js', 'src/codedialog.js', 'src/editlock.js', 'src/settings.js', 'src/background.js'].forEach(function (file) {
+  ['src/content.js', 'src/editors.js', 'src/converter.js', 'src/codedialog.js', 'src/templatedialog.js', 'src/editlock.js', 'src/settings.js', 'src/background.js'].forEach(function (file) {
     var source = fs.readFileSync(abs(file), 'utf8');
     assert.ok(!/console\.(log|debug|info)\(/.test(source), file + ' enthaelt console-Ausgaben');
   });
 });
 
 test('kein innerHTML mit Fremddaten', function () {
-  var templates = { 'src/content.js': /PANEL_HTML/, 'src/codedialog.js': /DIALOG_HTML/ };
+  var templates = {
+    'src/content.js': /PANEL_HTML/,
+    'src/codedialog.js': /DIALOG_HTML/,
+    'src/templatedialog.js': /DIALOG_HTML/
+  };
   Object.keys(templates).forEach(function (file) {
     var source = fs.readFileSync(abs(file), 'utf8');
     var matches = source.match(/\.innerHTML\s*=\s*([^;]+);/g) || [];
@@ -300,7 +306,7 @@ test('customTemplates liegt in LOCAL_KEYS', function () {
 test('kein nachgeladener Code im Paket', function () {
   // Harter Ablehnungsgrund im Store: Code, der nicht im Paket liegt.
   ['src/content.js', 'src/editors.js', 'src/converter.js', 'src/codedialog.js',
-    'src/editlock.js', 'src/settings.js', 'src/background.js',
+    'src/templatedialog.js', 'src/editlock.js', 'src/settings.js', 'src/background.js',
     'popup/popup.js', 'options/options.js'].forEach(function (file) {
     var source = fs.readFileSync(abs(file), 'utf8');
     assert.ok(!/(^|[^.\w])eval\s*\(/.test(source), file + ' benutzt eval()');
