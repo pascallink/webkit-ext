@@ -12,6 +12,7 @@
   var Editors = window.JiraEditors;
   var Settings = window.JiraMdSettings;
   var CodeDialog = window.JiraCodeDialog;
+  var TemplateDialog = window.JiraTemplateDialog;
   var EditLock = window.JiraEditLock;
 
   var settings = Settings.DEFAULTS;
@@ -917,10 +918,9 @@
    * Eigene Vorlagen einfuegen
    *
    * Die Vorlagen (Titel, Markup, Platzhalter) stehen in
-   * settings.customTemplates. Ein Platzhalter-Dialog kommt erst in
-   * Sub-Task 4 - bis dahin liefert defaultValues() jeden Platzhalternamen
-   * als seinen eigenen Wert, sodass nach dem Einfuegen nie "${...}" stehen
-   * bleibt.
+   * settings.customTemplates. Vorlagen ohne Platzhalter werden sofort
+   * eingefuegt, Vorlagen mit Platzhaltern holen die Werte ueber
+   * TemplateDialog.
    * ------------------------------------------------------------------ */
 
   function customTemplateItems() {
@@ -932,15 +932,6 @@
         hint: 'Vorlage einfuegen' + (count ? ' (' + count + ' Platzhalter)' : '')
       };
     });
-  }
-
-  /** Bildet jeden Platzhalternamen auf sich selbst ab - Platzhalter fuer den Dialog aus Sub-Task 4. */
-  function defaultValues(template) {
-    var values = {};
-    template.placeholders.forEach(function (name) {
-      values[name] = name;
-    });
-    return values;
   }
 
   function insertCustomTemplate(field, template, values) {
@@ -1141,7 +1132,21 @@
             toast('Vorlage nicht mehr vorhanden.', true);
             return;
           }
-          insertCustomTemplate(field, tpl, defaultValues(tpl));
+          if (!tpl.placeholders.length) {
+            insertCustomTemplate(field, tpl, {});
+            return;
+          }
+          Editors.rememberCaret(field);
+          closeMenu();
+          TemplateDialog.open({
+            title: tpl.title,
+            placeholders: tpl.placeholders,
+            target: Editors.describe(field),
+            onInsert: function (values) {
+              insertCustomTemplate(field, tpl, values);
+              return true;
+            }
+          });
         }
       });
     });
