@@ -56,12 +56,24 @@ Stand jetzt in Benutzung: `checkout@v5`, `setup-node@v5`,
 
 ## Hinweis fuer Claude
 
-Bei einem fehlgeschlagenen CI-Lauf im PR **nicht** die Workflow-Runs pollen und
-nicht mit `sleep` auf Ergebnisse warten. `ai-build-checker.yml` postet die
-Fehleranalyse samt Log-Auszug von selbst als PR-Kommentar; das vollstaendige
-Log haengt am Lauf. Lies den Kommentar, statt den Lauf zu beobachten.
+**Ein gepushter PR ist erledigt.** Der Auftrag endet mit dem Push und der
+Meldung, was drin ist. Danach:
 
-Das entbindet nicht von der Arbeit: Ein roter PR bleibt zu reparieren, und die
-Analyse ist vom Modell erzeugt und ungeprueft - sie ist ein Hinweis auf die
-Ursache, kein Nachweis. Vor dem Push weiterhin `npm run lint --prefix <projekt>`
-und `npm test --prefix <projekt>` laufen lassen.
+- keine Workflow-Runs pollen, kein `sleep`, keine Selbst-Termine, kein
+  Abonnieren von PR-Ereignissen;
+- nicht fragen, ob du den PR beobachten, CI reparieren oder auf Review-
+  Kommentare antworten sollst. Die Frage kostet Token und die Antwort ist
+  immer dieselbe.
+
+Pascal liest den PR selbst und kommt aktiv zurueck, wenn etwas zu tun ist.
+Erst dann wird gearbeitet - und nur an dem, was er nennt.
+
+Kommt er wegen eines roten Laufs zurueck: `ai-build-checker.yml` hat die
+Fehleranalyse samt Log-Auszug bereits als PR-Kommentar hinterlegt, das
+vollstaendige Log haengt am Lauf. Den Kommentar lesen, statt den Lauf zu
+beobachten. Die Analyse ist vom Modell erzeugt und ungeprueft - ein Hinweis auf
+die Ursache, kein Nachweis.
+
+Was das nicht aufweicht: Vor jedem Push `npm run lint --prefix <projekt>` und
+`npm test --prefix <projekt>` laufen lassen. Gruen wird vor dem Push
+hergestellt, nicht danach.

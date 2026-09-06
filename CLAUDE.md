@@ -38,7 +38,9 @@ kein Workspace-Root, keine gemeinsamen Dependencies. Jeder Top-Level-Ordner mit
 - Release: Versionen synchron (hebt die CI, nicht die Hand), `CHANGELOG.md` + `README.md` pflegen, gruen nach `main`.
 - Store-Einreichung: Unterlagen je Projekt unter `<projekt>/docs/store/`,
   Datenschutz (`PRIVACY.md`) und Lizenz (`LICENSE`) liegen im Root.
-- Roter CI-Lauf: nicht pollen, nicht mit `sleep` warten - die Analyse kommt als PR-Kommentar. Siehe `.github/CI.md`.
+- Nach dem Push endet die Arbeit: PR anlegen, Ergebnis melden, fertig. Nicht
+  beobachten, nicht nachfassen, nicht anbieten es zu tun - Pascal kommt aktiv
+  zurueck, wenn etwas ansteht. Siehe `.github/CI.md`.
 
 ## Commit-Konventionen
 
