@@ -703,7 +703,7 @@
     document.body.appendChild(node);
     menu = node;
     anchorButton.setAttribute('aria-expanded', 'true');
-    placeMenu(menu, anchorButton);
+    placeMenu(node, anchorButton);
 
     document.addEventListener('mousedown', onMenuOutside, true);
     document.addEventListener('keydown', onMenuKey, true);
@@ -712,7 +712,7 @@
     window.addEventListener('scroll', followMenuAnchor, true);
     window.addEventListener('resize', followMenuAnchor, true);
 
-    var first = menu.querySelector('.jmd-panelmenu__item');
+    var first = node.querySelector('.jmd-panelmenu__item');
     // Ohne preventScroll wuerde der Fokus die Seite verschieben - und damit
     // das eben erst gesetzte Menue.
     if (first) first.focus({ preventScroll: true });
@@ -736,8 +736,6 @@
       swatch.className = 'jmd-panelmenu__swatch';
       swatch.setAttribute('aria-hidden', 'true');
       item.appendChild(swatch);
-    } else {
-      item.className += ' jmd-panelmenu__item--plain';
     }
 
     var caption = document.createElement('span');
