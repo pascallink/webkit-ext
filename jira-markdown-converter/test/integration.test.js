@@ -1810,6 +1810,9 @@ async function run() {
     assert.strictEqual(await page.locator('.tpl-item').count(), 1);
     var title = await page.locator('.tpl-item__title').innerText();
     assert.strictEqual(title, 'Bug-Report');
+    // Leer gelassene Platzhalterliste ist "keine Reihenfolge vorgegeben",
+    // nicht "unvollstaendig" - darf keinen Hinweis ausloesen.
+    assert.strictEqual(await page.locator('#tplError').innerText(), '');
     await page.close();
   });
 

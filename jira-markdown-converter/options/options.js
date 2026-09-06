@@ -126,18 +126,27 @@
     return '';
   }
 
-  /** Hinweis (nicht blockierend), wenn Markup und Platzhalterliste auseinanderlaufen. */
+  /**
+   * Hinweis (nicht blockierend), wenn Markup und Platzhalterliste
+   * auseinanderlaufen. Die Liste ist nur ein Reihenfolge-Hinweis fuer den
+   * Dialog (normalizePlaceholders() in src/settings.js leitet die Namen
+   * ohnehin aus dem Markup ab) - eine leer gelassene Liste heisst "keine
+   * Reihenfolge vorgegeben", nicht "unvollstaendig", und bekommt darum
+   * keinen Hinweis auf fehlende Namen.
+   */
   function placeholderWarning(entry) {
     var markupNames = Settings.placeholdersInMarkup(entry.templateMarkup);
     var hintSet = Object.create(null);
     entry.placeholders.forEach(function (name) {
       hintSet[name] = true;
     });
-    var missing = markupNames.filter(function (name) {
-      return !hintSet[name];
-    });
-    if (missing.length) {
-      return 'Im Markup steht ${' + missing[0] + '}, das nicht in der Platzhalterliste steht.';
+    if (entry.placeholders.length) {
+      var missing = markupNames.filter(function (name) {
+        return !hintSet[name];
+      });
+      if (missing.length) {
+        return 'Im Markup steht ${' + missing[0] + '}, das nicht in der Platzhalterliste steht.';
+      }
     }
     var markupSet = Object.create(null);
     markupNames.forEach(function (name) {
