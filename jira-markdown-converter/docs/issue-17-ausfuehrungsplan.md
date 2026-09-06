@@ -200,6 +200,12 @@ git push -u origin feature/issue-17-part-1 pushen. PR gegen main anlegen.
      * `click(element)` - `focus()` plus echter `MouseEvent('click', { bubbles: true })`.
      * `visible(element)` - `offsetParent !== null` oder Rechteck > 0.
      * `delay(ms)` -> `Promise`.
+  1b. **Liegt ein DOM-Auszug aus der echten Instanz vor** (Vorgehen:
+     [`docs/dom-auszug.md`](dom-auszug.md)), leite die Fixture daraus ab: Tags,
+     `id`, Klassen und `data-*` eins zu eins uebernehmen, Texte und Inhalte
+     erfinden. Der Auszug selbst wird **nicht** eingecheckt. Ohne Auszug gelten
+     die unten genannten Selektoren als Annahme - dann in Sub-Task 3 auf die
+     Fallback-Ebene achten.
   2. `test/fixtures/mock-jira-otrs.html` bauen: eine nachgestellte
      Jira-Server-9.12-Vorgangsseite, deren Dialoge **verzoegert per
      `setTimeout` (120 ms)** ins DOM kommen - das ist der Punkt, an dem
@@ -675,7 +681,7 @@ git push -u origin feature/issue-17-part-6, PR gegen feature/issue-17-part-5.
 
 | Punkt | Bewertung |
 | --- | --- |
-| Die AUI-Selektoren stammen aus der Fixture, nicht aus einer echten Jira-9.12-Instanz. | Groesstes Risiko. Die Fallback-Ebene aus Sub-Task 3 federt es ab, ein manueller Test gegen eine echte Instanz bleibt noetig. |
+| Die AUI-Selektoren sind Annahmen, solange kein DOM-Auszug aus einer echten Jira-9.12-Instanz vorliegt. | Groesstes Risiko - und das billigste zu beseitigen: ein Auszug nach [`docs/dom-auszug.md`](dom-auszug.md) vor Sub-Task 2 macht die Fixture belastbar. Bis dahin traegt die Fallback-Ebene aus Sub-Task 3; ein manueller Test gegen die echte Instanz bleibt vor dem Release noetig. |
 | Custom-Field-ID (`customfield_11000`) ist instanzabhaengig. | Deshalb sucht der Ablauf ueber den Feldnamen, und der Name ist ueber `otrsFieldName` einstellbar. |
 | Quick-Search (`.`) trifft je nach Sprache der Jira-Oberflaeche andere Eintraege. | Der Feldname kommt aus den Einstellungen; der DOM-Fallback laeuft ohne Quick-Search. |
 | `support.inxire.com` und die Jira-Server-Hosts sind nicht im Manifest. | Absicht - die bestehende Mechanik `extraHosts` plus `optional_host_permissions` deckt das ab, ohne die Store-Pruefung zu belasten. |
