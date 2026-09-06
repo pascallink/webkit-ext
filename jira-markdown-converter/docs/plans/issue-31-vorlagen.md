@@ -980,6 +980,12 @@ integration 124.
        Grund in einem Halbsatz: der Sync-Speicher fasst nur 8 KB je Eintrag.
      * Im Rich-Text-Editor kommt das Markup unformatiert an, solange nicht auf
        den Markup-Modus umgeschaltet wird.
+     * Ist das Umschalten auf den Markup-Modus eingeschaltet, landet der Text
+       am Anfang des Feldes, nicht an der Cursorposition. Grund in einem
+       Halbsatz: beim Umschalten wechselt die Schreibflaeche vom Editor-Rahmen
+       in die Textarea, und die dort gemerkte Auswahl laesst sich nicht
+       uebertragen. Gilt genauso fuer die mitgelieferten Panel-Vorlagen -
+       darum allgemein formulieren, nicht nur auf eigene Vorlagen bezogen.
      Keine neuen Bildverweise - `test/package.test.js` prueft, dass jedes
      referenzierte Bild existiert.
   2. `CHANGELOG.md`: Eintrag unter der naechsten Minor-Version
@@ -1002,6 +1008,8 @@ integration 124.
 * **Definition of Done:**
   * [ ] README beschreibt Vorlagen, `${Name}`-Syntax, 5er-Grenze, die
         Rich-Text-Einschraenkung und die geraetelokale Ablage.
+  * [ ] README nennt, dass mit eingeschaltetem Umschalten auf den Markup-Modus
+        am Feldanfang statt an der Cursorposition eingefuegt wird.
   * [ ] `docs/store/permissions.md` nennt den lokalen Vorlagenspeicher, ohne
         neue Berechtigungen zu behaupten.
   * [ ] CHANGELOG-Eintrag unter `## 1.3.0` vorhanden.
@@ -1029,9 +1037,11 @@ integration 124.
   > "Eigene Vorlagen" in `README.md`, `CHANGELOG.md` (unter `## 1.3.0`),
   > `CLAUDE.md` (Strukturtabelle und UMD-Liste, Datei bleibt unter 40 Zeilen)
   > sowie `docs/store/listing-de.md`, `listing-en.md` und
-  > `docs/store/permissions.md`. Zwei Punkte muessen im README stehen: Vorlagen
-  > liegen nur auf diesem Geraet (`chrome.storage.local`), und im
-  > Rich-Text-Editor kommt Markup ohne Umschalten unformatiert an. Kein
+  > `docs/store/permissions.md`. Drei Punkte muessen im README stehen:
+  > Vorlagen liegen nur auf diesem Geraet (`chrome.storage.local`), im
+  > Rich-Text-Editor kommt Markup ohne Umschalten unformatiert an, und mit
+  > eingeschaltetem Umschalten landet der Text am Feldanfang statt an der
+  > Cursorposition (gilt auch fuer Panel-Vorlagen). Kein
   > Produktivcode,
   > keine neuen Bildverweise, **keine** Versionsnummern von Hand aendern - das
   > erledigt die CI.
