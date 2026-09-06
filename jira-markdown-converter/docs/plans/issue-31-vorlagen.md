@@ -62,6 +62,42 @@ alle Agenten und sind nicht neu zu verhandeln.
    ausschliesslich ueber `document.createElement` und `textContent` in das DOM
    gebracht.
 
+## Abschluss jedes Sub-Tasks: Review-Prompt fuer Opus
+
+Jede Sonnet-Session endet nicht mit dem Push, sondern mit einer Uebergabe. Der
+Agent gibt als **letzte Ausgabe** einen fertigen Review-Prompt aus, mit dem
+Pascal in einer eigenen Opus-Session den PR pruefen laesst. Der Prompt steht in
+einem eigenen Codeblock, damit er sich am Stueck kopieren laesst, und ist ohne
+den Verlauf der Sonnet-Session verstaendlich - Opus sieht diese Session nie.
+
+Die Anweisung an den Agenten lautet woertlich:
+
+> Erstelle einen Review-Prompt fuer Opus, der die Code-Aenderungen, deine
+> Designentscheidungen, potenzielle Edge Cases und 3-4 konkrete Pruefpunkte
+> fuer diesen PR zusammenfasst.
+
+Aufbau des ausgegebenen Prompts - vier Teile, in dieser Reihenfolge:
+
+1. **Code-Aenderungen**: welcher PR, welcher Branch, welche Basis, welche
+   Dateien mit je einem Satz, was dort passiert ist.
+2. **Designentscheidungen**: was der Agent selbst entschieden hat und warum -
+   besonders alles, was vom Plan abweicht oder im Plan offen war. Abweichungen
+   gehoeren ausdruecklich benannt, nicht kaschiert.
+3. **Potenzielle Edge Cases**: was der Agent selbst als heikel einschaetzt -
+   auch das, was er geprueft und fuer unkritisch befunden hat, mit Begruendung.
+4. **3 bis 4 konkrete Pruefpunkte**: keine Allgemeinplaetze wie "Code-Qualitaet
+   pruefen", sondern nachvollziehbare Fragen mit Datei- und Funktionsbezug,
+   etwa "Verliert `insertCustomTemplate` die Cursorposition, wenn der Dialog
+   den Fokus zurueckgibt, bevor der Rich-Text-Editor fertig gerendert hat?".
+
+Zwei Regeln, die den Prompt brauchbar halten:
+
+* **Ehrlich statt werbend.** Was nicht getestet wurde, was unsicher blieb, was
+  nur angenommen ist - das gehoert hinein. Ein Review-Prompt, der nur Erfolge
+  meldet, verschwendet den Review.
+* **Selbsttragend.** Datei- und Funktionsnamen ausschreiben, PR-Nummer nennen,
+  keine Verweise auf "wie oben besprochen".
+
 ## Datenmodell
 
 ```js
@@ -246,6 +282,8 @@ customTemplates: []
         deckt beide Bereiche ab.
   * [ ] Commit `feat(jira): schema und fuelllogik fuer eigene vorlagen`
         auf `feature/issue-templates-part-1`, gepusht.
+  * [ ] Review-Prompt fuer Opus als letzte Ausgabe der Session, im Aufbau des
+        Abschnitts "Abschluss jedes Sub-Tasks".
 
 * **Agent-Start-Prompt:**
 
@@ -283,8 +321,17 @@ customTemplates: []
   > `npm test --prefix jira-markdown-converter`. Erst wenn beides gruen ist:
   > committe als `feat(jira): schema und fuelllogik fuer eigene vorlagen` und
   > pushe mit `git push -u origin feature/issue-templates-part-1`. Danach einen
-  > PR gegen `main` anlegen, der auf Issue #31 verweist. Melde das Ergebnis,
-  > danach ist die Aufgabe beendet.
+  > PR gegen `main` anlegen, der auf Issue #31 verweist, und das Ergebnis
+  > melden.
+  >
+  > Zum Schluss, als **letzte Ausgabe** dieser Session: Erstelle einen
+  > Review-Prompt fuer Opus, der die Code-Aenderungen, deine
+  > Designentscheidungen, potenzielle Edge Cases und 3-4 konkrete Pruefpunkte
+  > fuer diesen PR zusammenfasst. Gib ihn in einem eigenen Codeblock aus, nenne
+  > PR-Nummer und Branch, schreibe Datei- und Funktionsnamen aus, und benenne
+  > Abweichungen vom Plan sowie ungeprueft gebliebene Annahmen ausdruecklich -
+  > Opus sieht diese Session nicht, und ein Review-Prompt, der nur Erfolge
+  > meldet, verschwendet den Review.
 
 ---
 
@@ -394,6 +441,8 @@ customTemplates: []
   * [ ] Neue Tests in `package.test.js` und `integration.test.js` gruen.
   * [ ] `npm run lint` und `npm test` gruen.
   * [ ] Commit `feat(jira): vorlagen in den einstellungen verwalten`, gepusht.
+  * [ ] Review-Prompt fuer Opus als letzte Ausgabe der Session, im Aufbau des
+        Abschnitts "Abschluss jedes Sub-Tasks".
 
 * **Agent-Start-Prompt:**
 
@@ -430,6 +479,15 @@ customTemplates: []
   > Danach committen als `feat(jira): vorlagen in den einstellungen verwalten`,
   > `git push -u origin feature/issue-templates-part-2`, PR **gegen
   > `feature/issue-templates-part-1`** anlegen und Ergebnis melden.
+  >
+  > Zum Schluss, als **letzte Ausgabe** dieser Session: Erstelle einen
+  > Review-Prompt fuer Opus, der die Code-Aenderungen, deine
+  > Designentscheidungen, potenzielle Edge Cases und 3-4 konkrete Pruefpunkte
+  > fuer diesen PR zusammenfasst. Gib ihn in einem eigenen Codeblock aus, nenne
+  > PR-Nummer und Branch, schreibe Datei- und Funktionsnamen aus, und benenne
+  > Abweichungen vom Plan sowie ungeprueft gebliebene Annahmen ausdruecklich -
+  > Opus sieht diese Session nicht, und ein Review-Prompt, der nur Erfolge
+  > meldet, verschwendet den Review.
 
 ---
 
@@ -526,6 +584,8 @@ customTemplates: []
   * [ ] Menue schliesst bei Escape, Klick daneben und zweitem Klick.
   * [ ] Neue Integrationstests gruen, Lint sauber.
   * [ ] Commit `feat(jira): vorlagenmenue in der feldleiste`, gepusht.
+  * [ ] Review-Prompt fuer Opus als letzte Ausgabe der Session, im Aufbau des
+        Abschnitts "Abschluss jedes Sub-Tasks".
 
 * **Agent-Start-Prompt:**
 
@@ -557,6 +617,15 @@ customTemplates: []
   > `feat(jira): vorlagenmenue in der feldleiste`,
   > `git push -u origin feature/issue-templates-part-3`, PR gegen
   > `feature/issue-templates-part-2` anlegen und Ergebnis melden.
+  >
+  > Zum Schluss, als **letzte Ausgabe** dieser Session: Erstelle einen
+  > Review-Prompt fuer Opus, der die Code-Aenderungen, deine
+  > Designentscheidungen, potenzielle Edge Cases und 3-4 konkrete Pruefpunkte
+  > fuer diesen PR zusammenfasst. Gib ihn in einem eigenen Codeblock aus, nenne
+  > PR-Nummer und Branch, schreibe Datei- und Funktionsnamen aus, und benenne
+  > Abweichungen vom Plan sowie ungeprueft gebliebene Annahmen ausdruecklich -
+  > Opus sieht diese Session nicht, und ein Review-Prompt, der nur Erfolge
+  > meldet, verschwendet den Review.
 
 ---
 
@@ -645,6 +714,8 @@ customTemplates: []
   * [ ] Vorlagen ohne Platzhalter oeffnen keinen Dialog.
   * [ ] Lint und alle Tests gruen.
   * [ ] Commit `feat(jira): dialog fuer platzhalterwerte`, gepusht.
+  * [ ] Review-Prompt fuer Opus als letzte Ausgabe der Session, im Aufbau des
+        Abschnitts "Abschluss jedes Sub-Tasks".
 
 * **Agent-Start-Prompt:**
 
@@ -678,6 +749,15 @@ customTemplates: []
   > `feat(jira): dialog fuer platzhalterwerte`,
   > `git push -u origin feature/issue-templates-part-4`, PR gegen
   > `feature/issue-templates-part-3` anlegen und Ergebnis melden.
+  >
+  > Zum Schluss, als **letzte Ausgabe** dieser Session: Erstelle einen
+  > Review-Prompt fuer Opus, der die Code-Aenderungen, deine
+  > Designentscheidungen, potenzielle Edge Cases und 3-4 konkrete Pruefpunkte
+  > fuer diesen PR zusammenfasst. Gib ihn in einem eigenen Codeblock aus, nenne
+  > PR-Nummer und Branch, schreibe Datei- und Funktionsnamen aus, und benenne
+  > Abweichungen vom Plan sowie ungeprueft gebliebene Annahmen ausdruecklich -
+  > Opus sieht diese Session nicht, und ein Review-Prompt, der nur Erfolge
+  > meldet, verschwendet den Review.
 
 ---
 
@@ -759,6 +839,8 @@ customTemplates: []
   * [ ] Lint und alle Tests gruen.
   * [ ] Commit `fix(jira): vorlagen an der cursorposition und mit sicherem
         escaping einfuegen`, gepusht.
+  * [ ] Review-Prompt fuer Opus als letzte Ausgabe der Session, im Aufbau des
+        Abschnitts "Abschluss jedes Sub-Tasks".
 
 * **Agent-Start-Prompt:**
 
@@ -787,6 +869,15 @@ customTemplates: []
   > `fix(jira): vorlagen an der cursorposition und mit sicherem escaping
   > einfuegen`, `git push -u origin feature/issue-templates-part-5`, PR gegen
   > `feature/issue-templates-part-4` anlegen und Ergebnis melden.
+  >
+  > Zum Schluss, als **letzte Ausgabe** dieser Session: Erstelle einen
+  > Review-Prompt fuer Opus, der die Code-Aenderungen, deine
+  > Designentscheidungen, potenzielle Edge Cases und 3-4 konkrete Pruefpunkte
+  > fuer diesen PR zusammenfasst. Gib ihn in einem eigenen Codeblock aus, nenne
+  > PR-Nummer und Branch, schreibe Datei- und Funktionsnamen aus, und benenne
+  > Abweichungen vom Plan sowie ungeprueft gebliebene Annahmen ausdruecklich -
+  > Opus sieht diese Session nicht, und ein Review-Prompt, der nur Erfolge
+  > meldet, verschwendet den Review.
 
 ---
 
@@ -844,6 +935,8 @@ customTemplates: []
   * [ ] Keine Versionsnummer von Hand geaendert.
   * [ ] Lint und alle Tests gruen.
   * [ ] Commit `docs(jira): eigene vorlagen dokumentieren`, gepusht.
+  * [ ] Review-Prompt fuer Opus als letzte Ausgabe der Session, im Aufbau des
+        Abschnitts "Abschluss jedes Sub-Tasks".
 
 * **Agent-Start-Prompt:**
 
@@ -873,6 +966,15 @@ customTemplates: []
   > `docs(jira): eigene vorlagen dokumentieren`,
   > `git push -u origin feature/issue-templates-part-6`, PR gegen
   > `feature/issue-templates-part-5` anlegen und Ergebnis melden.
+  >
+  > Zum Schluss, als **letzte Ausgabe** dieser Session: Erstelle einen
+  > Review-Prompt fuer Opus, der die Code-Aenderungen, deine
+  > Designentscheidungen, potenzielle Edge Cases und 3-4 konkrete Pruefpunkte
+  > fuer diesen PR zusammenfasst. Gib ihn in einem eigenen Codeblock aus, nenne
+  > PR-Nummer und Branch, schreibe Datei- und Funktionsnamen aus, und benenne
+  > Abweichungen vom Plan sowie ungeprueft gebliebene Annahmen ausdruecklich -
+  > Opus sieht diese Session nicht, und ein Review-Prompt, der nur Erfolge
+  > meldet, verschwendet den Review.
 
 ---
 
