@@ -1,6 +1,8 @@
 /**
  * Prueft, dass das Erweiterungspaket in sich stimmig ist:
  * Manifest gueltig, alle referenzierten Dateien vorhanden, Icons echte PNGs.
+ * Dazu die Artefakte fuer die Store-Einreichung (docs/store): Groessen der
+ * Bilder, Laenge der Beschreibungstexte, kein nachgeladener Code.
  *
  * Aufruf: node test/package.test.js
  */
@@ -34,6 +36,21 @@ function exists(relative) {
   return fs.existsSync(abs(relative));
 }
 
+/** Breite und Hoehe aus dem IHDR-Kopf - ohne Abhaengigkeit, PNG genuegt. */
+function pngSize(relative) {
+  var buffer = fs.readFileSync(abs(relative));
+  assert.strictEqual(buffer.subarray(0, 8).toString('binary'), '\x89PNG\r\n\x1a\n',
+    relative + ' ist kein PNG');
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+/** Der erste ```-Block eines Store-Dokuments - das ist der Text zum Uebernehmen. */
+function firstBlock(relative) {
+  var match = /```\n([\s\S]*?)\n```/.exec(fs.readFileSync(abs(relative), 'utf8'));
+  assert.ok(match, relative + ' hat keinen Textblock');
+  return match[1];
+}
+
 var manifest = JSON.parse(fs.readFileSync(abs('manifest.json'), 'utf8'));
 
 console.log('\nManifest');
@@ -41,6 +58,21 @@ test('Manifest V3', function () {
   assert.strictEqual(manifest.manifest_version, 3);
   assert.ok(manifest.name);
   assert.ok(/^\d+\.\d+\.\d+$/.test(manifest.version), 'Version muss x.y.z sein');
+});
+
+test('Store-Vorgaben im Manifest', function () {
+  // Der Store nimmt hoechstens 132 Zeichen und verlangt eine Support-Adresse.
+  assert.ok(manifest.description.length <= 132,
+    'description zu lang: ' + manifest.description.length + ' Zeichen');
+  assert.ok(!/[\u00c4\u00d6\u00dc\u00e4\u00f6\u00fc\u00df]/.test(manifest.description),
+    'description enthaelt Umlaute');
+  assert.strictEqual(manifest.homepage_url, 'https://github.com/pascallink/webkit-ext');
+});
+
+test('Version steht in manifest.json und package.json gleich', function () {
+  var pkg = JSON.parse(fs.readFileSync(abs('package.json'), 'utf8'));
+  assert.strictEqual(manifest.version, pkg.version,
+    'manifest.json ' + manifest.version + ' != package.json ' + pkg.version);
 });
 
 test('Service-Worker vorhanden', function () {
@@ -91,6 +123,11 @@ test('Berechtigungen bleiben sparsam', function () {
     assert.ok(allowed.indexOf(permission) !== -1, 'unerwartete Berechtigung: ' + permission);
   });
   assert.deepStrictEqual(manifest.host_permissions, ['https://*.atlassian.net/*']);
+  // Jede Berechtigung kostet im Store eine Begruendung - ungenutzte fliegen raus.
+  assert.ok(!manifest.optional_permissions,
+    'optional_permissions ohne Anforderung im Code: ' + JSON.stringify(manifest.optional_permissions));
+  assert.deepStrictEqual(manifest.optional_host_permissions, ['*://*/*'],
+    'das breite Muster gehoert nach optional_host_permissions, siehe docs/store/permissions.md');
 });
 
 test('Tastenkuerzel definiert', function () {
@@ -229,6 +266,68 @@ test('Einfrieren ist Einstellung und Schloss', function () {
   var lock = fs.readFileSync(abs('src/editlock.js'), 'utf8');
   assert.ok(/beforeunload/.test(lock), 'kein Schutz vor dem Verlassen der Seite');
   assert.ok(/aria-pressed/.test(lock), 'Schloss meldet seinen Zustand nicht');
+});
+
+test('kein nachgeladener Code im Paket', function () {
+  // Harter Ablehnungsgrund im Store: Code, der nicht im Paket liegt.
+  ['src/content.js', 'src/editors.js', 'src/converter.js', 'src/codedialog.js',
+    'src/editlock.js', 'src/settings.js', 'src/background.js',
+    'popup/popup.js', 'options/options.js'].forEach(function (file) {
+    var source = fs.readFileSync(abs(file), 'utf8');
+    assert.ok(!/(^|[^.\w])eval\s*\(/.test(source), file + ' benutzt eval()');
+    assert.ok(!/new\s+Function\s*\(/.test(source), file + ' benutzt new Function()');
+  });
+  ['popup/popup.html', 'options/options.html'].forEach(function (page) {
+    var html = fs.readFileSync(abs(page), 'utf8');
+    var pattern = /(?:src|href)="(https?:)?\/\//g;
+    assert.ok(!pattern.test(html), page + ' laedt eine externe Datei');
+  });
+});
+
+console.log('\nStore-Artefakte');
+test('Bilder haben die vom Store verlangten Groessen', function () {
+  var logo = pngSize('docs/store/assets/logo-300.png');
+  assert.deepStrictEqual(logo, { width: 300, height: 300 }, 'Logo muss 300x300 sein');
+  var promo = pngSize('docs/store/assets/promo-tile-1400x560.png');
+  assert.deepStrictEqual(promo, { width: 1400, height: 560 }, 'Promo-Tile muss 1400x560 sein');
+
+  var dir = 'docs/store/assets/screenshots';
+  var shots = fs.readdirSync(abs(dir)).filter(function (name) {
+    return /\.png$/.test(name);
+  }).sort();
+  assert.ok(shots.length >= 1 && shots.length <= 10,
+    'der Store nimmt 1 bis 10 Screenshots, hier sind es ' + shots.length);
+  shots.forEach(function (name) {
+    var size = pngSize(path.join(dir, name));
+    var ok = (size.width === 1280 && size.height === 800) ||
+      (size.width === 640 && size.height === 480);
+    assert.ok(ok, name + ' ist ' + size.width + 'x' + size.height + ', erlaubt sind 1280x800 oder 640x480');
+  });
+});
+
+test('Beschreibungstexte bleiben in den Grenzen des Stores', function () {
+  [['docs/store/listing-de.md', 'deutsch'], ['docs/store/listing-en.md', 'englisch']].forEach(function (entry) {
+    var short = firstBlock(entry[0]);
+    assert.ok(short.length <= 132,
+      'Kurzbeschreibung ' + entry[1] + ' zu lang: ' + short.length + ' Zeichen');
+    assert.ok(short.indexOf('\n') === -1, 'Kurzbeschreibung ' + entry[1] + ' ist mehrzeilig');
+    var full = fs.readFileSync(abs(entry[0]), 'utf8');
+    var blocks = full.match(/```\n[\s\S]*?\n```/g) || [];
+    assert.ok(blocks.length >= 2, entry[0] + ' hat keine ausfuehrliche Beschreibung');
+    assert.ok(blocks[1].length <= 10000,
+      'Ausfuehrliche Beschreibung ' + entry[1] + ' zu lang: ' + blocks[1].length + ' Zeichen');
+  });
+});
+
+test('Store-Unterlagen sind vollstaendig', function () {
+  ['docs/store/README.md', 'docs/store/listing-de.md', 'docs/store/listing-en.md',
+    'docs/store/permissions.md', 'docs/store/review-notes.md', 'docs/store/publishing.md',
+    'docs/store/build-assets.js', 'docs/store/assets/logo.svg'].forEach(function (file) {
+    assert.ok(exists(file), file + ' fehlt');
+  });
+  // Die Datenschutz-URL ist Pflichtfeld im Partner Center - die Datei muss es geben.
+  assert.ok(fs.existsSync(path.join(root, '..', 'PRIVACY.md')), 'PRIVACY.md fehlt im Repo-Root');
+  assert.ok(fs.existsSync(path.join(root, '..', 'LICENSE')), 'LICENSE fehlt im Repo-Root');
 });
 
 console.log('\n' + passed + ' Tests ok, ' + failed + ' fehlgeschlagen.\n');

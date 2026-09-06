@@ -1,7 +1,6 @@
 # PowerEdit for Jira (`jira-markdown-converter`)
 
-Chrome/Edge-Erweiterung (MV3): Markdown, Vorlagen und Codebloecke in der
-Jira-Ticket-Bearbeitung. Commit-Scope: `jira`.
+Chrome/Edge-Erweiterung (MV3) fuer die Jira-Ticket-Bearbeitung. Scope: `jira`.
 
 ## Befehle
 
@@ -38,3 +37,4 @@ Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per
 | `src/settings.js` | Defaults + `chrome.storage` fuer alle Kontexte. |
 | `src/background.js` | Service-Worker: Shortcut, Kontextmenue, weitere Hosts. |
 | `popup/`, `options/`, `test/` | UI-Seiten bzw. Node-Runner (Fixtures in `test/fixtures/`). |
+| `docs/store/` | Store-Einreichung: Texte, Berechtigungsgruende, Bilder (`npm run store:assets`). |

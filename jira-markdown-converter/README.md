@@ -246,7 +246,10 @@ Auf der Einstellungsseite sitzt derselbe Schalter im Abschnitt *Verhalten*:
 
 ## Installation
 
-Die Erweiterung ist nicht signiert und wird als entpacktes Paket geladen:
+Die Veroeffentlichung im Microsoft Edge Add-ons Store ist vorbereitet, aber
+noch nicht eingereicht - alle Unterlagen dafuer liegen in
+[`docs/store/`](docs/store/). Bis dahin wird die Erweiterung als entpacktes
+Paket geladen:
 
 1. [**jira-markdown-converter.zip** herunterladen](https://github.com/pascallink/webkit-ext/releases/latest/download/jira-markdown-converter.zip)
    (immer die neueste, per GitHub Actions gebaute Version) und entpacken.
@@ -412,7 +415,11 @@ Erreichbar ueber das Popup („Einstellungen") oder
 | optional: `*://<eigener-host>/*` | Jira Server / Data Center, nur nach ausdruecklicher Freigabe |
 
 Es werden keine Daten an Server gesendet; die Umwandlung passiert vollstaendig
-im Browser.
+im Browser - festgehalten in der [Datenschutzerklaerung](../PRIVACY.md).
+
+Warum es fuer selbst gehostete Instanzen das breite Muster `*://*/*` unter
+`optional_host_permissions` braucht und was es genau bedeutet, steht in
+[`docs/store/permissions.md`](docs/store/permissions.md).
 
 ## Entwicklung
 
@@ -473,3 +480,7 @@ Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`. Der
 Code-Dialog nimmt genau diese Dialekte direkt (`dialects.jira.codeBlock`,
 `dialects.html.codeBlock`) und holt die Sprachliste aus `codeLanguages`, damit
 sie nur an einer Stelle gepflegt wird.
+
+## Lizenz
+
+[MIT](../LICENSE).
