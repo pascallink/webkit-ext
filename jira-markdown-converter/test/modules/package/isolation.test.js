@@ -49,36 +49,121 @@ function listJsFiles(dir) {
 }
 
 /**
- * Extrahiert den Argument-Text jedes require(...)-Aufrufs ueber Klammer-Tiefe
- * statt eines einzelnen Regex - require(path.join(...)) verschachtelt selbst
- * runde Klammern, ein einfacher /require\(([^)]*)\)/ wuerde dort zu frueh
- * abschneiden.
+ * Klassifiziert jedes Zeichen des Quelltexts als 'code', 'string' oder
+ * 'comment' (Zustaende: Code, ', ", `, Zeilenkommentar, Blockkommentar;
+ * Escapes mit \ werden dabei mit uebersprungen). Damit haelt der Scanner
+ * "//" bzw. Anfuehrungszeichen innerhalb eines Stringliterals auseinander
+ * von echten Kommentaren bzw. Zustandswechseln im Code.
  */
-/**
- * Entfernt Block- und Zeilenkommentare, damit ein Wort wie "require()" in
- * einem Kommentar (z. B. dieser Datei) nicht als echter Aufruf zaehlt. Fuer
- * dieses ES5/CommonJS-Projekt genuegt eine einfache Regex - Stringliterale
- * mit "//" oder "/*" kommen in den Testdateien nicht vor.
- */
-function stripComments(source) {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+function scanStates(source) {
+  var states = new Array(source.length);
+  var mode = 'code';
+  var quoteChar = '';
+  var i = 0;
+  while (i < source.length) {
+    var ch = source[i];
+    var next = source[i + 1];
+    if (mode === 'code') {
+      if (ch === '\'' || ch === '"' || ch === '`') {
+        mode = 'string';
+        quoteChar = ch;
+        states[i] = 'string';
+        i++;
+      } else if (ch === '/' && next === '/') {
+        mode = 'linecomment';
+        states[i] = 'comment';
+        states[i + 1] = 'comment';
+        i += 2;
+      } else if (ch === '/' && next === '*') {
+        mode = 'blockcomment';
+        states[i] = 'comment';
+        states[i + 1] = 'comment';
+        i += 2;
+      } else {
+        states[i] = 'code';
+        i++;
+      }
+    } else if (mode === 'string') {
+      if (ch === '\\') {
+        states[i] = 'string';
+        if (i + 1 < source.length) states[i + 1] = 'string';
+        i += 2;
+      } else if (ch === quoteChar) {
+        states[i] = 'string';
+        mode = 'code';
+        i++;
+      } else {
+        states[i] = 'string';
+        i++;
+      }
+    } else if (mode === 'linecomment') {
+      if (ch === '\n') {
+        mode = 'code';
+        states[i] = 'code';
+      } else {
+        states[i] = 'comment';
+      }
+      i++;
+    } else {
+      if (ch === '*' && next === '/') {
+        states[i] = 'comment';
+        states[i + 1] = 'comment';
+        mode = 'code';
+        i += 2;
+      } else {
+        states[i] = 'comment';
+        i++;
+      }
+    }
+  }
+  return states;
 }
 
+/**
+ * Blendet Block- und Zeilenkommentare aus, damit ein Wort wie "require()" in
+ * einem Kommentar (z. B. dieser Datei) nicht als echter Aufruf zaehlt.
+ * Stringinhalte bleiben unveraendert - ein "//" in einer URL innerhalb eines
+ * Stringliterals (siehe z. B. converter.test.js, html.test.js,
+ * robustheit.test.js, description.test.js) ist kein Kommentaranfang. Eine
+ * einfache Regex ohne Zustands-Scan koennte diese Unterscheidung nicht
+ * treffen und hat den Zeilenrest hinter so einem "//" faelschlich entfernt.
+ */
+function stripComments(source) {
+  var states = scanStates(source);
+  var result = '';
+  for (var i = 0; i < source.length; i++) {
+    result += states[i] === 'comment' ? ' ' : source[i];
+  }
+  return result;
+}
+
+/**
+ * Extrahiert den Argument-Text jedes echten require(...)-Aufrufs ueber
+ * Klammer-Tiefe statt eines einzelnen Regex - require(path.join(...))
+ * verschachtelt selbst runde Klammern, ein einfacher /require\(([^)]*)\)/
+ * wuerde dort zu frueh abschneiden. Ein "require(" innerhalb eines
+ * Stringliterals (z. B. ein Fixture-String) ist kein Aufruf, und Klammern
+ * innerhalb eines Stringliterals zaehlen nicht in die Tiefe hinein.
+ */
 function findRequireArgs(source) {
   var args = [];
+  var stripped = stripComments(source);
+  var states = scanStates(stripped);
   var callRegex = /require\s*\(/g;
   var match;
-  source = stripComments(source);
-  while ((match = callRegex.exec(source)) !== null) {
+  while ((match = callRegex.exec(stripped)) !== null) {
+    if (states[match.index] === 'string') continue;
     var start = match.index + match[0].length;
     var depth = 1;
     var i = start;
-    while (i < source.length && depth > 0) {
-      if (source[i] === '(') depth++;
-      else if (source[i] === ')') depth--;
+    while (i < stripped.length && depth > 0) {
+      if (states[i] !== 'string') {
+        if (stripped[i] === '(') depth++;
+        else if (stripped[i] === ')') depth--;
+      }
       i++;
     }
-    args.push(source.slice(start, i - 1));
+    args.push(stripped.slice(start, i - 1));
   }
   return args;
 }
@@ -159,8 +244,10 @@ function isAllowedRequire(target, fileDir, moduleName) {
 
 describe('Isolation der Testmodule', function () {
   var moduleNames = listModules();
-  // Die eigene Datei enthaelt den Text "require(" in Regex-Quelltext -
-  // eine reine Textsuche wuerde sich sonst selbst melden.
+  // Diese Datei enthaelt "require(" auch als Regex-Literal (/require\s*\(/g).
+  // Ein eigener Scanner-Zustand nur fuer Regex-Literale lohnt sich fuer eine
+  // einzelne Testdatei nicht - sie bleibt darum wie bisher per OWN_FILE
+  // ausgenommen, statt vom Zustands-Scan selbst erkannt zu werden.
   var OWN_FILE = path.join(MODULES_DIR, 'package', 'isolation.test.js');
   var files = listJsFiles(MODULES_DIR).filter(function (file) { return file !== OWN_FILE; });
 
@@ -200,5 +287,16 @@ describe('Isolation der Testmodule', function () {
     });
     assert.deepStrictEqual(orphaned, [],
       'test:<modul>-Skript ohne zugehoerigen Ordner unter test/modules/: ' + orphaned.join(', '));
+  });
+
+  test('findRequireArgs beruecksichtigt Stringliterale', function () {
+    var urlVorRequire = "var u = 'https://x.de';\n" +
+      "var b = require('../../content/browser/panel.test.js');\n";
+    assert.deepStrictEqual(findRequireArgs(urlVorRequire), [
+      "'../../content/browser/panel.test.js'"
+    ]);
+
+    var requireInString = "var s = \"require('../../content/x.js')\";\n";
+    assert.deepStrictEqual(findRequireArgs(requireInString), []);
   });
 });
