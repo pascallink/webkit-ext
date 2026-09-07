@@ -4,6 +4,13 @@ Ausgelagert aus der Projekt-`CLAUDE.md` (dort auf 40 Zeilen gedeckelt): Details
 zur Testsuite braucht man nur, wenn man an Tests selbst arbeitet oder ein neues
 Modul anlegt. Hintergrund und Migration: Issue #55.
 
+Zielplattform ist ausschliesslich Jira Server / Data Center 9.12 LTS (9.12.2).
+Neue Tests werden gegen die Server-Fixtures geschrieben (`mock-jira-server.html`,
+`mock-jira-rte.html`, `mock-jira-inline-edit.html`,
+`mock-jira-issue-description.html`). Das Cloud-Fixture `mock-jira.html` und die
+darauf laufenden Faelle bleiben bestehen, damit der ausgelieferte Stand gruen
+ist - sie werden aber nicht mehr ausgebaut.
+
 ## Modul-Landkarte
 
 Ein Modul = ein Ordner unter `test/modules/`. Jede Quelldatei gehoert genau

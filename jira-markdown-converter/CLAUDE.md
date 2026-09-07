@@ -1,6 +1,6 @@
 # PowerEdit for Jira (`jira-markdown-converter`)
 
-Chrome/Edge-Erweiterung (MV3) fuer die Jira-Ticket-Bearbeitung. Scope: `jira`.
+Chrome/Edge-Erweiterung (MV3) **nur fuer Jira Server / Data Center 9.12 LTS (9.12.2)**. Scope: `jira`.
 
 ## Befehle
 
@@ -18,8 +18,8 @@ Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per `chrome
   `JiraMarkdown`, `JiraMdSettings`, `JiraEditors`, `JiraCodeDialog`,
   `JiraEditLock`, `JiraTemplateDialog` - sonst laden die Node-Tests das Modul nicht.
 - `converter.js` bleibt **DOM-frei** - reine Textumwandlung, laeuft in Node.
-- Drei Editorvarianten immer mitdenken: `<textarea>` (Server/DC),
-  ProseMirror (Cloud), CodeMirror/Ace. Erkennung nur in `editors.js`.
+- Nur die Editoren von 9.12 LTS: `<textarea>` im Wiki-Feld, TinyMCE-Rahmen.
+  ProseMirror (Cloud) ist ausser Scope. Erkennung nur in `editors.js`.
 - Leere `catch`-Bloecke sind Absicht: Jira baut das DOM staendig um.
 - Neue Content-Script-Datei in `manifest.json` eintragen; die Reihenfolge dort
   ist abhaengigkeitsgetrieben: `settings.js` zuerst, `content.js` zuletzt.

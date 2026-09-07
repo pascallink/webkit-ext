@@ -10,7 +10,7 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
 
 | Pfad | Scope | Zweck |
 | --- | --- | --- |
-| `jira-markdown-converter/` | `jira` | PowerEdit for Jira - Markdown, Vorlagen und Codebloecke in der Ticket-Bearbeitung. |
+| `jira-markdown-converter/` | `jira` | PowerEdit for Jira - Markdown, Vorlagen und Codebloecke in der Ticket-Bearbeitung. Zielplattform ausschliesslich Jira Server / Data Center 9.12 LTS (9.12.2). |
 | `.github/workflows/` | `ci` | Lint + Test, Versionierung, Releases - Details in [`.github/CI.md`](.github/CI.md). |
 | Root | `repo` | Metadaten und commitlint, kein Produktivcode. |
 
