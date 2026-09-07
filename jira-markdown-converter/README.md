@@ -491,18 +491,20 @@ jira-markdown-converter/
 ### Tests
 
 ```bash
-npm test                  # alle Tests
-npm run test:unit         # Konverter, Jira-Markup und HTML (ohne Abhaengigkeiten)
-npm run test:settings     # Hosterkennung, Voreinstellungen
-npm run test:package      # Manifest und Paketstruktur
-npm run test:integration  # echtes Chromium gegen nachgebaute Jira-Seiten
-                          # (Cloud-Editor, Jira Server 9.x, Rich-Text-Editor)
+npm test                        # alle Tests (Node + Browser)
+npm run test:module <modul>     # ein Modul, z. B. dialogs oder editors
+npm run test:node               # nur Node-Tests, kein Chromium
+npm run test:browser            # nur Playwright-Tests
 npm run lint
 ```
 
-Der Integrationstest braucht Playwright. Ist es global installiert, hilft
-`NODE_PATH=$(npm root -g) npm run test:integration`; fehlt Playwright, wird der
-Test uebersprungen statt fehlzuschlagen.
+Module: `converter`, `settings`, `editors`, `content`, `dialogs`, `editlock`,
+`options`, `popup`, `background`, `package` - Modul-Landkarte und Testzahlen
+in [`.github/TESTS.md`](../.github/TESTS.md).
+
+Die Browser-Module brauchen Playwright. Ist es global installiert, hilft
+`NODE_PATH=$(npm root -g) npm test`; fehlt es, werden diese Testdateien
+uebersprungen statt fehlzuschlagen.
 
 `src/converter.js` ist bewusst frei von DOM-Zugriffen und laesst sich auch
 einzeln verwenden:

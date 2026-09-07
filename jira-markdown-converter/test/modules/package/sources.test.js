@@ -33,7 +33,8 @@ describe('Dateiverweise in HTML', function () {
       var html = fs.readFileSync(abs(page), 'utf8');
       var dir = path.dirname(page);
       var references = [];
-      var pattern = /(?:src|href)="([^"#][^"]*)"/g;
+      // \x22 statt eines rohen Anfuehrungszeichens - siehe Begruendung oben
+      var pattern = /(?:src|href)=\x22([^\x22#][^\x22]*)\x22/g;
       var match;
       while ((match = pattern.exec(html)) !== null) {
         references.push(match[1]);
@@ -66,7 +67,11 @@ describe('Service-Worker', function () {
     var match = /importScripts\(([^)]*)\)/.exec(source);
     assert.ok(match, 'kein importScripts gefunden');
     var files = match[1].split(',').map(function (part) {
-      return part.trim().replace(/^['"]|['"]$/g, '');
+      // \x27/\x22 statt roher Anfuehrungszeichen im Zeichenklassen-Regex -
+      // package/isolation.test.js scannt Quelltext zustandsbasiert und
+      // verwechselt ein Anfuehrungszeichen in einem Regex-Literal sonst mit
+      // einem Stringanfang.
+      return part.trim().replace(/^[\x27\x22]|[\x27\x22]$/g, '');
     });
     files.forEach(function (file) {
       assert.ok(exists(path.join('src', file)), 'src/' + file + ' fehlt');
@@ -78,7 +83,11 @@ describe('Service-Worker', function () {
     var match = /var CONTENT_FILES = \[([^\]]*)\]/.exec(source);
     assert.ok(match, 'CONTENT_FILES nicht gefunden');
     var files = match[1].split(',').map(function (part) {
-      return part.trim().replace(/^['"]|['"]$/g, '');
+      // \x27/\x22 statt roher Anfuehrungszeichen im Zeichenklassen-Regex -
+      // package/isolation.test.js scannt Quelltext zustandsbasiert und
+      // verwechselt ein Anfuehrungszeichen in einem Regex-Literal sonst mit
+      // einem Stringanfang.
+      return part.trim().replace(/^[\x27\x22]|[\x27\x22]$/g, '');
     }).filter(Boolean);
     assert.deepStrictEqual(files, manifest.content_scripts[0].js);
   });
@@ -207,7 +216,9 @@ describe('Quellcode', function () {
     });
     ['popup/popup.html', 'options/options.html'].forEach(function (page) {
       var html = fs.readFileSync(abs(page), 'utf8');
-      var pattern = /(?:src|href)="(https?:)?\/\//g;
+      // \x22 statt eines rohen Anfuehrungszeichens - siehe Begruendung oben
+      // bei den ['"]-Ersetzungen.
+      var pattern = /(?:src|href)=\x22(https?:)?\/\//g;
       assert.ok(!pattern.test(html), page + ' laedt eine externe Datei');
     });
   });

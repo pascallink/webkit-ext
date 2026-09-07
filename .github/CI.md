@@ -14,6 +14,11 @@ an der CI, nicht in jeder Sitzung.
 | `ai-build-checker.yml` | `workflow_run` nach rotem `Build Extensions` | Baut nichts selbst: analysiert das Log des fehlgeschlagenen Jobs und postet es als PR-Kommentar |
 | `haiku-pr-summary.yml` | PR `opened`/`reopened`/`ready_for_review` | Schreibt eine generierte Zusammenfassung in den PR-Body |
 
+`build-extension.yml` ruft je Projekt `npm test --prefix <projekt> --if-present`
+auf - seit der Modulaufteilung in Issue #55 ist das weiterhin der Gesamtlauf
+ueber alle Testmodule (Details: `.github/TESTS.md`), der Workflow selbst bleibt
+unveraendert.
+
 Die beiden KI-Workflows brauchen das Repository-Secret `ANTHROPIC_API_KEY`.
 Gemeinsamer API-Client: `scripts/lib/anthropic.js` - Modell-ID und
 Retry-Verhalten stehen dort an *einer* Stelle und gelten fuer beide Skripte.

@@ -53,11 +53,36 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
 - **Korrektur-Routing (Opus-Abschluss):** Opus entscheidet am Ende des
   Reviews dynamisch, wie viele Korrektur-Prompts noetig sind (0, 1 oder 2),
   und gibt diese direkt gebrauchsfertig aus.
+- **Prompt-Ausgabeformat:** Jeder Prompt fuer eine Folge-Session steht als
+  reiner Text in einem eigenen Codeblock (drei Backticks, ohne Sprache) -
+  Fliesstext, Zitatblock oder Aufzaehlung sind nicht kopierbar. Nichts
+  ausserhalb des Blocks, was zum Prompt gehoert; die Modellwahl (Haiku oder
+  Sonnet) steht als Ueberschrift davor.
 - **Korrektur-Ausfuehrung:**
   - **Haiku:** verarbeitet Prompts fuer triviale Aufgaben (Linter-Fehler,
     Syntax, Formatierung, Umlaute, reine Doku- oder Typ-Fixes).
   - **Sonnet:** verarbeitet Prompts fuer komplexe Logikfehler,
     Architekturaenderungen, Testanpassungen oder gemischte Korrekturen.
+
+## Test-Kontext-Regeln
+
+Tests liegen je Projekt unter `test/modules/<modul>/`, geteilte Helfer unter
+`test/lib/`. Modul-Landkarte und Runner: [`.github/TESTS.md`](.github/TESTS.md).
+
+- **Dateiauswahl:** Bei Bugfix oder Feature nur die Quelldateien des
+  betroffenen Moduls, dessen `test/modules/<modul>/` und `test/lib/` oeffnen.
+  Fremde Modulordner bleiben zu - auch beim Suchen.
+- **Testausfuehrung waehrend der Arbeit:** ausschliesslich
+  `npm run test:module <modul> --prefix <projekt>`. Kein Gesamtlauf, um
+  zwischendurch zu schauen, ob noch alles gruen ist.
+- **PR-Check:** `npm test --prefix <projekt>` und
+  `npm run lint --prefix <projekt>` genau einmal, unmittelbar vor dem finalen
+  Commit. Rot heisst: zurueck in den Modullauf, nicht in den naechsten
+  Gesamtlauf.
+- **Neues Modul:** Ordner unter `test/modules/`, Zeile in `.github/TESTS.md`,
+  `test:<modul>` in der `package.json`. `test/run.js` findet ihn dann selbst.
+- **Kein Modul importiert aus einem fremden Modulordner.** Geteiltes gehoert
+  nach `test/lib/`; `package/isolation.test.js` erzwingt das.
 
 ## Commit-Konventionen
 

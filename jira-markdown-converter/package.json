@@ -9,6 +9,7 @@
   "scripts": {
     "test": "node test/run.js",
     "test:all": "node test/run.js",
+    "test:background": "node test/run.js background",
     "test:browser": "node test/run.js --browser",
     "test:content": "node test/run.js content",
     "test:converter": "node test/run.js converter",
@@ -19,6 +20,7 @@
     "test:node": "node test/run.js --node",
     "test:options": "node test/run.js options",
     "test:package": "node test/run.js package",
+    "test:popup": "node test/run.js popup",
     "test:settings": "node test/run.js settings",
     "lint": "eslint src test popup options",
     "store:assets": "node docs/store/build-assets.js"
