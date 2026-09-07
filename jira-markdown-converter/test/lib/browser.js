@@ -18,6 +18,10 @@ var pageStub = pageStubLib.pageStub;
 var root = path.join(__dirname, '..', '..');
 var manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 
+// Nur der erste content_scripts-Block wird geladen (Jira-Skripte). Mit Issue #17
+// (OTRS Link Helper) kommt ein zweiter Block mit anderem matches-Muster dazu -
+// dessen Skripte laden diese Helfer nicht mit. Notwendig waere dann eine eigene
+// Seitenfabrik fuer das OTRS-Fixture, keine Erweiterung dieser Liste.
 var SOURCES = manifest.content_scripts[0].js;
 var STYLES = manifest.content_scripts[0].css;
 
@@ -39,7 +43,10 @@ function readSource(file) {
  * globalen after() der Datei - ein Browser je Datei statt je Fall. Erst
  * beim Aufruf wird `playwright` geladen, damit Dateien ohne installierte
  * Abhaengigkeit ueber { skip: !hasPlaywright() } uebersprungen werden
- * koennen, statt beim require() zu scheitern.
+ * koennen, statt beim require() zu scheitern. Die Umgebungsvariable
+ * CHROMIUM_PATH setzt optional den Pfad zu einem vorhandenen Chromium
+ * (lokal hilfreich, wenn Playwright den Browser nicht selbst gezogen hat);
+ * ungesetzt bleibt das Verhalten unveraendert.
  */
 function withBrowser() {
   var chromium = require('playwright').chromium;
