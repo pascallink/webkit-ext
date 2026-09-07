@@ -33,7 +33,8 @@ describe('Dateiverweise in HTML', function () {
       var html = fs.readFileSync(abs(page), 'utf8');
       var dir = path.dirname(page);
       var references = [];
-      var pattern = /(?:src|href)="([^"#][^"]*)"/g;
+      // \x22 statt eines rohen Anfuehrungszeichens - siehe Begruendung oben
+      var pattern = /(?:src|href)=\x22([^\x22#][^\x22]*)\x22/g;
       var match;
       while ((match = pattern.exec(html)) !== null) {
         references.push(match[1]);
