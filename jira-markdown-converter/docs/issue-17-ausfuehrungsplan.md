@@ -24,7 +24,10 @@ Ein Helfer-Dialog nimmt einen OTRS-Verweis in beliebigem Format entgegen,
 zerlegt ihn und pflegt ihn nach Klick auf "Absenden" an drei Stellen des
 Jira-Vorgangs ein: Label, Custom Field "Kunden Referenz", Web-Link.
 
-Zielumgebung ist **Jira Server / Data Center 9.12 LTS** mit klassischer AUI.
+Zielumgebung ist **Jira Server / Data Center 9.12 LTS**. Die Dialogstruktur
+ist nicht geraten, sondern am DOM-Auszug der produktiven Instanz belegt:
+[`docs/jira-dialogs-referenz.md`](jira-dialogs-referenz.md). Jeder Sub-Task, der
+Selektoren anfasst, liest diese Datei zuerst - sie schlaegt jede Annahme.
 Zusaetzliche Hosts (z. B. `jira.firma.de`) laufen ueber die bestehende
 Mechanik `extraHosts` + `optional_host_permissions`. **Am Manifest sind keine
 neuen Berechtigungen noetig** - `package.test.js` prueft die Liste hart.
@@ -230,6 +233,7 @@ ihn als einzelnen Codeblock aus.
   AUI-Handler sie mitbekommen. Dazu eine Jira-9.12-Fixture, gegen die die
   Sub-Tasks 3 bis 5 testen. Noch keine Fachlogik.
 * **Dateiebene:**
+  * Zu lesen: `jira-markdown-converter/docs/jira-dialogs-referenz.md`
   * Zu erstellen: `jira-markdown-converter/src/jiraui.js`,
     `jira-markdown-converter/test/fixtures/mock-jira-otrs.html`
   * Zu aendern: `jira-markdown-converter/manifest.json`,
@@ -255,30 +259,35 @@ ihn als einzelnen Codeblock aus.
      * `click(element)` - `focus()` plus echter `MouseEvent('click', { bubbles: true })`.
      * `visible(element)` - `offsetParent !== null` oder Rechteck > 0.
      * `delay(ms)` -> `Promise`.
-  1b. **Liegt ein DOM-Auszug aus der echten Instanz vor** (Vorgehen:
-     [`docs/dom-auszug.md`](dom-auszug.md)), leite die Fixture daraus ab: Tags,
-     `id`, Klassen und `data-*` eins zu eins uebernehmen, Texte und Inhalte
-     erfinden. Der Auszug selbst wird **nicht** eingecheckt. Ohne Auszug gelten
-     die unten genannten Selektoren als Annahme - dann in Sub-Task 3 auf die
-     Fallback-Ebene achten.
-  2. `test/fixtures/mock-jira-otrs.html` bauen: eine nachgestellte
-     Jira-Server-9.12-Vorgangsseite, deren Dialoge **verzoegert per
-     `setTimeout` (120 ms)** ins DOM kommen - das ist der Punkt, an dem
+  2. `test/fixtures/mock-jira-otrs.html` bauen. **Alle Selektoren stammen aus
+     [`docs/jira-dialogs-referenz.md`](jira-dialogs-referenz.md)** - dem
+     verifizierten Auszug aus der produktiven Instanz. Nichts davon raten und
+     nichts davon "verbessern": Markup aus der Referenz uebernehmen, nur Texte
+     und Ticketnummern erfinden. Die Dialoge kommen **verzoegert per
+     `setTimeout` (120 ms)** ins DOM - das ist der Punkt, an dem
      `waitForElement` sich beweisen muss. Enthalten sein muessen:
      * Kopf mit `#key-val`, `.issue-header`
-     * Label-Modal `#edit-labels-dialog.aui-dialog2` mit
-       `#labels-textarea`, Liste `.labels-wrap`, Button
-       `.aui-dialog2-footer .aui-button-primary` und `#labels-multi-select`
-     * Quick-Search-Dialog `#quick-search-dialog` mit Eingabe
-       `#quick-search-input` und Trefferliste `.aui-list li a`
-     * Custom-Field-Dialog `#customfield-dialog.aui-dialog2` mit
-       `input#customfield_11000` (vorbelegbar) und Primaerbutton
-     * Link-Dialog `#link-issue-dialog.aui-dialog2` mit Reitern
-       `.aui-tabs .menu-item a[href="#web-link"]` und `#jira-link`,
-       Panel `#web-link` mit `#weblink-url` und `#weblink-linktext`
+     * Shifter `#shifter-dialog` mit `#shifter-dialog-field`
+       (Platzhalter "Find Actions...") und `#shifter-dialog-suggestions`;
+       Trefferlisten `ul#edit-fields` und `ul#issue-actions` mit Eintraegen
+       `li.aui-list-item.aui-list-item-li-<slug>[role="option"]`, aktiver
+       Eintrag mit `.active`
+     * Labels-Dialog `#edit-labels-dialog.jira-dialog.jira-dialog-open` mit
+       `#labels-multi-select`, `textarea#labels-textarea`, `select#labels`,
+       `#send-notifications` und `button#submit`
+     * Custom-Field-Dialog `#modal-field-view.jira-dialog.jira-dialog-open`
+       mit `h2#modal-field-view-title`, `input#customfield_10027`
+       (vorbelegbar) und `.buttons input[type="submit"]`
+     * **Zweiter** `#modal-field-view` fuer "Customer Jira Key" mit
+       `#customfield_10900-textarea` - er darf vom Ablauf nie getroffen werden
+     * Link-Dialog `#link-issue-dialog.jira-dialog.jira-dialog-open` mit
+       `ul.dialog-menu`, `button#add-web-link-link[data-url]`, Formular
+       `#web-issue-link`, `input#web-link-url` **mit Vorbelegung `http://`**,
+       `input#web-link-title` und `input[name="Link"][type="submit"]`
      * Ein Skript im Fixture, das auf `keydown` mit `l` bzw. `.` reagiert und
-       den passenden Dialog verzoegert einblendet - damit die
-       Tastatur-Variante testbar ist.
+       den passenden Dialog verzoegert einblendet; der Klick auf
+       `#add-web-link-link` laedt `#web-issue-link` verzoegert nach - so wie
+       Jira es per AJAX aus `data-url` tut.
   3. `manifest.json`: `"src/jiraui.js"` und `"src/otrslink.js"` in
      `content_scripts[0].js` **vor** `src/content.js` eintragen
      (Reihenfolge: ... `editlock`, `otrslink`, `jiraui`, `content`).
@@ -290,7 +299,9 @@ ihn als einzelnen Codeblock aus.
      * `waitForElement` findet ein nach 120 ms eingefuegtes Element
      * `waitForElement` laeuft bei `timeout: 200` auf einen Fehler
      * `setValue` schreibt den Wert und loest genau ein `input`-Ereignis aus
-     * `sendKey(document.body, 'l')` blendet das Label-Modal ein
+     * `setValue` **ersetzt** eine Vorbelegung (`#web-link-url` steht auf
+       `http://`) statt sie zu ergaenzen
+     * `sendKey(document.body, 'l')` blendet den Labels-Dialog ein
   6. `test/package.test.js`: die Reihenfolgezusicherung um
      `otrslink < content` und `jiraui < content` ergaenzen.
   7. Lint und Tests ausfuehren. Fehlt Chromium:
@@ -313,10 +324,16 @@ jira-markdown-converter/docs/issue-17-ausfuehrungsplan.md - Sub-Task 2.
 Vorbedingung: Branch feature/issue-17-part-1 existiert und enthaelt
 src/otrslink.js. Zweige feature/issue-17-part-2 davon ab (NICHT von main).
 
+Lies ausserdem jira-markdown-converter/docs/jira-dialogs-referenz.md - die
+verifizierte Dialogstruktur aus der produktiven Instanz. Alle Selektoren der
+Fixture kommen daher, nichts wird geraten.
+
 Aufgabe: Nur Sub-Task 2. Neu: src/jiraui.js (UMD-Modul JiraUi mit
 waitForElement, waitForGone, setValue, sendKey, click, visible, delay) und
-test/fixtures/mock-jira-otrs.html (Jira Server 9.12, AUI-Modale, die per
-setTimeout 120 ms verzoegert erscheinen).
+test/fixtures/mock-jira-otrs.html (Jira Server 9.12: #shifter-dialog,
+#edit-labels-dialog, zwei #modal-field-view, #link-issue-dialog - alle als
+.jira-dialog, NICHT .aui-dialog2 -, die per setTimeout 120 ms verzoegert
+erscheinen).
 Geaendert: manifest.json und src/background.js (CONTENT_FILES - beide Listen
 MUESSEN identisch sein, package.test.js vergleicht sie mit deepStrictEqual),
 test/integration.test.js (SOURCES erweitern, fuenf neue Faelle),
@@ -352,6 +369,7 @@ ihn als einzelnen Codeblock aus.
   Web-Link. Jeder Schritt zuerst per Tastatur-Shortcut, bei Misserfolg ueber
   direkte DOM-Selektoren. Noch keine Oberflaeche.
 * **Dateiebene:**
+  * Zu lesen: `jira-markdown-converter/docs/jira-dialogs-referenz.md`
   * Zu erstellen: `jira-markdown-converter/src/otrsflow.js`
   * Zu aendern: `jira-markdown-converter/manifest.json`,
     `jira-markdown-converter/src/background.js`,
@@ -370,30 +388,53 @@ ihn als einzelnen Codeblock aus.
      Bei Fehlschlag lehnt das Promise mit einem Fehler ab, dessen `message`
      den gescheiterten Schritt auf Deutsch nennt, und dessen Eigenschaft
      `step` die Kennung traegt (`'label' | 'reference' | 'link'`).
+  **Alle Selektoren stammen aus
+  [`docs/jira-dialogs-referenz.md`](jira-dialogs-referenz.md)** und sind am
+  DOM-Auszug der produktiven Instanz belegt. Nicht abweichen.
+
+  1b. Hilfsfunktion `openViaShifter(begriff, gruppe, dialogSelector)`:
+     `sendKey(document.body, '.')` ->
+     `waitForElement('#shifter-dialog-field')` -> `setValue(feld, begriff)` ->
+     im Treffer-Container `#shifter-dialog-suggestions` auf
+     `<gruppe> li.aui-list-item-li-<slug(begriff)>` warten
+     (`slug` = kleingeschrieben, Leerzeichen zu `-`) -> diesen Eintrag per
+     `JiraUi.click` waehlen, **nicht** blind `Enter` senden: `Enter` nimmt
+     `li.active`, und das ist bei mehreren Treffern nicht zwingend der
+     gemeinte. `Enter` bleibt Fallback, wenn der Eintrag `.active` traegt.
+     Danach auf `dialogSelector` warten.
   2. Schritt 1 `addLabel(ticketNumber)`:
      `JiraUi.sendKey(document.body, 'l')`, dann
-     `waitForElement('#edit-labels-dialog', { timeout: 1500 })`.
-     Fallback bei Timeout: `#edit-labels` bzw.
-     `[data-fieldtype="labels"] .editable-field` per `JiraUi.click` oeffnen.
-     Wert in `#labels-textarea` schreiben, `Enter` senden, mit
-     `.aui-dialog2-footer .aui-button-primary` bestaetigen, mit
-     `waitForGone('#edit-labels-dialog')` abwarten.
-  3. Schritt 2 `setReference(text, fieldName)`:
-     `sendKey(document.body, '.')` -> `waitForElement('#quick-search-dialog')`
-     -> `setValue('#quick-search-input', fieldName)` -> `Enter`
-     -> `waitForElement('#customfield-dialog')`.
-     Fallback: Feld direkt ueber
-     `[data-field-name="<fieldName>"] input, .customfield input` suchen.
-     **Vor dem Ueberschreiben** den vorhandenen Wert lesen und als
-     `previousReference` zurueckgeben (getrimmt; nicht vorhanden -> `''`).
-     Danach `setValue(feld, text)` und bestaetigen.
+     `waitForElement('#edit-labels-dialog.jira-dialog-open', { timeout: 1500 })`.
+     Fallback bei Timeout: `openViaShifter('Labels', '#edit-fields', '#edit-labels-dialog')`.
+     Wert in `textarea#labels-textarea` schreiben, `Enter` senden (das
+     uebernimmt den Eintrag in die Multi-Select-Darstellung), dann mit
+     `#edit-labels-dialog #submit` bestaetigen und `waitForGone` abwarten.
+     `#send-notifications` bleibt unberuehrt.
+  3. Schritt 2 `setReference(text, fieldName, fieldId)`:
+     `openViaShifter(fieldName, '#edit-fields', '#modal-field-view')`.
+     **Den geoeffneten Dialog verifizieren, bevor geschrieben wird** - beide
+     Custom-Field-Dialoge teilen sich die id `#modal-field-view`:
+     `h2#modal-field-view-title` muss `fieldName` enthalten **und** das
+     Zielfeld muss ein `input[type="text"]` sein. Trifft das nicht zu (etwa
+     beim Label-Picker `#customfield_10900-textarea`), abbrechen mit
+     `step: 'reference'` statt zu schreiben.
+     Feld suchen in dieser Reihenfolge: `#modal-field-view #' + fieldId`,
+     sonst `#modal-field-view .form-body input.textfield[type="text"]`.
+     **Vor dem Ueberschreiben** `field.value` lesen und getrimmt als
+     `previousReference` merken (leer -> `''`).
+     Dann `setValue(feld, text)` und mit
+     `#modal-field-view .buttons input[type="submit"]` bestaetigen,
+     `waitForGone('#modal-field-view')`.
   4. Schritt 3 `addWebLink(linkText, url)`:
-     `sendKey(document.body, '.')` -> `'link'` eingeben -> `Enter`
-     -> `waitForElement('#link-issue-dialog')`.
+     `openViaShifter('Link', '#issue-actions', '#link-issue-dialog')`.
      Fallback: `#link-issue` per `click`.
-     Reiter wechseln: `.aui-tabs .menu-item a[href="#web-link"]` klicken und
-     auf `#web-link.active-pane` warten. Dann `#weblink-url` = `url`,
-     `#weblink-linktext` = `linkText`, bestaetigen, `waitForGone`.
+     Reiter wechseln: `button#add-web-link-link` nur klicken, wenn er **nicht**
+     schon `.selected` traegt; danach auf `form#web-issue-link` warten - der
+     Rumpf kommt per AJAX aus `data-url`, der Dialog ist vorher schon da.
+     Dann `setValue('#web-link-url', url)` - das Feld ist mit `http://`
+     vorbelegt, der Wert wird **ersetzt** -, `setValue('#web-link-title', linkText)`,
+     Kommentarfeld leer lassen, mit `#web-issue-link input[name="Link"]`
+     bestaetigen, `waitForGone('#link-issue-dialog')`.
   5. Jeder Schritt kapselt seine Fallbacks; Ablauf strikt sequenziell per
      Promise-Kette (kein `async/await`, ES5). Zwischen den Schritten
      `JiraUi.delay(150)`, damit Jira den vorherigen AJAX-Zyklus abschliesst.
@@ -403,17 +444,23 @@ ihn als einzelnen Codeblock aus.
      diesem Projekt Absicht).
   7. Manifest und `CONTENT_FILES` um `src/otrsflow.js` erweitern
      (nach `jiraui`, vor `content`).
-  8. Fixture erweitern: das Custom-Field-Eingabefeld bekommt einen
-     vorbelegten Wert, damit `previousReference` pruefbar ist; die
-     Quick-Search-Trefferliste oeffnet den Custom-Field-Dialog bzw. den
-     Link-Dialog abhaengig vom eingegebenen Text.
+  8. Fixture erweitern: `#customfield_10027` bekommt einen vorbelegten Wert,
+     damit `previousReference` pruefbar ist; die Shifter-Trefferliste liefert
+     abhaengig vom eingegebenen Text den passenden Eintrag und oeffnet beim
+     Klick den zugehoerigen Dialog. Fuer den Verwechslungstest muss die
+     Eingabe "Customer Jira Key" den **zweiten** `#modal-field-view` mit
+     `#customfield_10900-textarea` oeffnen.
   9. Integrationstests ergaenzen:
      * kompletter Durchlauf mit dem Beispiel aus dem Issue - Label gesetzt,
        Custom Field gesetzt, Web-Link mit Text und URL gesetzt
      * `previousReference` liefert den alten Wert, wenn das Feld belegt war
      * `previousReference` ist `''`, wenn das Feld leer war
+     * `#web-link-url` enthaelt am Ende genau die URL, nicht `http://` plus URL
+     * oeffnet der Shifter den Label-Picker "Customer Jira Key" statt des
+       Textfelds, bricht der Ablauf ab (`error.step === 'reference'`) und
+       schreibt **nichts** - `#customfield_10900-textarea` bleibt leer
      * Fallback greift: Tastendruck wird im Fixture unterdrueckt, der Ablauf
-       gelingt trotzdem ueber die DOM-Selektoren
+       gelingt trotzdem ueber Shifter und DOM-Selektoren
      * fehlender Link-Dialog -> Promise wird abgelehnt, `error.step === 'link'`
 * **Definition of Done:**
   * [ ] Lint ohne Befund, `npm test` gruen
@@ -434,13 +481,23 @@ jira-markdown-converter/docs/issue-17-ausfuehrungsplan.md - Sub-Task 3.
 Vorbedingung: feature/issue-17-part-2 enthaelt src/jiraui.js und
 test/fixtures/mock-jira-otrs.html. Zweige feature/issue-17-part-3 davon ab.
 
+Lies ausserdem jira-markdown-converter/docs/jira-dialogs-referenz.md - alle
+Selektoren stammen von dort und sind am echten DOM belegt. Weiche nicht ab.
+
 Aufgabe: Nur Sub-Task 3. Neu: src/otrsflow.js (UMD-Modul JiraOtrsFlow mit
 run(parsed, options) -> Promise). Der Ablauf ist strikt sequenziell:
 1. Label mit der Ticketnummer, 2. Custom Field "Kunden Referenz" - den
 bestehenden Wert VOR dem Ueberschreiben auslesen und als previousReference
 zurueckgeben, 3. Web-Link im Reiter "Web Link".
-Jeder Schritt zuerst per Tastatur-Shortcut (l bzw. .), bei Timeout ueber
-direkte DOM-Selektoren. Nutze ausschliesslich JiraUi aus Sub-Task 2 fuer
+Jeder Schritt zuerst per Tastatur-Shortcut (l bzw. .), sonst ueber den Shifter
+(#shifter-dialog-field, Treffer li.aui-list-item-li-<slug> gezielt anklicken).
+
+Zwei Fallen, die im echten DOM belegt sind:
+- Beide Custom-Field-Dialoge heissen #modal-field-view. Vor dem Schreiben
+  pruefen, dass h2#modal-field-view-title den Feldnamen enthaelt UND das Ziel
+  ein input[type="text"] ist - sonst abbrechen, nie in den Label-Picker
+  #customfield_10900-textarea schreiben.
+- #web-link-url ist mit "http://" vorbelegt. Ersetzen, nicht ergaenzen. Nutze ausschliesslich JiraUi aus Sub-Task 2 fuer
 Warten, Klicken, Tasten und Werte - kein eigenes setTimeout-Polling.
 Geaendert: manifest.json + src/background.js (CONTENT_FILES identisch halten),
 test/fixtures/mock-jira-otrs.html, test/integration.test.js.
@@ -584,18 +641,21 @@ ihn als einzelnen Codeblock aus.
     `jira-markdown-converter/test/settings.test.js`,
     `jira-markdown-converter/test/integration.test.js`
 * **Schritt-fuer-Schritt Anweisungen:**
-  1. `src/settings.js`: `DEFAULTS` um zwei Schluessel erweitern -
-     `otrsHelper: true` (Helfer anbieten) und
-     `otrsFieldName: 'Kunden Referenz'` (Name des Custom Fields).
-     `withDefaults` haerten: leerer oder nicht-String-Wert bei
-     `otrsFieldName` faellt auf den Standard zurueck.
+  1. `src/settings.js`: `DEFAULTS` um drei Schluessel erweitern -
+     `otrsHelper: true` (Helfer anbieten),
+     `otrsFieldName: 'Kunden Referenz'` (Name des Custom Fields im Shifter)
+     und `otrsFieldId: 'customfield_10027'` (Fallback-Selektor; die id ist
+     instanzabhaengig und muss darum einstellbar sein).
+     `withDefaults` haerten: leerer oder nicht-String-Wert faellt bei beiden
+     auf den Standard zurueck.
   2. `src/content.js`: Modul-Referenzen oben ergaenzen
      (`var OtrsLink = window.JiraOtrsLink;` usw., Muster der bestehenden Zeilen
      11-15). Funktion `openOtrsDialog()` anlegen, die
      `JiraOtrsDialog.open({ onSubmit: runOtrsFlow })` aufruft.
   3. `runOtrsFlow(parsed)`:
      ```
-     JiraOtrsFlow.run(parsed, { fieldName: settings.otrsFieldName })
+     JiraOtrsFlow.run(parsed, { fieldName: settings.otrsFieldName,
+                                fieldId: settings.otrsFieldId })
        .then(erfolg)  -> toast('OTRS Link im Ticket eingepflegt.')
                          wenn result.previousReference:
                          zusaetzlich toast(
@@ -616,8 +676,9 @@ ihn als einzelnen Codeblock aus.
        `jmd-fieldbar__btn--otrs`
   5. Schalter `otrsHelper` in Popup und Optionsseite ergaenzen - dieselbe
      Optik wie `convertOnPaste` (`switch__track`), sowie ein Textfeld
-     `otrsFieldName` auf der Optionsseite mit Beschriftung
-     "Feldname der Kundenreferenz".
+     zwei Textfelder auf der Optionsseite: `otrsFieldName` ("Feldname der
+     Kundenreferenz") und `otrsFieldId` ("Feld-ID, falls der Name nicht
+     gefunden wird").
   6. `src/content.css`: Klassen fuer den neuen Feldleisten-Button und die
      langlebige Warnung ergaenzen.
   7. `test/settings.test.js`: Faelle fuer die neuen Standardwerte und fuer
@@ -636,7 +697,7 @@ ihn als einzelnen Codeblock aus.
   * [ ] Warnung lautet woertlich "Achtung: Kundenreferenz wurde ueberschrieben.
         Vorheriger Wert: <alter Wert>" und steht mindestens 10 Sekunden
   * [ ] Schalter `otrsHelper` in Popup und Optionsseite vorhanden
-  * [ ] `otrsFieldName` auf der Optionsseite pflegbar
+  * [ ] `otrsFieldName` und `otrsFieldId` auf der Optionsseite pflegbar
   * [ ] Commit `feat(jira): otrs-link-helfer verdrahten` und Push
   * [ ] Review-Prompt fuer Opus ausgegeben (Form siehe oben)
 
@@ -704,6 +765,9 @@ ihn als einzelnen Codeblock aus.
      sitzt und dass er auf Jira Server / Data Center 9.12 zielt.
   2. `CHANGELOG.md`: neuer Eintrag `## 1.3.0` mit `### Neu` und dem Verweis
      auf Issue #17. Format der bestehenden Eintraege uebernehmen.
+  2b. `docs/jira-dialogs-referenz.md` gegen den Stand der Umsetzung pruefen:
+     was Sub-Task 3 an Selektoren korrigieren musste, wird dort nachgezogen -
+     die Datei ist die Referenz fuer den naechsten Jira-Umbau.
   3. `CLAUDE.md` des Projekts: die vier neuen Module in die Struktur-Tabelle
      und in die UMD-Aufzaehlung aufnehmen. **Grenze 40 Zeilen einhalten** -
      dafuer bestehende Zeilen straffen, nicht anhaengen.
@@ -771,7 +835,8 @@ ihn als einzelnen Codeblock aus.
 
 | Punkt | Bewertung |
 | --- | --- |
-| Die AUI-Selektoren sind Annahmen, solange kein DOM-Auszug aus einer echten Jira-9.12-Instanz vorliegt. | Groesstes Risiko - und das billigste zu beseitigen: ein Auszug nach [`docs/dom-auszug.md`](dom-auszug.md) vor Sub-Task 2 macht die Fixture belastbar. Bis dahin traegt die Fallback-Ebene aus Sub-Task 3; ein manueller Test gegen die echte Instanz bleibt vor dem Release noetig. |
-| Custom-Field-ID (`customfield_11000`) ist instanzabhaengig. | Deshalb sucht der Ablauf ueber den Feldnamen, und der Name ist ueber `otrsFieldName` einstellbar. |
-| Quick-Search (`.`) trifft je nach Sprache der Jira-Oberflaeche andere Eintraege. | Der Feldname kommt aus den Einstellungen; der DOM-Fallback laeuft ohne Quick-Search. |
+| Die Selektoren stammen aus einem DOM-Auszug der produktiven Instanz, nicht aus einem Live-Lauf. | Deutlich entschaerft: Struktur, ids und Klassen sind belegt ([`docs/jira-dialogs-referenz.md`](jira-dialogs-referenz.md)). Offen bleiben Ladezeiten und Fehlerpfade - dafuer `waitForElement` und die Fallback-Ebene. Ein manueller Durchlauf vor dem Release bleibt noetig. |
+| Custom-Field-ID (`customfield_10027`) ist instanzabhaengig. | Der Ablauf sucht ueber den Feldnamen im Shifter; die id ist nur Fallback und ueber `otrsFieldId` einstellbar. |
+| Zwei Dialoge teilen sich `#modal-field-view` - "Kunden Referenz" (Textfeld) und "Customer Jira Key" (Label-Picker). | Groesste verbliebene Fehlerquelle: ein zu weiter Selektor schreibt in das falsche Feld. Sub-Task 3 verifiziert Titel und Feldtyp vor jedem Schreibzugriff und hat dafuer einen eigenen Testfall. |
+| Die Jira-Oberflaeche ist englisch, nur der Feldname deutsch. | Selektoren haengen an ids und Klassen, nie an UI-Texten; der Feldname kommt aus den Einstellungen. |
 | `support.inxire.com` und die Jira-Server-Hosts sind nicht im Manifest. | Absicht - die bestehende Mechanik `extraHosts` plus `optional_host_permissions` deckt das ab, ohne die Store-Pruefung zu belasten. |
