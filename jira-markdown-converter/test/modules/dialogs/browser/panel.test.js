@@ -183,4 +183,31 @@ describe('Panel aus einer Vorlage', { skip: !hasPlaywright }, function () {
     assert.deepStrictEqual(pastes, [], 'es haette nichts im Rich-Text-Editor landen duerfen');
     await page.close();
   });
+
+  /*
+   * ProseMirror (Jira Cloud, neuer Full Editor in Data Center) haengt am
+   * Feld selbst, ohne Textarea/iframe dazwischen - anders als der
+   * TinyMCE-Fall oben. Sein Schema (ADF) kennt keinen frei gestylten
+   * Div-Rahmen: das HTML aus Converter.panelHtml() wuerde dort auf nackten,
+   * ungestylten Absatztext einschrumpfen (Ticket #64). Deshalb bekommt
+   * dieser Editor von vornherein nur das Markup.
+   */
+  test('echtes ProseMirror-Feld bekommt nur Markup, kein ungestyltes HTML', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await page.focus('.ProseMirror');
+    await page.click('.jmd-fab');
+    await page.click('.jmd-panel [data-action="panel-template"]');
+    await page.waitForSelector('.jmd-panelmenu');
+    await page.click('.jmd-panelmenu__item[data-template="info"]');
+    var pastes = await page.evaluate(function () { return window.__pastes; });
+    assert.deepStrictEqual(pastes,
+      ['{panel:title=Info|borderColor=#0052cc|bgColor=#deebff}\nHier die Information eintragen.\n{panel}']);
+    var html = await page.innerHTML('.ProseMirror');
+    assert.strictEqual(html.indexOf('style='), -1, 'Panel kam trotzdem gestylt an: ' + html);
+    assert.strictEqual(html.indexOf('<div'), -1, 'Panel kam trotzdem als Div-Rahmen an: ' + html);
+    var toastText = await page.textContent('.jmd-toast');
+    assert.ok(/als Markup eingefuegt/.test(toastText), 'Hinweis auf unformatiertes Markup fehlt: ' + toastText);
+    await page.close();
+  });
 });
