@@ -155,6 +155,9 @@
    */
   function escapeValue(value) {
     var text = value === undefined || value === null ? '' : String(value);
+    // Haelt Werte einzeilig - sonst kippt insertModeFor (content.js) den
+    // Einfuegemodus, weil ein Zeilenumbruch im Wert wie eine mehrzeilige
+    // Vorlage aussieht.
     text = text.replace(/[\r\n\t]/g, ' ');
     text = text.replace(/\\/g, '\\\\');
     text = text.replace(/\{/g, '\\{');

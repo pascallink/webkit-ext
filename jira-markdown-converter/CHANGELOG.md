@@ -5,10 +5,16 @@ festgehalten. Das Format orientiert sich an
 [Keep a Changelog](https://keepachangelog.com/de/1.0.0/), Versionierung an
 [SemVer](https://semver.org/lang/de/).
 
-## [Unveroeffentlicht]
+## [1.3.0] - Unveroeffentlicht
 
 ### Hinzugefuegt
 
+- Eigene Vorlagen: in den Einstellungen anlegbare Textbausteine mit bis zu 5
+  Platzhaltern (`${Name}`). Ueber den Button *Vorlagen* in der Buttonleiste
+  am Feld einfuegbar; Vorlagen mit Platzhaltern oeffnen vorher einen Dialog
+  fuer die Werte. Vorlagen liegen im lokalen Speicher des Browsers und
+  wandern nicht auf andere Geraete mit - anders als die uebrigen
+  Einstellungen, die weiterhin synchronisiert werden.
 - Unterlagen fuer die Einreichung im Microsoft Edge Add-ons Store unter
   `docs/store/`: Listungstexte (deutsch und englisch), Begruendung je
   Berechtigung, Hinweise fuer die Pruefer und der Veroeffentlichungsprozess.
