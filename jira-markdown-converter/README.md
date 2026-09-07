@@ -146,7 +146,10 @@ Was ankommt, haengt am Feldtyp:
 | Feld | Ausgabe |
 | --- | --- |
 | reines Textfeld | `{panel:title=Info\|borderColor=#0052cc\|bgColor=#deebff} … {panel}` |
-| Rich-Text-Editor | dasselbe als HTML: ein `div` mit denselben Farben, Titel fett darueber |
+| Rich-Text-Editor (TinyMCE, Textarea mit iframe) | dasselbe als HTML: ein `div` mit denselben Farben, Titel fett darueber |
+| ProseMirror-Editor (Jira Cloud, neuer Full Editor in Data Center) | Wiki-Markup wie oben, dazu ein Hinweis-Toast |
+
+Das ADF-Schema von ProseMirror kennt keinen frei gestylten Div-Rahmen; HTML wuerde beim Einfuegen auf nackten Absatztext zusammenfallen (Issue #64).
 
 Ist *Vorher auf den Markup-Modus umschalten* eingestellt, wird aus dem
 Rich-Text-Editor erst ein Textfeld – dann kommt auch dort Wiki-Markup an.
