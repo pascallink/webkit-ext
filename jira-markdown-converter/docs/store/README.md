@@ -24,7 +24,7 @@ npm run store:assets --prefix jira-markdown-converter
 Quellen sind `assets/logo.svg` und die Screenshots in `../images/`; Ziele sind
 `assets/logo-300.png`, `assets/promo-tile-1400x560.png` und
 `assets/screenshots/`. Kein Bildbearbeitungsprogramm noetig, jedes eingereichte
-Bild ist damit reproduzierbar. Groessen und Anzahl prueft `test/package.test.js`
+Bild ist damit reproduzierbar. Groessen und Anzahl prueft `test/modules/package/store.test.js`
 bei jedem Testlauf mit.
 
 ## Stand der Einreichung
@@ -64,7 +64,7 @@ Partner Center oder an einem echten Edge passieren kann.
       am Ende beider Beschreibungen.
 - [x] Testanleitung fuer die Pruefer: [`review-notes.md`](review-notes.md).
 - [x] Keine Remote-Code-Ausfuehrung: kein `eval`, kein `new Function`, keine
-      externen Skripte oder Styles - `test/package.test.js` prueft das bei jedem
+      externen Skripte oder Styles - `test/modules/package/sources.test.js` prueft das bei jedem
       Lauf.
 - [x] Veroeffentlichungsprozess dokumentiert: [`publishing.md`](publishing.md).
 

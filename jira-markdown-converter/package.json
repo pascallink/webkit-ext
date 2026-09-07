@@ -13,6 +13,8 @@
     "test:node": "node test/run.js --node",
     "test:browser": "node test/run.js --browser",
     "test:converter": "node test/run.js converter",
+    "test:settings": "node test/run.js settings",
+    "test:package": "node test/run.js package",
     "lint": "eslint src test popup options",
     "store:assets": "node docs/store/build-assets.js"
   },
