@@ -136,10 +136,22 @@
     }
   }
 
+  /**
+   * Baut Jira das Feld beim erneuten Fokussieren neu auf (gleiche Kennung,
+   * neuer Knoten - Rich-Text-Editoren tun das), zeigt die Sperre noch auf den
+   * alten, inzwischen entfernten Knoten. Ohne diesen Ausweg erkennt die
+   * Pruefung das Feld dann nicht mehr als gesperrt, bis die naechste
+   * Bereinigung ueber die Sperrliste laeuft (Sekundenbruchteile spaeter,
+   * ausgeloest vom MutationObserver) - und ein Blur/Focusout dazwischen
+   * rutscht ungebremst zu Jira durch.
+   */
   function inside(field, node) {
     var area = editArea(field);
     if (area && area.contains && area.contains(node)) return true;
-    return inRichTextFrame(field, node);
+    if (inRichTextFrame(field, node)) return true;
+    if (field.isConnected) return false;
+    var next = successorOf(field);
+    return !!next && inside(next, node);
   }
 
   /** Eigene Bedienelemente bleiben immer bedienbar. */

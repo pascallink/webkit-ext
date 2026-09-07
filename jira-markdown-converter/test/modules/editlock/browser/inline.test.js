@@ -63,6 +63,50 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
+  test('blockiert Blur auch nach erneutem Fokussieren, wenn der Editor den Knoten austauscht', async function () {
+    // Issue #63: Rich-Text-Editoren bauen ihr Feld beim Fokuswechsel neu auf
+    // (gleiche id, neuer Knoten). Die Sperre zeigte danach noch auf den alten,
+    // entfernten Knoten - ein Blur/Focusout des neuen Knotens rutschte durch,
+    // bevor die naechste Bereinigung (MutationObserver-Debounce) das nachzog.
+    // Das hiesige Mock schliesst per Klick-Delegation, nicht per Blur - darum
+    // wird das Durchsickern hier direkt am Blur-Ereignis gemessen.
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, INLINE);
+    await startEditing(page);
+    await page.waitForFunction(function () {
+      return window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
+    await page.evaluate(function () {
+      window.__blurLeaked = 0;
+      document.getElementById('description').addEventListener('blur', function () {
+        window.__blurLeaked++;
+      });
+    });
+    await clickBeside(page);
+    assert.strictEqual(await page.evaluate(function () { return window.__blurLeaked; }), 0,
+      'das Blur des ersten Knotens ist schon durchgesickert');
+
+    await page.click('#description');
+    await page.evaluate(function () {
+      // Der Editor tauscht den Knoten aus, noch bevor unsere Bereinigung
+      // (400ms-Debounce ueber den MutationObserver) laufen konnte.
+      var old = document.getElementById('description');
+      var fresh = old.cloneNode(true);
+      old.parentNode.replaceChild(fresh, old);
+      fresh.addEventListener('blur', function () {
+        window.__blurLeaked++;
+      });
+      fresh.focus();
+    });
+    await page.waitForTimeout(50);
+
+    await page.click('#daneben');
+    await page.waitForTimeout(150);
+    assert.strictEqual(await page.evaluate(function () { return window.__blurLeaked; }), 0,
+      'das Blur des ausgetauschten Knotens ist durchgesickert');
+    await page.close();
+  });
+
   test('das Schloss zeigt den Zustand an', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, INLINE);

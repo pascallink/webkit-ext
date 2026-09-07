@@ -16,7 +16,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `editors` | `src/editors.js` | 18 Browser | #31, #32 |
 | `content` | `src/content.js`, `src/content.css` | 38 Browser | #31, #32 |
 | `dialogs` | `src/codedialog.js`, `src/templatedialog.js`, `src/codedialog.css` | 44 Browser | #31 |
-| `editlock` | `src/editlock.js` | 20 Browser | - |
+| `editlock` | `src/editlock.js` | 21 Browser | #63 |
 | `options` | `options/` | 8 Browser | #31, #32 |
 | `popup` | `popup/` | 5 Browser | - |
 | `background` | `src/background.js` | 7 Node | #32 |
