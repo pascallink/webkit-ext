@@ -18,9 +18,11 @@ Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per
   `JiraMarkdown`, `JiraMdSettings`, `JiraEditors`, `JiraCodeDialog`,
   `JiraEditLock`, `JiraTemplateDialog` - sonst laden die Node-Tests das Modul nicht.
 - `converter.js` bleibt **DOM-frei** - reine Textumwandlung, laeuft in Node.
-- Drei Editor-Varianten: `<textarea>` (DC), ProseMirror (Cloud), CodeMirror. Erkennung in `editors.js`.
+- Drei Editorvarianten immer mitdenken: `<textarea>` (Server/DC),
+  ProseMirror (Cloud), CodeMirror/Ace. Erkennung nur in `editors.js`.
 - Leere `catch`-Bloecke sind Absicht: Jira baut das DOM staendig um.
-- Content-Script in `manifest.json`; Abh.: `settings.js` zuerst, `content.js` zuletzt.
+- Neue Content-Script-Datei in `manifest.json` eintragen; die Reihenfolge dort
+  ist abhaengigkeitsgetrieben: `settings.js` zuerst, `content.js` zuletzt.
 
 ## Struktur
 
@@ -35,4 +37,4 @@ Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per
 | `src/background.js` | Service-Worker: Shortcut, Kontextmenue, Hosts. |
 | `popup/`, `options/` | UI-Seiten. |
 | `test/` | `test/run.js` - Module in `test/modules/<modul>/` (Node + `browser/` Playwright), Helfer+Mocks in `test/lib/`+`fixtures/`. |
-| `docs/store/` | Store-Einreichung: Texte, Gruende, Bilder (`npm run store:assets`). |
+| `docs/store/` | Store-Einreichung: Texte, Berechtigungsgruende, Bilder (`npm run store:assets`). |
