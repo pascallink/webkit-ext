@@ -9,6 +9,18 @@ kommende Version geplant.
 Aus `# Titel` wird `h1. Titel`, aus `**fett**` wird `*fett*`, aus einer
 Markdown-Tabelle wird eine Jira-Tabelle.
 
+## Zielplattform
+
+Die Erweiterung ist ausschliesslich fuer **Jira Server / Data Center 9.12 LTS
+(9.12.2)** gedacht und wird nur dagegen entwickelt und getestet: das Wiki-Feld
+mit `<textarea>` und der TinyMCE-Rahmen des Rich-Text-Editors.
+
+**Jira Cloud ist ausdruecklich kein Ziel mehr.** Das ausgelieferte Paket
+aktiviert sich technisch weiterhin auf `*.atlassian.net` - der ProseMirror-Editor
+von Jira Cloud wird dort aber weder gepflegt noch geprueft, Fehlerberichte von
+dort werden nicht bearbeitet. Wer die Erweiterung dort einsetzt, tut das ohne
+Zusage.
+
 ## Was die Erweiterung einbaut
 
 Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
@@ -147,7 +159,7 @@ Was ankommt, haengt am Feldtyp:
 | --- | --- |
 | reines Textfeld | `{panel:title=Info\|borderColor=#0052cc\|bgColor=#deebff} … {panel}` |
 | Rich-Text-Editor (TinyMCE, Textarea mit iframe) | dasselbe als HTML: ein `div` mit denselben Farben, Titel fett darueber |
-| ProseMirror-Editor (Jira Cloud, neuer Full Editor in Data Center) | Wiki-Markup wie oben, dazu ein Hinweis-Toast |
+| ProseMirror-Editor (Jira Cloud, neuer Full Editor in Data Center) - ausser Scope, nicht gepflegt | Wiki-Markup wie oben, dazu ein Hinweis-Toast |
 
 Das ADF-Schema von ProseMirror kennt keinen frei gestylten Div-Rahmen; HTML wuerde beim Einfuegen auf nackten Absatztext zusammenfallen (Issue #64).
 
@@ -296,9 +308,11 @@ Paket geladen:
 4. **Entpackte Erweiterung laden** und den entpackten Ordner
    `jira-markdown-converter` auswaehlen.
 
-Danach laeuft sie auf allen `*.atlassian.net`-Seiten (Jira Cloud).
+Danach laeuft sie technisch auf allen `*.atlassian.net`-Seiten (Jira Cloud) -
+diese Plattform ist jedoch ausser Scope, siehe [Zielplattform](#zielplattform).
+Der unterstuetzte Weg ist die eigene Server-Instanz im naechsten Abschnitt.
 
-### Jira Server / Data Center (z. B. 9.12.2)
+### Jira Server / Data Center 9.12 LTS (9.12.2) - die unterstuetzte Plattform
 
 Selbst gehostete Instanzen muessen einmalig freigegeben werden – sonst passiert
 auf der Jira-Seite gar nichts:
@@ -457,8 +471,8 @@ Erreichbar ueber das Popup („Einstellungen") oder
 | `contextMenus` | Eintrag im Rechtsklick-Menue |
 | `scripting` | Nachladen auf selbst eingetragenen Jira-Adressen |
 | `activeTab` | Adresse der aktuellen Seite fuer die Freigabe im Popup |
-| `https://*.atlassian.net/*` | Jira Cloud |
-| optional: `*://<eigener-host>/*` | Jira Server / Data Center, nur nach ausdruecklicher Freigabe |
+| `https://*.atlassian.net/*` | Jira Cloud - technisch noch im Paket, aber ausser Scope |
+| optional: `*://<eigener-host>/*` | Jira Server / Data Center 9.12 LTS, nur nach ausdruecklicher Freigabe - die unterstuetzte Plattform |
 
 Es werden keine Daten an Server gesendet; die Umwandlung passiert vollstaendig
 im Browser - festgehalten in der [Datenschutzerklaerung](../PRIVACY.md).

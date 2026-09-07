@@ -77,8 +77,9 @@ Partner Center oder an einem echten Edge passieren kann.
       Nicht Teil dieser Einreichung.
 - [ ] `npm run lint` und `npm test` unmittelbar vor der Einreichung gruen
       (CI-Lauf auf `main` genuegt).
-- [ ] Manuell in Edge Stable gegen Jira Cloud **und** eine
-      Jira-Server-Instanz testen.
+- [ ] Manuell in Edge Stable gegen eine Jira-Server-/Data-Center-Instanz
+      **9.12 LTS (9.12.2)** testen - das ist die einzige Zielplattform.
+      Jira Cloud ist ausser Scope und wird nicht mehr gegengetestet.
 - [ ] Screenshots gegensehen: die Quellbilder in `../images/` zeigen die
       Oberflaeche der Erweiterung, `schloss-zu.png` allerdings auf einer
       nachgebauten Jira-Seite aus `test/fixtures/`. Wer bei diesem Termin

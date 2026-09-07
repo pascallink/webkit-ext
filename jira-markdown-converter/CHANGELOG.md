@@ -28,6 +28,12 @@ festgehalten. Das Format orientiert sich an
 
 ### Geaendert
 
+- Zielplattform eingegrenzt: die Erweiterung wird ausschliesslich fuer
+  **Jira Server / Data Center 9.12 LTS (9.12.2)** entwickelt, getestet und
+  unterstuetzt. Jira Cloud (ProseMirror) ist damit ausser Scope; das Paket
+  aktiviert sich dort technisch noch, die Plattform wird aber nicht mehr
+  gepflegt. Festgehalten in `CLAUDE.md`, `README.md`, `.github/TESTS.md`
+  und der Store-Checkliste.
 - `description` nennt Codebloecke statt der noch nicht gebauten Smart-Links.
 - Panel-Vorlagen (Info, Hinweis, Warnung, Standard) im Rich-Text-Editor ohne
   umlaufenden Rahmen: Statusfarbe steckt jetzt in einer linken Akzentleiste,
