@@ -14,7 +14,7 @@ Berechtigung ist der einfachste Weg in die Rueckfrage.
 
 | Berechtigung | Begruendung fuer das Partner Center |
 | --- | --- |
-| `storage` | Speichert die Einstellungen der Erweiterung (Automatik an/aus, Verhalten im Rich-Text-Editor, eigene Jira-Adressen) im Browserprofil. Es werden keine Inhalte von Seiten gespeichert und nichts an Server gesendet. |
+| `storage` | Speichert die Einstellungen der Erweiterung (Automatik an/aus, Verhalten im Rich-Text-Editor, eigene Jira-Adressen) im Browserprofil, dazu die selbst angelegten Vorlagen im geraetelokalen Speicher (`chrome.storage.local`) - sie werden bewusst nicht synchronisiert. Es werden keine Inhalte von Seiten gespeichert und nichts an Server gesendet. |
 | `contextMenus` | Legt zwei Eintraege an: "Markierten Text in Jira-Markup umwandeln" im Rechtsklick-Menue auf einer Jira-Seite und einen Haken-Eintrag am Symbol der Erweiterung, mit dem die Einfuege-Automatik umgeschaltet wird. |
 | `scripting` | Registriert das Content-Script nachtraeglich auf den Jira-Adressen, die der Nutzer selbst freigegeben hat (Jira Server / Data Center). Ohne das waeren selbst gehostete Instanzen nur nach einem Neustart des Browsers erreichbar. Es wird ausschliesslich der mitgelieferte Code aus dem Paket registriert, nie nachgeladener. |
 | `activeTab` | Liest die Adresse des aktiven Tabs, wenn der Nutzer das Popup oeffnet - nur um ihm anzubieten, genau diese Jira-Adresse freizugeben, und um die Seite nach der Freigabe neu zu laden. Es wird kein Seiteninhalt gelesen. |
