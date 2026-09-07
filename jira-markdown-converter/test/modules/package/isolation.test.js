@@ -54,6 +54,14 @@ function listJsFiles(dir) {
  * Escapes mit \ werden dabei mit uebersprungen). Damit haelt der Scanner
  * "//" bzw. Anfuehrungszeichen innerhalb eines Stringliterals auseinander
  * von echten Kommentaren bzw. Zustandswechseln im Code.
+ *
+ * Der Scanner kennt keinen eigenen Regex-Zustand: ein Anfuehrungszeichen in
+ * einem Regex-Literal (z. B. /["']/ oder /don't/) oeffnet faelschlich einen
+ * String-Zustand, der erst am naechsten Anfuehrungszeichen im Quelltext
+ * wieder schliesst - alles dazwischen wird falsch klassifiziert. Das ist
+ * erkennbar: sauberer Quelltext endet immer im Zustand 'code'. `balanced`
+ * ist genau diese Pruefung, damit ein Aufrufer so einen Desync statt eines
+ * stillen Fehlers melden kann.
  */
 function scanStates(source) {
   var states = new Array(source.length);
@@ -116,7 +124,7 @@ function scanStates(source) {
       }
     }
   }
-  return states;
+  return { states: states, balanced: mode === 'code' };
 }
 
 /**
@@ -127,14 +135,16 @@ function scanStates(source) {
  * robustheit.test.js, description.test.js) ist kein Kommentaranfang. Eine
  * einfache Regex ohne Zustands-Scan koennte diese Unterscheidung nicht
  * treffen und hat den Zeilenrest hinter so einem "//" faelschlich entfernt.
+ * Gibt zusaetzlich das balanced-Flag aus scanStates() durch, damit ein
+ * Regex-Desync (siehe dort) beim Aufrufer ankommt statt verloren zu gehen.
  */
 function stripComments(source) {
-  var states = scanStates(source);
+  var scan = scanStates(source);
   var result = '';
   for (var i = 0; i < source.length; i++) {
-    result += states[i] === 'comment' ? ' ' : source[i];
+    result += scan.states[i] === 'comment' ? ' ' : source[i];
   }
-  return result;
+  return { source: result, balanced: scan.balanced };
 }
 
 /**
@@ -144,28 +154,31 @@ function stripComments(source) {
  * wuerde dort zu frueh abschneiden. Ein "require(" innerhalb eines
  * Stringliterals (z. B. ein Fixture-String) ist kein Aufruf, und Klammern
  * innerhalb eines Stringliterals zaehlen nicht in die Tiefe hinein.
+ * Liefert { args, balanced } statt nur der Argumente - bei balanced: false
+ * ist die Datei wegen eines Zustands-Desyncs (siehe scanStates()) nicht
+ * zuverlaessig auswertbar und args darf nicht als vollstaendig gelten.
  */
 function findRequireArgs(source) {
   var args = [];
   var stripped = stripComments(source);
-  var states = scanStates(stripped);
+  var states = scanStates(stripped.source).states;
   var callRegex = /require\s*\(/g;
   var match;
-  while ((match = callRegex.exec(stripped)) !== null) {
+  while ((match = callRegex.exec(stripped.source)) !== null) {
     if (states[match.index] === 'string') continue;
     var start = match.index + match[0].length;
     var depth = 1;
     var i = start;
-    while (i < stripped.length && depth > 0) {
+    while (i < stripped.source.length && depth > 0) {
       if (states[i] !== 'string') {
-        if (stripped[i] === '(') depth++;
-        else if (stripped[i] === ')') depth--;
+        if (stripped.source[i] === '(') depth++;
+        else if (stripped.source[i] === ')') depth--;
       }
       i++;
     }
-    args.push(stripped.slice(start, i - 1));
+    args.push(stripped.source.slice(start, i - 1));
   }
-  return args;
+  return { args: args, balanced: stripped.balanced };
 }
 
 function stringLiteral(text) {
@@ -244,10 +257,18 @@ function isAllowedRequire(target, fileDir, moduleName) {
 
 describe('Isolation der Testmodule', function () {
   var moduleNames = listModules();
-  // Diese Datei enthaelt "require(" auch als Regex-Literal (/require\s*\(/g).
-  // Ein eigener Scanner-Zustand nur fuer Regex-Literale lohnt sich fuer eine
-  // einzelne Testdatei nicht - sie bleibt darum wie bisher per OWN_FILE
-  // ausgenommen, statt vom Zustands-Scan selbst erkannt zu werden.
+  // Regex-Literale sind kein eigener Zustand in scanStates() - das betrifft
+  // nicht nur diese Datei, sondern jede Datei unter test/modules/. Diese
+  // Datei enthaelt "require(" zusaetzlich noch als Regex-Literal selbst
+  // (/require\s*\(/g); ein eigener Scanner-Zustand nur dafuer lohnt sich
+  // nicht, darum bleibt sie hier per OWN_FILE ausgenommen. Fuer alle anderen
+  // Dateien faengt die balanced-Pruefung aus scanStates() den allgemeinen
+  // Fall ab (ein Anfuehrungszeichen in einem Regex-Literal): sie werden
+  // dann als "nicht auswertbar" gemeldet statt still durchzurutschen.
+  // Bekannte, bewusst offene Grenze: require() innerhalb einer Template-
+  // Interpolation (${require("x")}) wird nicht erkannt - die ES5-Regel der
+  // Projekt-CLAUDE.md schliesst Template-Literale ohnehin aus, ein
+  // Zustand fuer ${} lohnt sich fuer dieses Projekt nicht.
   var OWN_FILE = path.join(MODULES_DIR, 'package', 'isolation.test.js');
   var files = listJsFiles(MODULES_DIR).filter(function (file) { return file !== OWN_FILE; });
 
@@ -257,7 +278,13 @@ describe('Isolation der Testmodule', function () {
       var moduleName = path.relative(MODULES_DIR, file).split(path.sep)[0];
       var fileDir = path.dirname(file);
       var source = fs.readFileSync(file, 'utf8');
-      findRequireArgs(source).forEach(function (raw) {
+      var found = findRequireArgs(source);
+      if (!found.balanced) {
+        violations.push(path.relative(ROOT, file) +
+          ': nicht auswertbar (unbalancierter String-/Kommentarzustand, evtl. Regex-Literal mit Anfuehrungszeichen)');
+        return;
+      }
+      found.args.forEach(function (raw) {
         var target = resolveRequireArg(raw, fileDir);
         if (!isAllowedRequire(target, fileDir, moduleName)) {
           violations.push(path.relative(ROOT, file) + ': require(' + raw.trim() + ')');
@@ -289,14 +316,34 @@ describe('Isolation der Testmodule', function () {
       'test:<modul>-Skript ohne zugehoerigen Ordner unter test/modules/: ' + orphaned.join(', '));
   });
 
-  test('findRequireArgs beruecksichtigt Stringliterale', function () {
+  test('findRequireArgs beruecksichtigt Stringliterale und meldet Zustands-Desyncs', function () {
     var urlVorRequire = "var u = 'https://x.de';\n" +
       "var b = require('../../content/browser/panel.test.js');\n";
-    assert.deepStrictEqual(findRequireArgs(urlVorRequire), [
-      "'../../content/browser/panel.test.js'"
-    ]);
+    assert.deepStrictEqual(findRequireArgs(urlVorRequire), {
+      args: ["'../../content/browser/panel.test.js'"],
+      balanced: true
+    });
 
     var requireInString = "var s = \"require('../../content/x.js')\";\n";
-    assert.deepStrictEqual(findRequireArgs(requireInString), []);
+    assert.deepStrictEqual(findRequireArgs(requireInString), { args: [], balanced: true });
+
+    // Escape direkt vor dem Stringende: 'C:\\' ist ein Backslash gefolgt vom
+    // echten schliessenden Anfuehrungszeichen, keine Escape-Sequenz fuer das
+    // Anfuehrungszeichen selbst - der String darf hier nicht offen bleiben.
+    var escapeVorStringende = "var s = 'C:\\\\';\nvar a = require('assert');\n";
+    assert.deepStrictEqual(findRequireArgs(escapeVorStringende), {
+      args: ["'assert'"],
+      balanced: true
+    });
+
+    // Escaptes Anfuehrungszeichen im String: 'it\'s require(x)' bleibt ein
+    // einziges Stringliteral, "require(x)" darin ist kein echter Aufruf.
+    var escapetesQuoteImString = "var s = 'it\\'s require(x)';\n";
+    assert.deepStrictEqual(findRequireArgs(escapetesQuoteImString), { args: [], balanced: true });
+
+    // Regex-Literal mit Anfuehrungszeichen desynchronisiert den Scanner -
+    // muss als nicht auswertbar erkannt werden statt still durchzurutschen.
+    var regexDesync = "var re = /[\"']/;\nvar b = require('../../content/browser/panel.test.js');\n";
+    assert.strictEqual(findRequireArgs(regexDesync).balanced, false);
   });
 });
