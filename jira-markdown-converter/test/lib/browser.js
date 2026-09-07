@@ -113,12 +113,38 @@ async function optionsPage(browser, settings) {
   return page;
 }
 
+/**
+ * Laedt die Popup-Seite. Gleicher Stub-Aufbau wie optionsPage() - der Stub
+ * muss per addInitScript vor page.goto stehen, weil popup.html settings.js
+ * selbst per <script> laedt.
+ */
+async function popupPage(browser, settings) {
+  var context = await browser.newContext();
+  var page = await context.newPage();
+  await page.addInitScript({ content: CHROME_STUB });
+  if (settings) {
+    var split = pageStub(settings);
+    await page.addInitScript({
+      content: 'window.__settings = ' + JSON.stringify(split.sync) + ';' +
+        'window.__local = ' + JSON.stringify(split.local) + ';'
+    });
+  }
+  await page.goto('file://' + path.join(root, 'popup', 'popup.html'));
+  // input.focus() ist der letzte synchrone Schritt in Settings.load().then(),
+  // danach steht der Popup-Zustand (Schalter, Vorschau) fest.
+  await page.waitForFunction(function () {
+    return document.activeElement === document.getElementById('input');
+  });
+  return page;
+}
+
 module.exports = {
   hasPlaywright: hasPlaywright,
   readSource: readSource,
   withBrowser: withBrowser,
   newPage: newPage,
   optionsPage: optionsPage,
+  popupPage: popupPage,
   SOURCES: SOURCES,
   STYLES: STYLES,
   CHROME_STUB: CHROME_STUB

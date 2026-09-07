@@ -4,12 +4,13 @@ Chrome/Edge-Erweiterung (MV3) fuer die Jira-Ticket-Bearbeitung. Scope: `jira`.
 
 ## Befehle
 
-Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per
-`chrome://extensions` -> "Entpackte Erweiterung laden".
+Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per `chrome://extensions` -> "Entpackte Erweiterung laden".
 - Lint: `npm run lint --prefix <p>` (ESLint ueber `src test popup options`)
-- Test: `npm test --prefix <p>`
-- Einzeln: `npm run test:unit|test:settings|test:package|test:integration --prefix <p>`
-- Browser fuer `test:integration`: `npx --prefix <p> playwright install chromium`
+- Alles: `npm test --prefix <p>` - nur vor dem finalen Commit
+- Ein Modul: `npm run test:module <modul> --prefix <p>` - der Normalfall
+- Ohne Browser: `npm run test:node --prefix <p>`
+- Module und Testzahlen: [`.github/TESTS.md`](../.github/TESTS.md)
+- Browser fuer Playwright-Tests: `npx --prefix <p> playwright install chromium`
 
 ## Tech-Stack-Vorgaben
 

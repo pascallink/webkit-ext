@@ -37,6 +37,11 @@ var CHROME_STUB = [
   '      }',
   '    },',
   '    onChanged: { addListener: function () {} }',
+  '  },',
+  // Nur fuer popup.js: checkCurrentTab() fragt beim Laden unbedingt den
+  // aktiven Tab ab - ohne Stub wuerde chrome.tabs.query() sonst werfen.
+  '  tabs: {',
+  '    query: function (info, cb) { cb([]); }',
   '  }',
   '};'
 ].join('\n');

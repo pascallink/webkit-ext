@@ -22,15 +22,25 @@ async function withChromeStub(stub, fn) {
   }
 }
 
-/** Sammelt registrierte Listener, damit ein Test onChanged-Events simulieren kann. */
-function onChangedStub() {
+/**
+ * Sammelt registrierte Listener, damit ein Test ein Event simulieren kann -
+ * fuer onChanged, onMessage, onClicked und onCommand gleichermassen, trigger()
+ * reicht alle Argumente unveraendert durch.
+ */
+function listenerStub() {
   var listeners = [];
   return {
     addListener: function (fn) { listeners.push(fn); },
-    trigger: function (changes, area) {
-      listeners.forEach(function (fn) { fn(changes, area); });
+    trigger: function () {
+      var args = arguments;
+      listeners.forEach(function (fn) { fn.apply(null, args); });
     }
   };
+}
+
+/** Rueckwaertskompatibler Name fuer den storage.onChanged-Stub. */
+function onChangedStub() {
+  return listenerStub();
 }
 
 function storageStub(syncStore, localStore) {
@@ -60,8 +70,32 @@ function storageStub(syncStore, localStore) {
   };
 }
 
+/**
+ * Stub fuer background.js: storageStub plus das Mindeste, was der
+ * Service-Worker beim Laden unbedingt aufruft (refreshIndicators() laeuft
+ * synchron mit) und die Listener, gegen die Tests Nachrichten und Klicks
+ * simulieren. chrome.tabs/scripting/permissions/action fehlen bewusst -
+ * die Nachrichtenbehandlung fuer 'convert' und 'toggle-convert-on-paste'
+ * braucht sie nicht.
+ */
+function backgroundStub(syncStore, localStore) {
+  var stub = storageStub(syncStore, localStore);
+  stub.runtime.onMessage = listenerStub();
+  stub.runtime.onInstalled = listenerStub();
+  stub.runtime.onStartup = listenerStub();
+  stub.contextMenus = {
+    removeAll: function (cb) { if (cb) cb(); },
+    create: function (props, cb) { if (cb) cb(); },
+    update: function (id, props, cb) { if (cb) cb(); },
+    onClicked: listenerStub()
+  };
+  stub.commands = { onCommand: listenerStub() };
+  return stub;
+}
+
 module.exports = {
   withChromeStub: withChromeStub,
   storageStub: storageStub,
-  onChangedStub: onChangedStub
+  onChangedStub: onChangedStub,
+  backgroundStub: backgroundStub
 };
