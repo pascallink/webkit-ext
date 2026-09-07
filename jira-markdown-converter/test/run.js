@@ -22,16 +22,6 @@ var spawnSync = require('child_process').spawnSync;
 var TEST_DIR = __dirname;
 var MODULES_DIR = path.join(TEST_DIR, 'modules');
 
-/**
- * Altdateien mit eigenem Test-Harness, die noch nicht nach test/modules/
- * migriert sind. Sie laufen nur beim Gesamtlauf (kein Modulname angegeben)
- * mit, ueber ein separates `node <datei>` je Eintrag - `node --test` kann
- * ihr handgeschriebenes test()/process.exit() nicht auswerten.
- */
-var LEGACY = [
-  { file: path.join(TEST_DIR, 'integration.test.js'), type: 'browser' }
-];
-
 function listModules() {
   if (!fs.existsSync(MODULES_DIR)) return [];
   return fs.readdirSync(MODULES_DIR).filter(function (name) {
@@ -106,14 +96,6 @@ function printList() {
     var browserCount = files.browser.reduce(function (sum, file) { return sum + countTests(file); }, 0);
     console.log(name + ': ' + nodeCount + ' Node, ' + browserCount + ' Browser');
   });
-  if (LEGACY.length) {
-    var legacyByType = { node: 0, browser: 0 };
-    LEGACY.forEach(function (entry) {
-      legacyByType[entry.type] += fs.existsSync(entry.file) ? countTests(entry.file) : 0;
-    });
-    console.log('legacy: ' + legacyByType.node + ' Node, ' + legacyByType.browser + ' Browser (' +
-      LEGACY.map(function (entry) { return path.relative(TEST_DIR, entry.file); }).join(', ') + ')');
-  }
 }
 
 function collectFiles(options) {
@@ -126,10 +108,6 @@ function collectFiles(options) {
       var files = filesForModule(name);
       node = node.concat(files.node);
       browser = browser.concat(files.browser);
-    });
-    LEGACY.forEach(function (entry) {
-      if (entry.type === 'node') node.push(entry.file);
-      else browser.push(entry.file);
     });
   } else {
     options.modules.forEach(function (name) {
@@ -166,11 +144,6 @@ function runNodeTest(files, options, concurrency) {
   return result.status === null ? 1 : result.status;
 }
 
-function runLegacyFile(file) {
-  var result = spawnSync(process.execPath, [file], { stdio: 'inherit' });
-  return result.status === null ? 1 : result.status;
-}
-
 function main() {
   var options;
   try {
@@ -197,33 +170,22 @@ function main() {
   }
 
   var exitCode = 0;
+  var node = files.node;
+  var browser = files.browser;
 
-  var migratedNode = files.node.filter(function (file) { return LEGACY.every(function (entry) { return entry.file !== file; }); });
-  var migratedBrowser = files.browser.filter(function (file) { return LEGACY.every(function (entry) { return entry.file !== file; }); });
-  var legacyNode = files.node.filter(function (file) { return LEGACY.some(function (entry) { return entry.file === file; }); });
-  var legacyBrowser = files.browser.filter(function (file) { return LEGACY.some(function (entry) { return entry.file === file; }); });
-
-  if (migratedBrowser.length > 0 && !hasPlaywright()) {
+  if (browser.length > 0 && !hasPlaywright()) {
     console.log('\nPlaywright nicht gefunden - Browser-Tests werden uebersprungen.\n');
-    migratedBrowser = [];
+    browser = [];
   }
 
-  if (migratedNode.length > 0) {
-    var nodeExit = runNodeTest(migratedNode, options, null);
+  if (node.length > 0) {
+    var nodeExit = runNodeTest(node, options, null);
     if (nodeExit !== 0) exitCode = nodeExit;
   }
 
-  if (migratedBrowser.length > 0) {
-    var browserExit = runNodeTest(migratedBrowser, options, 1);
+  if (browser.length > 0) {
+    var browserExit = runNodeTest(browser, options, 1);
     if (browserExit !== 0) exitCode = browserExit;
-  }
-
-  if (!options.namePattern) {
-    legacyNode.concat(legacyBrowser).forEach(function (file) {
-      if (!fs.existsSync(file)) return;
-      var legacyExit = runLegacyFile(file);
-      if (legacyExit !== 0) exitCode = legacyExit;
-    });
   }
 
   process.exit(exitCode);
