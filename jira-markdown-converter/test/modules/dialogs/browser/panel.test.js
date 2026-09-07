@@ -203,6 +203,13 @@ describe('Panel aus einer Vorlage', { skip: !hasPlaywright }, function () {
     var pastes = await page.evaluate(function () { return window.__pastes; });
     assert.deepStrictEqual(pastes,
       ['{panel:title=Info|borderColor=#0052cc|bgColor=#deebff}\nHier die Information eintragen.\n{panel}']);
+    // Tragende Assertion: die Fixture baut ihre Absaetze ohnehin nur aus
+    // text/plain, das kommt mit und ohne Fix identisch als Markup an. Ob der
+    // Fix wirkt, zeigt sich einzig daran, dass text/html beim Paste leer
+    // bleibt - mit der alten insertTemplate() waere hier das gestylte
+    // Div-HTML aus Converter.panelHtml() drin gewesen.
+    var pasteHtml = await page.evaluate(function () { return window.__pasteHtml; });
+    assert.deepStrictEqual(pasteHtml, [''], 'HTML-Nutzlast haette leer bleiben muessen: ' + JSON.stringify(pasteHtml));
     var html = await page.innerHTML('.ProseMirror');
     assert.strictEqual(html.indexOf('style='), -1, 'Panel kam trotzdem gestylt an: ' + html);
     assert.strictEqual(html.indexOf('<div'), -1, 'Panel kam trotzdem als Div-Rahmen an: ' + html);
