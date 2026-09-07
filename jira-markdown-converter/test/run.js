@@ -84,6 +84,9 @@ function parseArgs(argv) {
       list = true;
     } else if (arg === '--name') {
       i++;
+      if (i >= argv.length || argv[i].indexOf('--') === 0) {
+        throw new Error('--name braucht ein Muster');
+      }
       namePattern = argv[i];
     } else if (arg.indexOf('--') === 0) {
       throw new Error('Unbekannte Option: ' + arg);
