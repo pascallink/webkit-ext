@@ -3,6 +3,11 @@
  * Einfuege-Automatik. Rest der Bedienung (Einfuegen in Jira, Freigabe
  * weiterer Hosts) braucht einen echten Tab und bleibt hier aussen vor.
  * Aufruf: npm run test:popup --prefix jira-markdown-converter
+ *
+ * Tests klicken auf .switch__track statt #convertOnPaste, weil popup.css:184
+ * die Checkbox mit 1x1 px und opacity: 0 versteckt - der Klick auf das
+ * sichtbare Gleis ist der Nutzerpfad, waehrend ein Klick auf die versteckte
+ * Checkbox von Playwrights Sichtbarkeitspruefung abhaengig waere und damit fragil.
  */
 'use strict';
 
