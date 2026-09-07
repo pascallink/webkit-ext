@@ -40,6 +40,9 @@ var CHROME_STUB = [
   '  },',
   // Nur fuer popup.js: checkCurrentTab() fragt beim Laden unbedingt den
   // aktiven Tab ab - ohne Stub wuerde chrome.tabs.query() sonst werfen.
+  // cb([]) fuehrt in popup.js (withActiveTab) zur Statusmeldung
+  // "Kein aktiver Tab." - fuer aktuelle Tests unerheblich, aber zu beachten,
+  // sobald ein Test die Statuszeile prueft.
   '  tabs: {',
   '    query: function (info, cb) { cb([]); }',
   '  }',
