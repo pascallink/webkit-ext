@@ -135,6 +135,12 @@ Modul-Landkarte oben).
 4. Nur aus dem eigenen Modulordner, `test/lib/` und den Projektquellen
    requiren - alles Geteilte gehoert nach `test/lib/`, nichts aus einem
    fremden Modulordner.
+5. In Dateien unter `test/modules/` keine rohen Anfuehrungszeichen (") oder
+   Apostrophe (') in Regex-Literalen verwenden, sondern `\x22` (") und `\x27` (').
+   Der Zustandsscan in `package/isolation.test.js` kennt keinen Regex-Zustand und
+   haelt ein solches Anfuehrungszeichen sonst fuer einen Stringanfang; die Datei
+   wird dann als "nicht auswertbar" gemeldet. `test/lib/` und `test/run.js` sind
+   davon nicht betroffen, weil der Guard nur `test/modules/` liest.
 
 ## Reservierte Module
 

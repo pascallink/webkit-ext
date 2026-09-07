@@ -62,6 +62,13 @@ function listJsFiles(dir) {
  * erkennbar: sauberer Quelltext endet immer im Zustand 'code'. `balanced`
  * ist genau diese Pruefung, damit ein Aufrufer so einen Desync statt eines
  * stillen Fehlers melden kann.
+ *
+ * Bekannte, bewusst offene Grenze: `balanced` prueft nur Paritaet - ein
+ * Anfuehrungszeichen im Regex-Literal, das sich zufaellig selbst neutralisiert
+ * (gerade Anzahl des stoerenden Zeichens), wuerden als Desync unentdeckt bleiben.
+ * Die Konvention aus .github/TESTS.md (keine rohen Anfuehrungszeichen in
+ * Regex-Literalen unter test/modules/) ist darum die eigentliche Absicherung,
+ * nicht balanced.
  */
 function scanStates(source) {
   var states = new Array(source.length);
