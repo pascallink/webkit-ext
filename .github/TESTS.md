@@ -120,7 +120,9 @@ Modul-Landkarte oben).
   und laesst nur zu: eigener Modulordner, `test/lib/`, `test/fixtures/`,
   Projektquellen (`src/`, `options/`, `popup/`), Node-Builtins und
   `playwright`. Derselbe Test prueft, dass jedes Modul ein
-  `test:<modul>`-Skript in `package.json` hat und umgekehrt.
+  `test:<modul>`-Skript in `package.json` hat und umgekehrt. Der Guard liest
+  nur `test/modules/` - `test/lib/` ist per Definition geteilt und wird
+  selbst nicht geprueft.
 
 ## Neues Modul anlegen
 
