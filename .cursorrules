@@ -1,0 +1,16 @@
+# webkit-ext - Regeln fuer KI-Assistenten
+# Verbindliche Quelle ist CLAUDE.md, dies ist der Auszug fuer Cursor.
+
+Monorepo ohne Workspace-Root. Ein Task pro Projekt: --prefix <projekt>.
+Deutsch in Kommentaren und UI-Texten, ohne Umlaute (ue, ae, oe).
+
+## Tests
+- Tests liegen unter <projekt>/test/modules/<modul>/, Helfer unter test/lib/.
+- Bei Bugfix oder Feature nur Quellen und Tests des betroffenen Moduls oeffnen.
+- Waehrend der Arbeit nur: npm run test:module <modul> --prefix <projekt>
+- Gesamtlauf npm test --prefix <projekt> genau einmal, vor dem finalen Commit.
+- Kein Modul importiert aus einem fremden Modulordner - Geteiltes nach test/lib/.
+
+## Commits
+<typ>(<scope>): <Betreff im Imperativ, ohne Punkt>, Header max. 72 Zeichen.
+Typen: feat fix refactor test docs chore build ci. Ein Commit, ein Scope.

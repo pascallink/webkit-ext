@@ -59,6 +59,26 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
   - **Sonnet:** verarbeitet Prompts fuer komplexe Logikfehler,
     Architekturaenderungen, Testanpassungen oder gemischte Korrekturen.
 
+## Test-Kontext-Regeln
+
+Tests liegen je Projekt unter `test/modules/<modul>/`, geteilte Helfer unter
+`test/lib/`. Modul-Landkarte und Runner: [`.github/TESTS.md`](.github/TESTS.md).
+
+- **Dateiauswahl:** Bei Bugfix oder Feature nur die Quelldateien des
+  betroffenen Moduls, dessen `test/modules/<modul>/` und `test/lib/` oeffnen.
+  Fremde Modulordner bleiben zu - auch beim Suchen.
+- **Testausfuehrung waehrend der Arbeit:** ausschliesslich
+  `npm run test:module <modul> --prefix <projekt>`. Kein Gesamtlauf, um
+  zwischendurch zu schauen, ob noch alles gruen ist.
+- **PR-Check:** `npm test --prefix <projekt>` und
+  `npm run lint --prefix <projekt>` genau einmal, unmittelbar vor dem finalen
+  Commit. Rot heisst: zurueck in den Modullauf, nicht in den naechsten
+  Gesamtlauf.
+- **Neues Modul:** Ordner unter `test/modules/`, Zeile in `.github/TESTS.md`,
+  `test:<modul>` in der `package.json`. `test/run.js` findet ihn dann selbst.
+- **Kein Modul importiert aus einem fremden Modulordner.** Geteiltes gehoert
+  nach `test/lib/`; `package/isolation.test.js` erzwingt das.
+
 ## Commit-Konventionen
 
 `<typ>(<scope>): <Betreff im Imperativ, ohne Punkt>`, erzwungen per commitlint
