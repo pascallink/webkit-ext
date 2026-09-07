@@ -72,5 +72,5 @@ Die Fragen zur Datennutzung sind alle mit "nein" zu beantworten:
 | Wird Code aus dem Netz nachgeladen? | Nein - das Paket enthaelt kein `eval`, kein `new Function` und keine externen Skripte. |
 
 Belege dafuer liegen im Repository: [`../../../PRIVACY.md`](../../../PRIVACY.md)
-haelt die Aussage fest, `test/package.test.js` prueft bei jedem Lauf, dass im
+haelt die Aussage fest, `test/modules/package/sources.test.js` prueft bei jedem Lauf, dass im
 Auslieferungscode nichts nachgeladen wird.
