@@ -34,9 +34,12 @@
     // Sehr grobes ProseMirror-Verhalten: paste abfangen, Absaetze anlegen.
     var editor = document.querySelector('.ProseMirror');
     window.__pastes = [];
+    window.__pasteHtml = [];
     editor.addEventListener('paste', function (event) {
       var text = event.clipboardData ? event.clipboardData.getData('text/plain') : '';
+      var html = event.clipboardData ? event.clipboardData.getData('text/html') : '';
       window.__pastes.push(text);
+      window.__pasteHtml.push(html);
       event.preventDefault();
       text.split('\n').forEach(function (line) {
         var p = document.createElement('p');

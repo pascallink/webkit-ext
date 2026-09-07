@@ -39,6 +39,12 @@ festgehalten. Das Format orientiert sich an
   Zwischenablage wird ueber `navigator.clipboard` hinter einem Klick des
   Nutzers gelesen, wofuer es keine Berechtigung braucht.
 
+### Behoben
+
+- Panel-Vorlagen fuegten im ProseMirror-Editor von Jira Cloud rohen,
+  ungestylten HTML-Code ein; dort kommt jetzt das Wiki-Markup an, zusammen
+  mit einem Hinweis, dass der Editor es unformatiert zeigt (Issue #64).
+
 ## [1.2.1] - 2026-09-05
 
 ### Behoben

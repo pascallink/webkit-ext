@@ -818,11 +818,17 @@
   /**
    * Fuegt das Panel an der gemerkten Cursorposition ein.
    *
-   * Reines Textfeld  -> {panel:title=...|borderColor=...|bgColor=...}
-   * Rich-Text-Editor -> gleichwertiges HTML mit denselben Farben
+   * Reines Textfeld              -> {panel:title=...|borderColor=...|bgColor=...}
+   * Rich-Text-Editor (TinyMCE)   -> gleichwertiges HTML mit denselben Farben
+   * ProseMirror-Editor           -> ebenfalls nur das Markup
    *
    * Ist eingestellt, dass vorher auf den Markup-Modus umgeschaltet wird, wird
    * aus dem Rich-Text-Editor ein Textfeld - dann gilt der Markup-Zweig.
+   *
+   * Warum ProseMirror kein HTML bekommt: sein Schema (ADF) kennt keinen
+   * beliebig gestylten Div-Rahmen - beim Einfuegen faellt der Rahmen samt
+   * Farben weg, uebrig bleibt nackter, ungestylter Absatztext. Lieber gleich
+   * das Markup einfuegen, als ein kaputtes Panel vorzutaeuschen.
    */
   function insertTemplate(field, template) {
     if (!field) {
@@ -838,14 +844,19 @@
 
     switching.then(function () {
       var markup = Converter.panelMarkup(template);
-      var html = isPlainField(field) ? null : Converter.panelHtml(template);
+      var nativeRich = !isPlainField(field) && Editors.isRich(field);
+      var html = isPlainField(field) || nativeRich ? null : Converter.panelHtml(template);
       // 'block': auch {panel} deutet Jira nur am Zeilenanfang.
       if (!Editors.insertFormatted(field, markup, html, 'block')) {
         toast('Einfuegen nicht moeglich.', true);
         return;
       }
       focusPanelBody(field, template.body);
-      toast('Panel "' + template.label + '" eingefuegt.');
+      if (nativeRich) {
+        toast('Panel "' + template.label + '" als Markup eingefuegt - der Editor zeigt es unformatiert.', false);
+      } else {
+        toast('Panel "' + template.label + '" eingefuegt.');
+      }
     });
   }
 
