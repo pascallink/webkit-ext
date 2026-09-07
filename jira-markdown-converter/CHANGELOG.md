@@ -44,6 +44,10 @@ festgehalten. Das Format orientiert sich an
 - Panel-Vorlagen fuegten im ProseMirror-Editor von Jira Cloud rohen,
   ungestylten HTML-Code ein; dort kommt jetzt das Wiki-Markup an, zusammen
   mit einem Hinweis, dass der Editor es unformatiert zeigt (Issue #64).
+- Einfrieren: baute der Editor das Feld beim erneuten Fokussieren neu auf
+  (gleiche id, neuer Knoten - typisch bei Rich-Text-Editoren), erkannte die
+  Sperre den neuen Knoten nicht mehr und liess Jira das Feld beim naechsten
+  Klick daneben schliessen (Issue #63).
 
 ## [1.2.1] - 2026-09-05
 
