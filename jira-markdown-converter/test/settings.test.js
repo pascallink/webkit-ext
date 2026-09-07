@@ -9,6 +9,9 @@
 var assert = require('assert');
 var path = require('path');
 var Settings = require(path.join(__dirname, '..', 'src', 'settings.js'));
+var chromeStub = require(path.join(__dirname, 'lib', 'chrome-stub.js'));
+var withChromeStub = chromeStub.withChromeStub;
+var storageStub = chromeStub.storageStub;
 
 var passed = 0;
 var failed = 0;
@@ -334,60 +337,6 @@ test('fillPlaceholders ersetzt nicht rekursiv', function () {
 });
 
 console.log('\nGeteilter Storage');
-
-/**
- * Setzt globalThis.chrome fuer die Dauer von fn und macht das danach wieder
- * rueckgaengig. fn wird sofort aufgerufen (kein Umweg ueber ein weiteres
- * Promise), damit chrome beim tatsaechlichen Lesen/Schreiben feststeht -
- * die Faelle laufen ohnehin nacheinander, nicht parallel.
- */
-async function withChromeStub(stub, fn) {
-  var previous = globalThis.chrome;
-  globalThis.chrome = stub;
-  try {
-    return await fn();
-  } finally {
-    globalThis.chrome = previous;
-  }
-}
-
-/** Sammelt registrierte Listener, damit ein Test onChanged-Events simulieren kann. */
-function onChangedStub() {
-  var listeners = [];
-  return {
-    addListener: function (fn) { listeners.push(fn); },
-    trigger: function (changes, area) {
-      listeners.forEach(function (fn) { fn(changes, area); });
-    }
-  };
-}
-
-function storageStub(syncStore, localStore) {
-  return {
-    runtime: { lastError: null },
-    storage: {
-      sync: {
-        get: function (defaults, cb) {
-          cb(Object.assign({}, defaults, syncStore));
-        },
-        set: function (values, cb) {
-          Object.assign(syncStore, values);
-          if (cb) cb();
-        }
-      },
-      local: {
-        get: function (defaults, cb) {
-          cb(Object.assign({}, defaults, localStore));
-        },
-        set: function (values, cb) {
-          Object.assign(localStore, values);
-          if (cb) cb();
-        }
-      },
-      onChanged: onChangedStub()
-    }
-  };
-}
 
 async function runStorageTests() {
   await asyncTest('save() legt customTemplates nur in local ab', async function () {
