@@ -20,7 +20,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `options` | `options/` | 8 Browser | #31, #32 |
 | `popup` | `popup/` | 5 Browser | - |
 | `background` | `src/background.js` | 7 Node | #32 |
-| `package` | `manifest.json`, `docs/store/` | 30 Node + Guard | alle |
+| `package` | `manifest.json`, `docs/store/` | 31 Node + Guard | alle |
 | `mapping` *(reserviert)* | `src/mapping.js` *(geplant)* | - | **#32** |
 | `otrs` *(reserviert)* | `src/otrs.js` *(geplant)* | - | **#17** |
 
