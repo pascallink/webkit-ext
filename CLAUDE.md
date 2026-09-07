@@ -53,6 +53,11 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
 - **Korrektur-Routing (Opus-Abschluss):** Opus entscheidet am Ende des
   Reviews dynamisch, wie viele Korrektur-Prompts noetig sind (0, 1 oder 2),
   und gibt diese direkt gebrauchsfertig aus.
+- **Prompt-Ausgabeformat:** Jeder Prompt fuer eine Folge-Session steht als
+  reiner Text in einem eigenen Codeblock (drei Backticks, ohne Sprache) -
+  Fliesstext, Zitatblock oder Aufzaehlung sind nicht kopierbar. Nichts
+  ausserhalb des Blocks, was zum Prompt gehoert; die Modellwahl (Haiku oder
+  Sonnet) steht als Ueberschrift davor.
 - **Korrektur-Ausfuehrung:**
   - **Haiku:** verarbeitet Prompts fuer triviale Aufgaben (Linter-Fehler,
     Syntax, Formatierung, Umlaute, reine Doku- oder Typ-Fixes).
