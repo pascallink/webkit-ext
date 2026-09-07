@@ -1,0 +1,145 @@
+/**
+ * Automatik beim Einfuegen und Umwandeln an Ort und Stelle (Buttonleiste,
+ * Tastenkuerzel, Nachricht insert-text). Beide Abschnitte teilen sich das
+ * Ziel: Markdown wird beim Einfuegen bzw. auf Anforderung im Feld selbst
+ * umgewandelt, ohne ueber das Panel zu gehen.
+ * Aufruf: npm run test:content --prefix jira-markdown-converter
+ */
+'use strict';
+
+var assert = require('assert');
+var nodeTest = require('node:test');
+var describe = nodeTest.describe;
+var test = nodeTest.test;
+var browserLib = require('../../../lib/browser');
+var pasteInto = require('../../../lib/dom').pasteInto;
+
+var hasPlaywright = browserLib.hasPlaywright();
+var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
+
+describe('Automatik beim Einfuegen', { skip: !hasPlaywright }, function () {
+  test('Markdown wird beim Einfuegen in die Textarea umgewandelt', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await pasteInto(page, '#description', '# Titel\n\n- eins\n- zwei');
+    assert.strictEqual(await page.inputValue('#description'), 'h1. Titel\n\n* eins\n* zwei');
+    await page.close();
+  });
+
+  test('Klartext ohne Markdown wird nicht angefasst', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    var handled = await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      var data = new DataTransfer();
+      data.setData('text/plain', 'Ein ganz normaler Satz.');
+      var event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    assert.strictEqual(handled, false, 'das Einfuegen haette nicht abgefangen werden duerfen');
+    assert.strictEqual(await page.inputValue('#description'), '');
+    await page.close();
+  });
+
+  test('Einfuegen an der Cursorposition erhaelt den Rest', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await page.fill('#description', 'AB');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(1, 1);
+    });
+    await pasteInto(page, '#description', '**x**');
+    assert.strictEqual(await page.inputValue('#description'), 'A*x*B');
+    await page.close();
+  });
+
+  test('Rich-Text-Editor bekommt konvertiertes Markup als Paste', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await pasteInto(page, '.ProseMirror', '# Titel\n\n- eins');
+    var pastes = await page.evaluate(function () {
+      return window.__pastes;
+    });
+    assert.deepStrictEqual(pastes, ['h1. Titel\n\n* eins'], 'erhalten: ' + JSON.stringify(pastes));
+    var text = await page.textContent('.ProseMirror');
+    assert.ok(text.indexOf('h1. Titel') !== -1, 'Editor-Inhalt: ' + text);
+    await page.close();
+  });
+
+  test('Einstellung "Markdown durchreichen" laesst den Rich-Text-Editor in Ruhe', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, { richEditorFormat: 'markdown' });
+    var handled = await page.evaluate(function () {
+      var element = document.querySelector('.ProseMirror');
+      element.focus();
+      var data = new DataTransfer();
+      data.setData('text/plain', '# Titel');
+      var event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+      element.dispatchEvent(event);
+      return window.__pastes;
+    });
+    assert.deepStrictEqual(handled, ['# Titel'], 'das Markdown haette unveraendert ankommen muessen');
+    await page.close();
+  });
+
+  test('Automatik laesst sich abschalten', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, { convertOnPaste: false });
+    var prevented = await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      var data = new DataTransfer();
+      data.setData('text/plain', '# Titel');
+      var event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    assert.strictEqual(prevented, false);
+    await page.close();
+  });
+});
+
+describe('Umwandeln an Ort und Stelle', { skip: !hasPlaywright }, function () {
+  test('Buttonleiste wandelt den Feldinhalt um', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await page.fill('#description', '# Titel\n\n**fett**');
+    await page.locator('.jmd-fieldbar').first().getByText('Umwandeln').click();
+    assert.strictEqual(await page.inputValue('#description'), 'h1. Titel\n\n*fett*');
+    await page.close();
+  });
+
+  test('Tastenkuerzel wandelt nur die Auswahl um', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await page.fill('#description', 'oben\n# Titel\nunten');
+    await page.evaluate(function () {
+      var element = document.querySelector('#description');
+      element.focus();
+      element.setSelectionRange(5, 13);
+      window.__onMessage({ type: 'convert-selection' }, {}, function () {});
+    });
+    assert.strictEqual(await page.inputValue('#description'), 'oben\nh1. Titel\nunten');
+    await page.close();
+  });
+
+  test('Nachricht insert-text fuegt Text ein', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await page.focus('#description');
+    var response = await page.evaluate(function () {
+      var result = null;
+      window.__onMessage({ type: 'insert-text', text: 'h1. Von aussen', mode: 'replace' }, {}, function (value) {
+        result = value;
+      });
+      return result;
+    });
+    assert.deepStrictEqual(response, { ok: true });
+    assert.strictEqual(await page.inputValue('#description'), 'h1. Von aussen');
+    await page.close();
+  });
+});
