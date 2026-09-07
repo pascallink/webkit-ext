@@ -50,6 +50,14 @@
   var tryOutput = document.getElementById('tryOutput');
   var saveTimer = null;
 
+  var templateList = document.getElementById('templateList');
+  var tplTitle = document.getElementById('tplTitle');
+  var tplMarkup = document.getElementById('tplMarkup');
+  var tplPlaceholders = document.getElementById('tplPlaceholders');
+  var tplError = document.getElementById('tplError');
+  var editingId = null;
+  var templates = [];
+
   function say(message, isError) {
     status.textContent = message || '';
     status.classList.toggle('status--error', !!isError);
@@ -68,6 +76,7 @@
     var format = document.querySelector('input[name="richEditorFormat"]:checked');
     next.richEditorFormat = format ? format.value : 'html';
     next.extraHosts = parseHosts(hostsField.value);
+    next.customTemplates = templates;
     return Settings.withDefaults(next);
   }
 
@@ -78,6 +87,144 @@
       .filter(function (host, index, all) {
         return host && all.indexOf(host) === index;
       });
+  }
+
+  function parsePlaceholders(value) {
+    return String(value || '')
+      .split(',')
+      .map(function (name) {
+        return name.trim();
+      })
+      .filter(function (name) {
+        return name;
+      });
+  }
+
+  /** Fehlermeldung (blockierend) oder leerer String, wenn die Eingabe passt. */
+  function validateTemplate(entry) {
+    if (!entry.title) return 'Bitte einen Titel eintragen.';
+    if (entry.title.length > Settings.MAX_TITLE_LENGTH) {
+      return 'Titel ist zu lang (hoechstens ' + Settings.MAX_TITLE_LENGTH + ' Zeichen).';
+    }
+    if (!entry.templateMarkup) return 'Bitte ein Markup eintragen.';
+    if (entry.templateMarkup.length > Settings.MAX_TEMPLATE_LENGTH) {
+      return 'Markup ist zu lang (hoechstens ' + Settings.MAX_TEMPLATE_LENGTH + ' Zeichen).';
+    }
+    var markupNames = Settings.placeholdersInMarkup(entry.templateMarkup);
+    if (markupNames.length > Settings.MAX_PLACEHOLDERS) {
+      return 'Hoechstens ' + Settings.MAX_PLACEHOLDERS + ' Platzhalter je Vorlage erlaubt (' +
+        markupNames.length + ' im Markup gefunden).';
+    }
+    var seen = Object.create(null);
+    for (var i = 0; i < entry.placeholders.length; i++) {
+      if (seen[entry.placeholders[i]]) return 'Platzhalter "' + entry.placeholders[i] + '" ist doppelt.';
+      seen[entry.placeholders[i]] = true;
+    }
+    if (!editingId && templates.length >= Settings.MAX_TEMPLATES) {
+      return 'Hoechstens ' + Settings.MAX_TEMPLATES + ' Vorlagen moeglich.';
+    }
+    return '';
+  }
+
+  /**
+   * Hinweis (nicht blockierend), wenn Markup und Platzhalterliste
+   * auseinanderlaufen. Die Liste ist nur ein Reihenfolge-Hinweis fuer den
+   * Dialog (normalizePlaceholders() in src/settings.js leitet die Namen
+   * ohnehin aus dem Markup ab) - eine leer gelassene Liste heisst "keine
+   * Reihenfolge vorgegeben", nicht "unvollstaendig", und bekommt darum
+   * keinen Hinweis auf fehlende Namen.
+   */
+  function placeholderWarning(entry) {
+    var markupNames = Settings.placeholdersInMarkup(entry.templateMarkup);
+    var hintSet = Object.create(null);
+    entry.placeholders.forEach(function (name) {
+      hintSet[name] = true;
+    });
+    if (entry.placeholders.length) {
+      var missing = markupNames.filter(function (name) {
+        return !hintSet[name];
+      });
+      if (missing.length) {
+        return 'Im Markup steht ${' + missing[0] + '}, das nicht in der Platzhalterliste steht.';
+      }
+    }
+    var markupSet = Object.create(null);
+    markupNames.forEach(function (name) {
+      markupSet[name] = true;
+    });
+    var extra = entry.placeholders.filter(function (name) {
+      return !markupSet[name];
+    });
+    if (extra.length) {
+      return 'Der Platzhalter "' + extra[0] + '" kommt im Markup nicht vor.';
+    }
+    return '';
+  }
+
+  function setTplMessage(message, isError) {
+    tplError.textContent = message || '';
+    tplError.classList.toggle('status--error', !!isError);
+  }
+
+  function resetTemplateForm() {
+    editingId = null;
+    tplTitle.value = '';
+    tplMarkup.value = '';
+    tplPlaceholders.value = '';
+    setTplMessage('', false);
+  }
+
+  function renderTemplates() {
+    templateList.textContent = '';
+    if (!templates.length) {
+      var empty = document.createElement('p');
+      empty.className = 'hint';
+      empty.textContent = 'Noch keine Vorlage angelegt.';
+      templateList.appendChild(empty);
+      return;
+    }
+    templates.forEach(function (tpl) {
+      var item = document.createElement('div');
+      item.className = 'tpl-item';
+
+      var title = document.createElement('div');
+      title.className = 'tpl-item__title';
+      title.textContent = tpl.title;
+      item.appendChild(title);
+
+      if (tpl.placeholders.length) {
+        var tags = document.createElement('div');
+        tags.className = 'tpl-item__tags';
+        tpl.placeholders.forEach(function (name) {
+          var code = document.createElement('code');
+          code.textContent = name;
+          tags.appendChild(code);
+        });
+        item.appendChild(tags);
+      }
+
+      var actions = document.createElement('div');
+      actions.className = 'tpl-item__actions';
+
+      var editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn';
+      editBtn.textContent = 'Bearbeiten';
+      editBtn.dataset.tplAction = 'edit';
+      editBtn.dataset.tplId = tpl.id;
+      actions.appendChild(editBtn);
+
+      var deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn';
+      deleteBtn.textContent = 'Loeschen';
+      deleteBtn.dataset.tplAction = 'delete';
+      deleteBtn.dataset.tplId = tpl.id;
+      actions.appendChild(deleteBtn);
+
+      item.appendChild(actions);
+      templateList.appendChild(item);
+    });
   }
 
   /** Beschriftung und Farbe des Schalters zum Zustand passend setzen. */
@@ -96,6 +243,8 @@
     var radio = document.querySelector('input[name="richEditorFormat"][value="' + settings.richEditorFormat + '"]');
     if (radio) radio.checked = true;
     hostsField.value = (settings.extraHosts || []).join('\n');
+    templates = settings.customTemplates.slice();
+    renderTemplates();
     refreshPreview();
     refreshHostStatus();
   }
@@ -166,6 +315,56 @@
 
   hostsField.addEventListener('input', scheduleSave);
   tryInput.addEventListener('input', refreshPreview);
+
+  document.getElementById('tplSave').addEventListener('click', function () {
+    var entry = {
+      id: editingId,
+      title: tplTitle.value.trim(),
+      templateMarkup: tplMarkup.value,
+      placeholders: parsePlaceholders(tplPlaceholders.value)
+    };
+    var error = validateTemplate(entry);
+    if (error) {
+      setTplMessage(error, true);
+      return;
+    }
+    var normalized = Settings.normalizeTemplate(entry);
+    if (editingId) {
+      templates = templates.map(function (tpl) {
+        return tpl.id === editingId ? normalized : tpl;
+      });
+    } else {
+      templates.push(normalized);
+    }
+    save();
+    renderTemplates();
+    resetTemplateForm();
+    setTplMessage(placeholderWarning(entry), false);
+  });
+
+  document.getElementById('tplCancel').addEventListener('click', resetTemplateForm);
+
+  templateList.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-tpl-action]');
+    if (!button) return;
+    var tpl = Settings.templateById(templates, button.dataset.tplId);
+    if (!tpl) return;
+    if (button.dataset.tplAction === 'edit') {
+      editingId = tpl.id;
+      tplTitle.value = tpl.title;
+      tplMarkup.value = tpl.templateMarkup;
+      tplPlaceholders.value = tpl.placeholders.join(', ');
+      setTplMessage('', false);
+    } else if (button.dataset.tplAction === 'delete') {
+      if (!window.confirm('Vorlage "' + tpl.title + '" loeschen?')) return;
+      templates = templates.filter(function (item) {
+        return item.id !== tpl.id;
+      });
+      if (editingId === tpl.id) resetTemplateForm();
+      save();
+      renderTemplates();
+    }
+  });
 
   Settings.load().then(function (loaded) {
     settings = loaded;

@@ -11,7 +11,7 @@ var Converter = self.JiraMarkdown;
 
 var CONTENT_SCRIPT_ID = 'jira-markdown-extra-hosts';
 var CONTENT_FILES = ['src/settings.js', 'src/converter.js', 'src/editors.js',
-  'src/codedialog.js', 'src/editlock.js', 'src/content.js'];
+  'src/codedialog.js', 'src/templatedialog.js', 'src/editlock.js', 'src/content.js'];
 var CONTENT_CSS = ['src/content.css', 'src/codedialog.css'];
 
 /* -------------------------------------------------------------------- *

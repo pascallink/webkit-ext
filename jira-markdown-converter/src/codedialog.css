@@ -75,6 +75,18 @@
   line-height: 1.5;
 }
 
+.jmd-dialog__fields {
+  margin-top: 4px;
+}
+
+.jmd-dialog__field {
+  margin-bottom: 10px;
+}
+
+.jmd-dialog__field:last-child {
+  margin-bottom: 0;
+}
+
 @media (prefers-color-scheme: dark) {
   .jmd-dialog {
     color: #c7d1db;

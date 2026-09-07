@@ -383,15 +383,16 @@
 
   /**
    * Dieselbe Vorlage als HTML - fuer den Rich-Text-Editor, der Wiki-Markup
-   * woertlich stehen lassen wuerde. Die Farben stecken als Inline-Stil im
-   * Rahmen, damit das Panel genauso aussieht wie das gerenderte Makro.
+   * woertlich stehen lassen wuerde. Statt eines umlaufenden Rahmens traegt
+   * nur die linke Kante die Statusfarbe - modernere Jira-Panels blenden den
+   * vollen Rahmen ebenfalls aus.
    */
   function panelHtml(template, body) {
     if (!template) return '';
     var border = panelColor(template.borderColor) || '#dfe1e6';
     var background = panelColor(template.bgColor) || '#f4f5f7';
-    var style = 'border: 1px solid ' + border + '; background-color: ' + background +
-      '; padding: 10px; margin: 8px 0;';
+    var style = 'border-left: 4px solid ' + border + '; border-radius: 0 6px 6px 0;' +
+      ' background-color: ' + background + '; padding: 12px 16px; margin: 12px 0;';
     var title = panelTitle(template.title);
     var head = title ? '<p><strong>' + escapeHtml(title) + '</strong></p>' : '';
     return '<div style="' + escapeAttribute(style) + '">' + head +

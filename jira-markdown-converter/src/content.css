@@ -341,13 +341,13 @@
   outline: none;
 }
 
-/* Zeigt die Farbe der Vorlage - Rahmen und Fuellung wie im Ticket. */
+/* Zeigt die Farbe der Vorlage - Akzentleiste und Fuellung wie im Ticket. */
 .jmd-panelmenu__swatch {
   flex: none;
   width: 16px;
   height: 16px;
-  border: 1px solid var(--jmd-panel-border, #dfe1e6);
-  border-radius: 3px;
+  border-left: 3px solid var(--jmd-panel-border, #dfe1e6);
+  border-radius: 0 3px 3px 0;
   background: var(--jmd-panel-bg, #f4f5f7);
 }
 

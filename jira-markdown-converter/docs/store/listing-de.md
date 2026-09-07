@@ -50,6 +50,9 @@ WAS DIE ERWEITERUNG EINBAUT
   durch den Markdown-Parser geschickt.
 - Menue "Panel aus Vorlage": vier farbige Jira-Panels (Info, Hinweis, Warnung,
   Standard) auf Knopfdruck, Platzhalter danach markiert.
+- Eigene Vorlagen: selbst angelegte Textbausteine mit bis zu 5 Platzhaltern,
+  ueber die Buttonleiste am Feld einfuegbar - mit Dialog fuer die Werte, wenn
+  die Vorlage Platzhalter hat.
 - Automatik beim Einfuegen: Text, der nach Markdown aussieht, wird direkt beim
   Einfuegen umgewandelt. Strg+Z macht das rueckgaengig, und die Automatik
   laesst sich ueberall mit einem Klick abschalten.
