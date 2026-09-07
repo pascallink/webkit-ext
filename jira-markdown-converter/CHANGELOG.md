@@ -5,7 +5,7 @@ festgehalten. Das Format orientiert sich an
 [Keep a Changelog](https://keepachangelog.com/de/1.0.0/), Versionierung an
 [SemVer](https://semver.org/lang/de/).
 
-## [1.3.0] - Unveroeffentlicht
+## [1.3.0] - 2026-09-07
 
 ### Hinzugefuegt
 
