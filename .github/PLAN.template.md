@@ -25,7 +25,7 @@ Erstelle einen detaillierten Ausführungsplan für Issue #[ISSUE_NUMBER]. Jeder 
   * [ ] Code ist syntaxfrei und entspricht den Projekt-Standards.
   * [ ] Neue und bestehende Tests laufen grün durch.
   * [ ] Git Commit & Push auf den Branch ausgeführt.
-* **Agent-Start-Prompt:** *(Gebrauchsfertiger Prompt zum Starten der spezifischen Chat-Session - immer als reiner Text in einem eigenen Codeblock mit drei Backticks, ohne Sprache, damit er unveraendert kopierbar ist. Gilt ebenso fuer die Review- und Korrektur-Prompts am Ende einer Session.)*
+* **Agent-Start-Prompt:** *(Gebrauchsfertiger Prompt zum Starten der Chat-Session - reiner Text in einem eigenen Codeblock, drei Backticks, ohne Sprache. Review- und Korrektur-Prompts am Sessionende folgen den Schemata in [`.github/PROMPTS.md`](PROMPTS.md).)*
 
 ---
 

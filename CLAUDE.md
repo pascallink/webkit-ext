@@ -45,24 +45,21 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
 
 ## Workflow & QA-Regeln
 
-- **Subtask-Abschluss (Sonnet):** Jede umsetzende Session beendet ihre Arbeit
-  verpflichtend mit einem standardisierten Review-Prompt fuer Opus, Form und
-  Inhalt gemaess [`.github/PLAN.template.md`](.github/PLAN.template.md).
-- **QA & Review (Opus):** Opus fuehrt das Review durch, prueft Code-Logik,
-  MV3-Konformitaet, Tests sowie Sicherheit und bewertet den PR.
-- **Korrektur-Routing (Opus-Abschluss):** Opus entscheidet am Ende des
-  Reviews dynamisch, wie viele Korrektur-Prompts noetig sind (0, 1 oder 2),
-  und gibt diese direkt gebrauchsfertig aus.
-- **Prompt-Ausgabeformat:** Jeder Prompt fuer eine Folge-Session steht als
-  reiner Text in einem eigenen Codeblock (drei Backticks, ohne Sprache) -
-  Fliesstext, Zitatblock oder Aufzaehlung sind nicht kopierbar. Nichts
-  ausserhalb des Blocks, was zum Prompt gehoert; die Modellwahl (Haiku oder
-  Sonnet) steht als Ueberschrift davor.
-- **Korrektur-Ausfuehrung:**
-  - **Haiku:** verarbeitet Prompts fuer triviale Aufgaben (Linter-Fehler,
-    Syntax, Formatierung, Umlaute, reine Doku- oder Typ-Fixes).
-  - **Sonnet:** verarbeitet Prompts fuer komplexe Logikfehler,
-    Architekturaenderungen, Testanpassungen oder gemischte Korrekturen.
+Kette je Aufgabe: Sonnet setzt um -> Opus reviewt -> Haiku oder Sonnet
+korrigiert. Die Uebergabe laeuft ueber die JSON-Schemata in
+[`.github/PROMPTS.md`](.github/PROMPTS.md) - dort auch die Ausgaberegeln
+(kein Wrapper-Text, striktes Schema, beschnittener Kontext).
+
+- **Subtask-Abschluss (Sonnet):** jede umsetzende Session endet verpflichtend
+  mit dem Review-Prompt (Stufe 1) fuer Opus.
+- **QA & Review (Opus):** prueft Code-Logik, MV3-Konformitaet, Tests und
+  Sicherheit; Ergebnis als Stufe-1-JSON, kein Fliesstext-Bericht.
+- **Korrektur-Routing (Opus-Abschluss):** Opus haengt 0, 1 oder 2 Stufe-2-
+  Prompts an, je Prompt genau eine Zieldatei. Nur `STYLE`/`MINOR` geht an
+  Haiku, alles andere an Sonnet.
+- **Prompt-Ausgabeformat:** jeder Folge-Prompt als reiner Text in einem eigenen
+  Codeblock (drei Backticks, ohne Sprache), Modellwahl als Ueberschrift davor,
+  nichts davon ausserhalb des Blocks.
 
 ## Test-Kontext-Regeln
 
