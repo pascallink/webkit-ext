@@ -4,7 +4,7 @@ name: Build Extensions
 # Install -> Lint -> Test. Neue Erweiterungen brauchen hier keine Aenderung.
 #
 # Es entstehen bewusst KEINE ZIPs mehr. Die baut release.yml, und nur dann,
-# wenn ein Release auf eine neue Minor-Version (x.y.0) veroeffentlicht wird.
+# wenn ein Tag auf eine neue Minor-Version (x.y.0) gepusht wird.
 
 on:
   push:
