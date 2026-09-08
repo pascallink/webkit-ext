@@ -46,14 +46,14 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
 ## Workflow & QA-Regeln
 
 Kette je Aufgabe: Sonnet setzt um -> Opus reviewt -> Haiku oder Sonnet
-korrigiert. Die Uebergabe laeuft ueber die JSON-Schemata in
+korrigiert. Die Uebergabe laeuft ueber die Vorlagen in
 [`.github/PROMPTS.md`](.github/PROMPTS.md) - dort auch die Ausgaberegeln
-(kein Wrapper-Text, striktes Schema, beschnittener Kontext).
+(kein Wrapper-Text, strikte Struktur, beschnittener Kontext).
 
 - **Subtask-Abschluss (Sonnet):** jede umsetzende Session endet verpflichtend
   mit dem Review-Prompt (Stufe 1) fuer Opus.
 - **QA & Review (Opus):** prueft Code-Logik, MV3-Konformitaet, Tests und
-  Sicherheit; Ergebnis als Stufe-1-JSON, kein Fliesstext-Bericht.
+  Sicherheit; Ergebnis als Stufe-1-Fliesstext, kein JSON-Bericht.
 - **Korrektur-Routing (Opus-Abschluss):** Opus haengt 0, 1 oder 2 Stufe-2-
   Prompts an, je Prompt genau eine Zieldatei. Nur `STYLE`/`MINOR` geht an
   Haiku, alles andere an Sonnet.

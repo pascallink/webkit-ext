@@ -1,17 +1,19 @@
 # Prompt-Vertrag fuer Modell-Uebergaben
 
-Maschinenlesbare Vorlagen fuer die Uebergabe zwischen Sessions: Opus reviewt,
-Haiku oder Sonnet korrigiert. Prosa-Prompts driften und kosten Tokens - das
-Schema steht deshalb genau einmal hier, nicht in der Root-`CLAUDE.md`. Wer wann
-uebergibt, steht dort ("Workflow & QA-Regeln").
+Feste Vorlagen fuer die Uebergabe zwischen Sessions: Opus reviewt, Haiku oder
+Sonnet korrigiert. Prosa-Prompts driften und kosten Tokens - die Struktur steht
+deshalb genau einmal hier, nicht in der Root-`CLAUDE.md`. Wer wann uebergibt,
+steht dort ("Workflow & QA-Regeln"). Das Planungstemplate verweist auf diese
+Datei: [`.github/PLAN.template.md`](PLAN.template.md).
 
 ## Ausgaberegeln (gelten fuer jede Stufe)
 
 - **Kein Wrapper:** keine Begruessung, kein "Hier ist ...", kein "Ich habe
-  analysiert ...", keine Signatur, keine Nachbemerkung. Erstes Zeichen der
-  Antwort ist `{`.
-- **Schema strikt:** nur die definierten Felder, Enums exakt wie notiert, kein
-  Zusatzfeld. Was der Diff nicht belegt, ist `null` - nicht geraten.
+  analysiert ...", keine Signatur, keine Nachbemerkung. Stufe 1 beginnt mit der
+  Status-Ueberschrift, ein Folge-Prompt mit den drei Backticks.
+- **Struktur strikt:** nur die definierten Abschnitte, Enums exakt wie notiert,
+  kein Zusatzabschnitt. Was der Diff nicht belegt, wird nicht behauptet - lieber
+  weglassen als raten.
 - **Kontext beschneiden:** vor der Uebergabe Kommentare, Leerzeilen und
   unveraenderte Bloecke entfernen. Weiter geht der Ausschnitt, nie die ganze
   Datei.
@@ -19,68 +21,54 @@ uebergibt, steht dort ("Workflow & QA-Regeln").
   einem eigenen Codeblock (drei Backticks, ohne Sprache), die Modellwahl als
   Ueberschrift davor. Nichts, was zum Prompt gehoert, steht ausserhalb.
 
-## Stufe 1 - Review-Trigger (Opus)
+## Stufe 1 - Review-Ergebnis (Opus)
 
 Eingabe: Diff gegen `main`, PR-Titel, PR-Beschreibung.
+Ausgabe: Markdown-Fliesstext, kein JSON-Bericht.
 
-```json
-{
-  "task": "code_review_trigger",
-  "instructions": [
-    "Analyze git diff against main branch.",
-    "Identify breaking changes, security risks, performance bottlenecks, and logic errors.",
-    "Output concise findings in JSON."
-  ],
-  "output_format": {
-    "status": "APPROVED | CHANGES_REQUESTED",
-    "summary": "Max 2 sentences.",
-    "issues": [
-      {
-        "file": "path/to/file",
-        "line": 0,
-        "severity": "CRITICAL | MAJOR | MINOR",
-        "type": "SECURITY | BUG | PERFORMANCE | STYLE",
-        "description": "Short explanation",
-        "suggested_fix": "Minimal code snippet or null"
-      }
-    ]
-  }
-}
+```
+## Review PR #<nummer> - <APPROVED | CHANGES_REQUESTED>
+
+<Zwei bis drei Absaetze: was bricht, warum, und was daraus folgt. Datei- und
+Zeilenangaben inline als `datei.yml:18`. Keine Tabelle, keine Befundliste,
+kein Wiederholen des Diffs.>
+
+**Empfehlung:** <ein Satz zur Richtung der Korrektur.>
 ```
 
-- `status` ist `CHANGES_REQUESTED`, sobald ein Issue `CRITICAL` oder `MAJOR`
-  ist, sonst `APPROVED`.
-- `issues: []` heisst: kein Korrektur-Prompt, das Review endet hier.
+- Status ist `CHANGES_REQUESTED`, sobald ein Befund `CRITICAL` oder `MAJOR` ist,
+  sonst `APPROVED`.
+- Schweregrade (`CRITICAL`, `MAJOR`, `MINOR`) und Typen (`SECURITY`, `BUG`,
+  `PERFORMANCE`, `STYLE`) gelten weiter: sie benennen den Befund im Fliesstext
+  und steuern das Routing der Stufe 2.
+- Keine Befunde heisst: kein Korrektur-Prompt, das Review endet nach der
+  Empfehlung.
 
 ## Stufe 2 - Korrektur (Haiku oder Sonnet)
 
-Eingabe: die `issues` aus Stufe 1, auf **eine** Zieldatei gefiltert, plus deren
-beschnittener Inhalt. Ein Prompt pro Datei, maximal zwei Prompts je Review.
+Direkt im Anschluss an Stufe 1: 0, 1 oder 2 Prompts, je Prompt genau **eine**
+Zieldatei, jeweils mit Modellwahl als Ueberschrift davor
+(`### Korrektur-Prompt -> Sonnet`).
 
-```json
-{
-  "task": "apply_refactoring",
-  "target_file": "path/to/file",
-  "issues_to_fix": [
-    {
-      "line": 0,
-      "type": "BUG",
-      "instruction": "Short fix instruction"
-    }
-  ],
-  "constraints": [
-    "No conversational fluff.",
-    "Return only raw file diff or updated file content.",
-    "Preserve existing code structure unless explicitly requested."
-  ],
-  "output_format": {
-    "modified_code": "Raw code block only"
-  }
-}
+```
+task: apply_refactoring
+target_file: <pfad/zur/datei>
+
+Kontext: <zwei bis drei Saetze: was defekt ist und warum.>
+
+Aufgaben:
+1. <konkrete Anweisung mit Zielzustand>
+2. <konkrete Anweisung mit Zielzustand>
+
+Constraints:
+- Deutsch ohne Umlaute in Kommentaren und UI-Texten.
+- Bestehende Struktur beibehalten, wenn nicht ausdruecklich anders verlangt.
+- Vor dem Commit `npm run lint --prefix <projekt>` und
+  `npm test --prefix <projekt>`.
+- Nur die geaenderte Datei ausgeben, kein Fliesstext.
 ```
 
 - **Routing:** ausschliesslich `STYLE`/`MINOR` (Linter, Syntax, Formatierung,
   Umlaute, Doku- und Typ-Fixes) geht an Haiku. Alles andere - `BUG`,
   `SECURITY`, `PERFORMANCE`, Testanpassungen, gemischte Korrekturen - an Sonnet.
-- Repo-Regeln bleiben bindend: Deutsch ohne Umlaute, vor dem Commit
-  `npm run lint --prefix <projekt>` und `npm test --prefix <projekt>`.
+- Repo-Regeln bleiben bindend, auch wenn der Prompt sie nicht wiederholt.
