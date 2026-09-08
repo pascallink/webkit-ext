@@ -9,7 +9,7 @@ an der CI, nicht in jeder Sitzung.
 | --- | --- | --- |
 | `build-extension.yml` | Push auf `main`, jeder PR | Install, Lint, Test je Projekt - **keine ZIPs** |
 | `version-bump.yml` | Push auf `main` | Hebt die Patch-Stelle beruehrter Projekte an und schreibt sie zurueck |
-| `release.yml` | Release `published` | Baut die ZIPs, aber nur bei einer neuen Minor-Version `x.y.0` |
+| `release.yml` | Push eines Tags `vx.y.0` | Baut die ZIPs und legt das Release damit an - nur bei einer neuen Minor-Version `x.y.0` |
 | `commitlint.yml` | Jeder PR | Prueft die Commit-Konvention |
 | `ai-build-checker.yml` | `workflow_run` nach rotem `Build Extensions` | Baut nichts selbst: analysiert das Log des fehlgeschlagenen Jobs und postet es als PR-Kommentar |
 | `haiku-pr-summary.yml` | PR `opened`/`reopened`/`ready_for_review` | Schreibt eine generierte Zusammenfassung in den PR-Body |
@@ -38,13 +38,12 @@ haelt alle drei synchron - nie einzeln von Hand anfassen.
 - **Patch (`z`)**: automatisch nach jedem Merge auf `main`, nur fuer Projekte,
   deren Dateien der Push beruehrt hat. Der Bump-Commit traegt `[skip ci]`.
   Hat der Push die Version selbst geaendert, bumpt nichts nach.
-- **Minor (`y`)**: von Hand auf `x.y.0` setzen, taggen, Release anlegen. Erst
-  das erzeugt ZIPs, und zwar als `<projekt>-<version>.zip`.
-- **Releases nur auf `x.y.0`.** `release.yml` bricht bei jedem anderen Tag mit
-  einem Fehler ab - absichtlich laut. Ein Release ohne Assets wird zum
-  neuesten Release, und danach laeuft `/releases/latest/download/...` ins
-  Leere. Wer trotzdem eines braucht, markiert es als Prerelease; dann zieht
-  GitHub es nicht als "latest" heran.
+- **Minor (`y`)**: von Hand auf `x.y.0` setzen, committen, Tag `vx.y.0` pushen.
+  Der Push erzeugt die ZIPs und legt das Release damit an.
+- **Releases nur auf `x.y.0`.** Der Workflow triggert nur auf Tags der Form
+  `vx.y.0`. Ein Release ohne Assets wird zum neuesten Release, und danach
+  laeuft `/releases/latest/download/...` ins Leere. Wer trotzdem eines braucht,
+  markiert es als Prerelease; dann zieht GitHub es nicht als "latest" heran.
 - **Versions-Drift**: weichen `manifest.json` und `package.json` voneinander
   ab, bricht der Release-Build ab. Passt die Version nicht zum Release-Tag,
   gibt es nur eine Warnung - bei mehreren Projekten kann ein Tag nicht fuer
