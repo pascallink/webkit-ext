@@ -53,6 +53,8 @@ Zieldatei, jeweils mit Modellwahl als Ueberschrift davor
 ```
 task: apply_refactoring
 target_file: <pfad/zur/datei>
+branch: <branch, auf dem die Korrektur landet>
+base: <branch, von dem er abzweigt>
 
 Kontext: <zwei bis drei Saetze: was defekt ist und warum.>
 
@@ -61,6 +63,10 @@ Aufgaben:
 2. <konkrete Anweisung mit Zielzustand>
 
 Constraints:
+- Auf `branch` arbeiten, von `base` abzweigen. Keinen neuen Branch von `main`
+  anlegen.
+- Nur `target_file` committen. Vor dem Commit `git status` pruefen, kein
+  `git add -A`; alles andere im Worktree bleibt liegen, auch Unversioniertes.
 - Deutsch ohne Umlaute in Kommentaren und UI-Texten.
 - Bestehende Struktur beibehalten, wenn nicht ausdruecklich anders verlangt.
 - Vor dem Commit `npm run lint --prefix <projekt>` und
@@ -68,6 +74,14 @@ Constraints:
 - Nur die geaenderte Datei ausgeben, kein Fliesstext.
 ```
 
+- **Branch-Bindung:** `branch` und `base` sind Pflichtfelder. Eine Korrektur zu
+  einem laufenden Review geht auf den Branch des reviewten PR - nie auf einen
+  frischen Branch von `main`. Sonst entstehen zwei PRs, von denen jeder den
+  Stand des anderen voraussetzt: beide sind einzeln falsch, und wer zuerst
+  merged, trennt Doku von Implementierung.
+- **Ein Prompt, eine Datei, ein Commit:** was sonst im Worktree liegt - alte
+  Plandateien, Scratch-Skripte, Reste vorheriger Sub-Tasks - gehoert nicht in
+  den Commit. `git status` vor dem Commit ist Pflicht, `git add -A` verboten.
 - **Routing:** ausschliesslich `STYLE`/`MINOR` (Linter, Syntax, Formatierung,
   Umlaute, Doku- und Typ-Fixes) geht an Haiku. Alles andere - `BUG`,
   `SECURITY`, `PERFORMANCE`, Testanpassungen, gemischte Korrekturen - an Sonnet.

@@ -40,6 +40,12 @@ als JSON-Bericht:
    als reiner Text in einem eigenen Codeblock (drei Backticks, ohne Sprache),
    die Modellwahl als Ueberschrift davor. Ausserhalb der Codebloecke steht
    nichts, was zum Prompt gehoert.
+4. Jeder Korrektur-Prompt nennt **Branch und Base**. Eine Korrektur zum
+   reviewten PR laeuft auf dessen Branch weiter, nie auf einem neuen Branch von
+   `main` - sonst entstehen zwei PRs, die sich gegenseitig voraussetzen. Dazu
+   die Auflage, nur die Zieldatei zu committen (`git status` pruefen, kein
+   `git add -A`): Plandateien und Reste vorheriger Sub-Tasks liegen oft
+   unversioniert im Worktree und gehen sonst mit.
 
 Routing wie in [`.github/PROMPTS.md`](PROMPTS.md): nur `STYLE`/`MINOR` geht an
 Haiku, alles andere an Sonnet. Die inhaltlichen Felder eines Korrektur-Prompts
