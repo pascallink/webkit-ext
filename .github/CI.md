@@ -9,7 +9,7 @@ an der CI, nicht in jeder Sitzung.
 | --- | --- | --- |
 | `build-extension.yml` | Push auf `main`, jeder PR | Install, Lint, Test je Projekt - **keine ZIPs** |
 | `version-bump.yml` | Push auf `main` | Hebt die Patch-Stelle beruehrter Projekte an und schreibt sie zurueck |
-| `release.yml` | Release `published` | Baut die ZIPs, aber nur bei einer neuen Minor-Version `x.y.0` |
+| `release.yml` | Push eines Tags `x.y.0` oder `vx.y.0` | Baut die ZIPs und legt das Release damit an - nur bei einer neuen Minor-Version `x.y.0` |
 | `commitlint.yml` | Jeder PR | Prueft die Commit-Konvention |
 | `ai-build-checker.yml` | `workflow_run` nach rotem `Build Extensions` | Baut nichts selbst: analysiert das Log des fehlgeschlagenen Jobs und postet es als PR-Kommentar |
 | `haiku-pr-summary.yml` | PR `opened`/`reopened`/`ready_for_review` | Schreibt eine generierte Zusammenfassung in den PR-Body |
@@ -38,17 +38,44 @@ haelt alle drei synchron - nie einzeln von Hand anfassen.
 - **Patch (`z`)**: automatisch nach jedem Merge auf `main`, nur fuer Projekte,
   deren Dateien der Push beruehrt hat. Der Bump-Commit traegt `[skip ci]`.
   Hat der Push die Version selbst geaendert, bumpt nichts nach.
-- **Minor (`y`)**: von Hand auf `x.y.0` setzen, taggen, Release anlegen. Erst
-  das erzeugt ZIPs, und zwar als `<projekt>-<version>.zip`.
-- **Releases nur auf `x.y.0`.** `release.yml` bricht bei jedem anderen Tag mit
-  einem Fehler ab - absichtlich laut. Ein Release ohne Assets wird zum
-  neuesten Release, und danach laeuft `/releases/latest/download/...` ins
-  Leere. Wer trotzdem eines braucht, markiert es als Prerelease; dann zieht
-  GitHub es nicht als "latest" heran.
+- **Minor (`y`)**: von Hand auf `x.y.0` setzen, mergen, Tag auf den
+  Merge-Commit setzen und pushen (`x.y.0` oder `vx.y.0`). Der Tag-Push erzeugt
+  die ZIPs und legt das Release damit an. **Kein Release von Hand im UI
+  anlegen** - der Workflow macht das selbst.
+- **Releases nur auf `x.y.0`.** Der Workflow triggert nur auf Tags dieser
+  Form, jeder andere Tag bricht ihn mit einem Fehler ab - absichtlich laut.
+  Ein Release entsteht ausserdem nur zusammen mit seinen ZIPs
+  (`fail_on_unmatched_files`), ein leeres Release kann es damit nicht mehr
+  geben und `/releases/latest/download/...` bleibt gueltig.
+- **Probelauf**: `release.yml` laesst sich ueber `workflow_dispatch` mit einem
+  Tag starten. `dry_run` ist mit `true` vorbelegt - dann wird nur gebaut und
+  aufgelistet, kein Release angefasst. Erst `dry_run: false` legt eines an.
 - **Versions-Drift**: weichen `manifest.json` und `package.json` voneinander
-  ab, bricht der Release-Build ab. Passt die Version nicht zum Release-Tag,
-  gibt es nur eine Warnung - bei mehreren Projekten kann ein Tag nicht fuer
-  alle stimmen.
+  ab, bricht der Release-Build ab. Passt die Version eines Projekts nicht zum
+  Tag, ist das je Projekt nur eine Warnung - bei mehreren Erweiterungen kann
+  ein Tag nicht fuer alle stimmen. Passt aber **keine einzige** Erweiterung
+  zum Tag, bricht der Build ab: dann zeigt der Tag auf den falschen Commit
+  und die ZIPs truegen eine fremde Versionsnummer.
+- **Ein publiziertes Release wird nie ueberschrieben.** Existiert fuer den Tag
+  bereits ein veroeffentlichtes Release, bricht der Lauf vor dem Build ab.
+  Publizierte Releases sind immutable und nehmen keine Assets mehr an.
+
+#### Kaputtes Release reparieren
+
+Ein veroeffentlichtes Release ohne Assets laesst sich nicht nachbessern - es
+ist immutable. Der Weg fuehrt nur ueber Loeschen und neu Taggen:
+
+```bash
+gh release view <tag> --json body --jq .body > /tmp/notes.md   # Notes sichern
+gh release delete <tag> --yes
+git push origin :refs/tags/<tag>
+git tag -f <tag> <commit mit der passenden Version>
+git push origin <tag>
+```
+
+Der Tag-Push startet `release.yml` erneut, diesmal mit ZIPs. Weigert sich
+GitHub, den Tag erneut zu vergeben, ist der Ausweg keine Bastelei am Tag,
+sondern die naechste Minor-Version: `x.y+1.0` setzen, taggen, pushen.
 - **Direktlink ohne Version** ist die Ausnahme, nicht die Regel: nur Projekte
   mit `"stableZipAlias": true` in ihrer `package.json` bekommen zusaetzlich
   ein `<projekt>.zip`, das `/releases/latest/download/<projekt>.zip` bedient.

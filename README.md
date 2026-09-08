@@ -17,9 +17,9 @@ automatisch gebaut per GitHub Actions):
 Jeder Ordner mit einer `manifest.json` wird von
 [`build-extension.yml`](.github/workflows/build-extension.yml) automatisch
 erkannt und bei jedem PR geprueft. Gepackt wird er von
-[`release.yml`](.github/workflows/release.yml), sobald ein Release auf eine
-neue Minor-Version (`x.y.0`) veroeffentlicht wird - ohne Aenderung am
-Workflow. Voraussetzung:
+[`release.yml`](.github/workflows/release.yml), sobald ein Tag auf eine neue
+Minor-Version (`x.y.0`) gepusht wird - ohne Aenderung am Workflow.
+Voraussetzung:
 
 * `manifest.json` direkt im Ordner (Chrome/Edge-Erweiterung, Manifest V3).
 * eigenes `package.json` mit `lint`- und `test`-Skripten; beide muessen vor
@@ -47,8 +47,11 @@ sie ist immutable und laesst sich nicht mehr aktualisieren.
 Nach jedem Merge auf `main` hebt
 [`version-bump.yml`](.github/workflows/version-bump.yml) die Patch-Stelle der
 beruehrten Erweiterungen an und schreibt sie zurueck. Fuer eine
-Veroeffentlichung setzt du die Version von Hand auf `x.y.0`, taggst sie und
-legst dazu ein Release an - erst das erzeugt ZIPs.
+Veroeffentlichung setzt du die Version von Hand auf `x.y.0`, mergst das nach
+`main` und pushst einen Tag `x.y.0` auf den Merge-Commit. Der Tag-Push baut
+die ZIPs und legt das Release damit an - ein Release von Hand anzulegen ist
+nicht noetig und wuerde den Upload blockieren, weil GitHub veroeffentlichte
+Releases sofort immutable macht.
 
 ## Veroeffentlichung im Store
 
