@@ -25,7 +25,26 @@ Erstelle einen detaillierten Ausführungsplan für Issue #[ISSUE_NUMBER]. Jeder 
   * [ ] Code ist syntaxfrei und entspricht den Projekt-Standards.
   * [ ] Neue und bestehende Tests laufen grün durch.
   * [ ] Git Commit & Push auf den Branch ausgeführt.
-* **Agent-Start-Prompt:** *(Gebrauchsfertiger Prompt zum Starten der Chat-Session - reiner Text in einem eigenen Codeblock, drei Backticks, ohne Sprache. Review- und Korrektur-Prompts am Sessionende folgen den Schemata in [`.github/PROMPTS.md`](PROMPTS.md).)*
+* **Agent-Start-Prompt:** *(Gebrauchsfertiger Prompt zum Starten der Chat-Session - reiner Text in einem eigenen Codeblock, drei Backticks, ohne Sprache.)*
+
+**Format des PR-Review-Ergebnisses (Opus)**
+
+Das Review am Sessionende wird als kurzer Markdown-Fliesstext ausgegeben, nicht
+als JSON-Bericht:
+
+1. Ueberschrift mit PR-Nummer und Status: `APPROVED` oder `CHANGES_REQUESTED`.
+2. Zwei bis drei Absaetze: was bricht, warum, und die empfohlene Richtung.
+   Datei- und Zeilenangaben inline (`datei.yml:18`), keine Tabelle, keine
+   Aufzaehlung aller Befunde als Liste.
+3. Danach 0, 1 oder 2 Korrektur-Prompts, je Prompt genau eine Zieldatei, jeder
+   als reiner Text in einem eigenen Codeblock (drei Backticks, ohne Sprache),
+   die Modellwahl als Ueberschrift davor. Ausserhalb der Codebloecke steht
+   nichts, was zum Prompt gehoert.
+
+Routing wie in [`.github/PROMPTS.md`](PROMPTS.md): nur `STYLE`/`MINOR` geht an
+Haiku, alles andere an Sonnet. Die inhaltlichen Felder eines Korrektur-Prompts
+(Zieldatei, Befunde, Constraints, Ausgabeformat) folgen der Stufe-2-Vorlage
+dort - als Klartext, nicht als JSON-Objekt.
 
 ---
 
