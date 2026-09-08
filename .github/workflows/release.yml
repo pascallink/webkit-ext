@@ -29,10 +29,9 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      # Bewusst ein harter Fehler statt eines stillen Uebersprungs: ein Release
-      # ohne Assets wird zum neuesten Release, und damit laeuft der Link
-      # /releases/latest/download/<ordner>.zip ins Leere. Das soll auffallen,
-      # solange es sich noch reparieren laesst.
+      # Bewusst ein harter Fehler statt eines stillen Uebersprungs: ein Tag
+      # in falscher Form soll auffallen und nicht klaglos durchlaufen. Das
+      # Release selbst entsteht weiter unten nur zusammen mit seinen ZIPs.
       - name: Tag pruefen
         env:
           TAG: ${{ github.ref_name }}
