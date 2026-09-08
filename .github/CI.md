@@ -9,7 +9,7 @@ an der CI, nicht in jeder Sitzung.
 | --- | --- | --- |
 | `build-extension.yml` | Push auf `main`, jeder PR | Install, Lint, Test je Projekt - **keine ZIPs** |
 | `version-bump.yml` | Push auf `main` | Hebt die Patch-Stelle beruehrter Projekte an und schreibt sie zurueck |
-| `release.yml` | Release `published` | Baut die ZIPs, aber nur bei einer neuen Minor-Version `x.y.0` |
+| `release.yml` | Release `created` (nur Entwuerfe) | Baut die ZIPs, haengt sie an und veroeffentlicht das Release - nur bei einer neuen Minor-Version `x.y.0` |
 | `commitlint.yml` | Jeder PR | Prueft die Commit-Konvention |
 | `ai-build-checker.yml` | `workflow_run` nach rotem `Build Extensions` | Baut nichts selbst: analysiert das Log des fehlgeschlagenen Jobs und postet es als PR-Kommentar |
 | `haiku-pr-summary.yml` | PR `opened`/`reopened`/`ready_for_review` | Schreibt eine generierte Zusammenfassung in den PR-Body |
@@ -38,8 +38,13 @@ haelt alle drei synchron - nie einzeln von Hand anfassen.
 - **Patch (`z`)**: automatisch nach jedem Merge auf `main`, nur fuer Projekte,
   deren Dateien der Push beruehrt hat. Der Bump-Commit traegt `[skip ci]`.
   Hat der Push die Version selbst geaendert, bumpt nichts nach.
-- **Minor (`y`)**: von Hand auf `x.y.0` setzen, taggen, Release anlegen. Erst
-  das erzeugt ZIPs, und zwar als `<projekt>-<version>.zip`.
+- **Minor (`y`)**: von Hand auf `x.y.0` setzen, taggen, Release **als Entwurf
+  speichern** ("Save draft", nicht "Publish release"). `release.yml` haengt
+  die ZIPs an den Entwurf und veroeffentlicht ihn danach selbst - erst dann
+  entstehen die `<projekt>-<version>.zip`. Grund: GitHub macht jedes
+  veroeffentlichte Release sofort immutable, ein direkt veroeffentlichtes
+  Release ohne Entwurfsphase laesst dem Workflow kein Zeitfenster mehr fuer
+  den Asset-Upload und `release.yml` bricht mit einem Fehler ab.
 - **Releases nur auf `x.y.0`.** `release.yml` bricht bei jedem anderen Tag mit
   einem Fehler ab - absichtlich laut. Ein Release ohne Assets wird zum
   neuesten Release, und danach laeuft `/releases/latest/download/...` ins

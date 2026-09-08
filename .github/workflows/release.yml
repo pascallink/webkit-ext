@@ -1,19 +1,23 @@
 name: Release ZIPs
 
 # ZIPs entstehen ausschliesslich hier: wenn ein Release auf eine neue
-# Minor-Version (x.y.0) veroeffentlicht wird. Patch-Releases und beliebige
-# Tags laufen bewusst ins Leere.
+# Minor-Version (x.y.0) angelegt wird. Patch-Releases und beliebige Tags
+# laufen bewusst ins Leere.
 #
 # Regel: je Erweiterung entsteht <ordner>-<version>.zip.
 # Ausnahme: wer in seiner package.json "stableZipAlias": true setzt, bekommt
 # denselben Inhalt zusaetzlich als <ordner>.zip. Nur damit funktioniert
 # /releases/latest/download/<ordner>.zip als dauerhafter Direktlink.
-# Die frueher genutzte rollierende Release "latest" faellt weg: sie ist
-# immutable, ihre Assets lassen sich nicht mehr ersetzen.
+#
+# Trigger bewusst "created" statt "published": GitHub macht jedes
+# veroeffentlichte Release sofort immutable, danach lassen sich keine Assets
+# mehr anhaengen. Deshalb legt Pascal das Release als Entwurf (Draft) an -
+# das loest "created" mit draft=true aus. Dieser Workflow haengt die ZIPs an
+# den Entwurf und veroeffentlicht ihn erst danach selbst.
 
 on:
   release:
-    types: [published]
+    types: [created]
 
 permissions:
   contents: write
@@ -22,6 +26,19 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
+      # Wer direkt veroeffentlicht statt einen Entwurf zu speichern, laesst
+      # dem Workflow kein Zeitfenster fuer den Asset-Upload - das Release ist
+      # zu diesem Zeitpunkt schon immutable. Lieber laut abbrechen als still
+      # ohne Assets zu bleiben.
+      - name: Entwurf-Status pruefen
+        env:
+          IS_DRAFT: ${{ github.event.release.draft }}
+        run: |
+          if [ "$IS_DRAFT" != "true" ]; then
+            echo "::error::Release wurde direkt veroeffentlicht statt als Entwurf gespeichert. Immutable Releases erlauben danach keinen Asset-Upload mehr. Loesung: Release loeschen, Tag behalten, erneut anlegen und dabei 'Save draft' statt 'Publish release' waehlen - dieser Workflow haengt die ZIPs an und veroeffentlicht das Release danach selbst."
+            exit 1
+          fi
+
       # Bewusst ein harter Fehler statt eines stillen Uebersprungs: ein Release
       # ohne Assets wird zum neuesten Release, und damit laeuft der Link
       # /releases/latest/download/<ordner>.zip ins Leere. Das soll auffallen,
@@ -118,5 +135,15 @@ jobs:
         with:
           tag_name: ${{ github.event.release.tag_name }}
           files: release/*.zip
+          draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Getrennt vom Upload: erst wenn alle Assets sicher am Entwurf haengen,
+      # macht dieser Schritt das Release oeffentlich. Ab hier ist es
+      # immutable - Assets lassen sich nicht mehr nachtraeglich aendern.
+      - name: Release veroeffentlichen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
