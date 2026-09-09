@@ -40,9 +40,20 @@
   };
   var ENTITY_RE = /&amp;|&lt;|&gt;|&quot;|&#39;|&nbsp;/g;
 
-  /** Entfernt Tags aus einem HTML-Fragment - keine innerHTML-Auswertung. */
+  /**
+   * Entfernt Tags aus einem HTML-Fragment - keine innerHTML-Auswertung.
+   * Ersetzt bis zum Fixpunkt (der String aendert sich nicht mehr): ein
+   * einzelner Durchlauf ist kein Fixpunkt-Sanitizer und wird von CodeQL als
+   * unvollstaendige Mehrzeichen-Bereinigung gemeldet.
+   */
   function stripTags(html) {
-    return String(html).replace(/<[^>]*>/g, '');
+    var text = String(html);
+    var previous;
+    do {
+      previous = text;
+      text = text.replace(/<[^>]*>/g, '');
+    } while (text !== previous);
+    return text;
   }
 
   function decodeEntities(text) {
@@ -115,7 +126,8 @@
 
   /**
    * Zerlegt einen OTRS-Verweis. Wirft nie - der Aufrufer zeigt error im
-   * Dialog an.
+   * Dialog an. Rueckgabewert ist Klartext und gehoert beim Aufrufer
+   * ausschliesslich per textContent bzw. value gesetzt, nie per innerHTML.
    */
   function parse(input) {
     var text = '';
