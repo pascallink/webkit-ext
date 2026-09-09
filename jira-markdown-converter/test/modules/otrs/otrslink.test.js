@@ -51,6 +51,13 @@ describe('JiraOtrsLink.parse - Erkennung', function () {
     assert.ok(result.url.indexOf(';TicketID=15285;ArticleID=102557') !== -1);
   });
 
+  test('mehrfach haengende Zeichen am URL-Ende fallen komplett weg', function () {
+    var result = OtrsLink.parse('Ticket#2026070710000078 (siehe ' + URL + ').');
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.url, URL);
+    assert.ok(result.url.indexOf(';TicketID=15285;ArticleID=102557') !== -1);
+  });
+
   test('mehrzeilige Eingabe mit fuehrenden Leerzeichen', function () {
     var input = '   Ticket#2026070710000078\n   siehe ' + URL + '\n';
     var result = OtrsLink.parse(input);
@@ -79,12 +86,22 @@ describe('JiraOtrsLink.parse - Fehlschlaege', function () {
   test('Eingabe ohne URL', function () {
     var result = OtrsLink.parse('Ticket#2026070710000078 aber kein Link');
     assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error, 'Keine gueltige URL gefunden.');
     assert.ok(/^[\x00-\x7F]*$/.test(result.error), 'error ohne Umlaute: ' + result.error);
   });
 
   test('javascript-Verweis wird abgelehnt', function () {
     var result = OtrsLink.parse('javascript:alert(1)');
     assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error, 'Keine gueltige URL gefunden.');
+  });
+
+  test('HTML-Anker mit javascript-href wird abgelehnt', function () {
+    // Einziger Pfad, auf dem HTML_ANCHOR_RE ein beliebiges Protokoll
+    // durchlaesst - hier muss allein die spaetere Schema-Pruefung greifen.
+    var result = OtrsLink.parse('<a href="javascript:alert(1)">Ticket#2026070710000078</a>');
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error, 'Keine gueltige URL gefunden.');
   });
 
   test('gueltige URL ohne erkennbare Ticketnummer', function () {
@@ -109,5 +126,27 @@ describe('JiraOtrsLink.parse - Titelnormalisierung', function () {
     var result = OtrsLink.parse('[' + langerTitel + '](' + URL + ')');
     assert.strictEqual(result.ok, true);
     assert.strictEqual(result.title.length, 255);
+  });
+});
+
+describe('JiraOtrsLink.parse - HTML-Anker: Tags und Entities', function () {
+  test('verschachtelte und unvollstaendige Tags im Anker-Text liefern keinen vollstaendigen Tag zurueck', function () {
+    var input = '<a href="' + URL + '">Ticket#2026070710000078 <scr<b>ipt>alert(1)</b></a>';
+    var result = OtrsLink.parse(input);
+    assert.strictEqual(result.ok, true);
+    // Das Ergebnis zaehlt, nicht der interne Ablauf von stripTags: kein
+    // Rest im Titel darf sich als vollstaendiges Tag lesen lassen.
+    assert.strictEqual(/<[^>]*>/.test(result.title), false, 'Titel enthaelt ein vollstaendiges Tag: ' + result.title);
+    assert.strictEqual(result.title, 'Ticket#2026070710000078 ipt>alert(1)');
+  });
+
+  test('&lt; und &gt; im Anker-Titel werden zu < und > dekodiert', function () {
+    // Nagelt den Plan-Vertrag fest (Schritt 3.2): decodeEntities() laeuft
+    // NACH stripTags() und darf Winkelklammern zurueckgeben - ein
+    // Bracket-Verbot in stripTags waere kein zulaessiger Fix dafuer.
+    var input = '<a href="' + URL + '">Ticket#2026070710000078 &lt;wert&gt;</a>';
+    var result = OtrsLink.parse(input);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(result.title, 'Ticket#2026070710000078 <wert>');
   });
 });
