@@ -29,7 +29,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `background` | `src/background.js` | 7 Node | #32 |
 | `package` | `manifest.json`, `docs/store/` | 31 Node + Guard | alle |
 | `mapping` *(reserviert)* | `src/mapping.js` *(geplant)* | - | **#32** |
-| `otrs` | `src/otrslink.js` | 12 Node | #17 |
+| `otrs` | `src/otrslink.js` | 17 Node | #17 |
 
 `mapping` bekommt seinen Ordner erst mit dem jeweiligen Feature -
 die Zeile hier reserviert nur den Namen, damit ein neues Modul nicht zufaellig
