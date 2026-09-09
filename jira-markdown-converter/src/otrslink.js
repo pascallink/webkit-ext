@@ -118,7 +118,16 @@
    * Dialog an.
    */
   function parse(input) {
-    var text = input === undefined || input === null ? '' : String(input);
+    var text = '';
+    if (input !== undefined && input !== null) {
+      // String(input) kann werfen (kaputtes toString/Symbol.toPrimitive) -
+      // eine solche Eingabe gilt dann wie eine leere.
+      try {
+        text = String(input);
+      } catch (error) {
+        text = '';
+      }
+    }
     if (!text.trim()) {
       return { ok: false, error: 'Eingabe ist leer.' };
     }
