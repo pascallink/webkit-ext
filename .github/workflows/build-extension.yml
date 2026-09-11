@@ -26,6 +26,31 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            */package-lock.json
+
+      # Cache-Schluessel aus den Playwright-Versionen aller Projekte, nicht aus
+      # dem Lockfile-Hash: sonst wuerfe jeder eslint-Bump die rund 160 MB
+      # Chromium mit weg. Kein Projekt mit Playwright -> "none", der Cache-Step
+      # entfaellt.
+      - name: Playwright-Versionen ermitteln
+        id: playwright
+        run: |
+          set -eo pipefail
+          versions=$(for file in */package.json; do
+            [ -f "$file" ] || continue
+            jq -r '.devDependencies.playwright // empty' "$file"
+          done | sort -u | paste -sd- -)
+          echo "key=${versions:-none}" >> "$GITHUB_OUTPUT"
+
+      - name: Chromium aus dem Cache
+        if: steps.playwright.outputs.key != 'none'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.key }}
 
       - name: Lint und Test je Erweiterung
         run: |
@@ -44,6 +69,8 @@ jobs:
               else
                 npm install --prefix "$dir"
               fi
+              # Bei Cache-Treffer erkennt Playwright den Browser und laedt
+              # nichts nach; --with-deps bleibt fuer die apt-Bibliotheken.
               if jq -e '.devDependencies.playwright' "$dir/package.json" >/dev/null 2>&1; then
                 npx --prefix "$dir" playwright install --with-deps chromium
               fi

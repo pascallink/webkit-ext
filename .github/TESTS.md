@@ -131,6 +131,26 @@ Modul-Landkarte oben).
   nur `test/modules/` - `test/lib/` ist per Definition geteilt und wird
   selbst nicht geprueft.
 
+## Browser-Binary und Playwright-Version
+
+`playwright` steht in der `package.json` **exakt** (`1.56.0`), nicht mit `^`.
+Grund: Jede Playwright-Minor bringt eine neue Chromium-Revision mit. Die
+Sandbox der Agenten (Claude Code) hat Chromium vorinstalliert
+(`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`, Revision 1194 = Playwright
+1.56.x). Loest `^1.56.0` auf eine neuere Minor auf, sucht Playwright eine
+Revision, die dort nicht liegt - die Browser-Tests scheitern mit
+"Executable doesn't exist" und jede Sitzung laedt mehrere hundert MB nach.
+
+- **In einer Agenten-Sitzung nie `npx playwright install` aufrufen.** Passt
+  die Version, ist der Browser schon da; passt sie nicht, gehoert die
+  Version korrigiert. Auf den GitHub-Runnern ist er nicht vorinstalliert,
+  dort holt ihn `build-extension.yml` bewusst selbst.
+- Anheben nur bewusst und nur zusammen mit der Revision der Umgebung. Probe:
+  `node -e "require('playwright').chromium.launch().then(b=>b.close())"` -
+  passt die Revision nicht, nennt die Fehlermeldung den fehlenden Pfad.
+- `CHROMIUM_PATH` bleibt der Notausgang fuer lokale Rechner ohne
+  vorinstallierten Browser (siehe `test/lib/browser.js`).
+
 ## Neues Modul anlegen
 
 1. Ordner unter `test/modules/<modul>/` anlegen; Browser-Tests kommen in
