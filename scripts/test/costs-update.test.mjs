@@ -74,35 +74,20 @@ function runScript(repoDir, args, stdinInput = '') {
 }
 
 /**
- * Fuehrt das Skript asynchron aus und verbindet stdin ueber eine echte,
- * benannte FIFO statt einer anonymen spawn-Pipe. Anonyme Pipes landen in
- * manchen Sandboxes als Socket auf Deskriptor 0 - der isFIFO()-Check im
- * Skript greift dann nie, egal was auf stdin liegt (siehe runScript oben,
- * das genau daran vorbeitestet). Eine benannte FIFO ist plattformunabhaengig
- * garantiert eine echte FIFO und macht den --stdin-Pfad damit erst testbar.
+ * Fuehrt das Skript asynchron aus und verbindet stdin ueber eine echte Pipe
+ * (spawn statt spawnSync). runScript oben reicht stdin ueber spawnSync mit
+ * input durch, was unter Linux als Socket auf Deskriptor 0 landet - der
+ * Gate im Skript liest zwar auch von Sockets, aber spawnSync liefert den
+ * kompletten Payload immer synchron vor dem Schliessen und kann daher nie
+ * die Zeitlimit-Zweige treffen. Erst die asynchrone Pipe aus spawn macht
+ * offene/verzoegert geschlossene stdin-Szenarien ueberhaupt testbar.
  */
 function runScriptAsync(repoDir, args, { payload, closeStdin = false } = {}) {
   return new Promise((resolve, reject) => {
-    const fifoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'costs-update-fifo-'));
-    const fifoPath = path.join(fifoDir, 'stdin.fifo');
-    execFileSync('mkfifo', [fifoPath]);
-
-    const readFd = fs.openSync(fifoPath, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
     const child = spawn('node', [SCRIPT_PATH, ...args], {
       cwd: repoDir,
-      stdio: [readFd, 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
-    fs.closeSync(readFd);
-
-    let writeFd = null;
-    if (payload) {
-      writeFd = fs.openSync(fifoPath, 'w');
-      fs.writeSync(writeFd, payload);
-    }
-    if (closeStdin && writeFd !== null) {
-      fs.closeSync(writeFd);
-      writeFd = null;
-    }
 
     let stderr = '';
     child.stderr.on('data', (chunk) => {
@@ -110,20 +95,19 @@ function runScriptAsync(repoDir, args, { payload, closeStdin = false } = {}) {
     });
     child.stdout.resume();
 
+    if (payload) {
+      child.stdin.write(payload);
+    }
+    if (closeStdin) {
+      child.stdin.end();
+    }
+
     // Sicherheitsnetz: haengt der Kindprozess trotzdem, spaetestens nach 8s
     // gewaltsam beenden, damit kein Testlauf blockiert.
     const killTimer = setTimeout(() => child.kill('SIGKILL'), 8000);
 
     const finish = (settle) => {
       clearTimeout(killTimer);
-      if (writeFd !== null) {
-        try {
-          fs.closeSync(writeFd);
-        } catch {
-          // bereits geschlossen
-        }
-      }
-      fs.rmSync(fifoDir, { recursive: true, force: true });
       settle();
     };
 
@@ -361,7 +345,7 @@ test('stdin-Payload wird gelesen, wenn der Erzeuger schliesst', async (t) => {
   assert.equal(costs.rows[0][1], 'sess-stdin-close');
 });
 
-test('stdin-Payload wird verworfen, wenn der Erzeuger die Pipe offen laesst', async (t) => {
+test('stdin-Payload wird auch bei offener Pipe verwertet', async (t) => {
   const dir = initRepo();
   t.after(() => cleanup(dir));
 
@@ -376,13 +360,16 @@ test('stdin-Payload wird verworfen, wenn der Erzeuger die Pipe offen laesst', as
   });
 
   // Der Payload liegt vollstaendig auf der Pipe, der Erzeuger schliesst aber
-  // nicht. costs-update.mjs verwirft im timedOut-Zweig von readStdinJson()
-  // bereits gepufferte Daten ungeprueft nach dem 2s-Zeitlimit - nur das
-  // Schliessen der Pipe zaehlt, nicht das blosse Vorhandensein der Daten.
+  // nicht. readStdinJson() parst im timedOut-Zweig von costs-update.mjs die
+  // bis dahin bereits vollstaendig empfangenen Chunks statt sie zu
+  // verwerfen - der Payload zaehlt also trotz offener Pipe.
   const result = await runScriptAsync(dir, ['--stdin'], { payload, closeStdin: false });
   assert.equal(result.status, 0);
-  assert.match(result.stderr, /binnen 2s keinen vollstaendigen Payload/);
-  assert.equal(fs.existsSync(path.join(dir, 'stats', 'costs.csv')), false);
+
+  const costs = readCsvRows(dir, 'costs.csv');
+  assert.ok(costs);
+  assert.equal(costs.rows.length, 1);
+  assert.equal(costs.rows[0][1], 'sess-stdin-open');
 });
 
 test('offene Pipe ohne Payload blockiert nicht', async (t) => {
