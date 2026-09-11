@@ -18,6 +18,13 @@
   <div class="issue-header">
     <h1>PROJ-123: Beispielvorgang fuer den OTRS-Link-Helfer</h1>
     <span id="key-val">PROJ-123</span>
+    <!-- DOM-Fallback-Ebene aus Sub-Task 3: Jeder Schritt versucht zuerst den
+         Tastatur-Shortcut, bei Timeout diese direkt vorhandenen Elemente. -->
+    <a id="edit-labels" href="#">Kennzeichen bearbeiten</a>
+    <div class="customfield" data-field-name="Kunden Referenz">
+      <input type="text" value="Alter Wert (Feld)">
+    </div>
+    <button type="button" id="link-issue">Verweis erstellen</button>
   </div>
 
   <script>
@@ -25,17 +32,36 @@
     // (setTimeout 120 ms) ins DOM ein - so wie Jira 9.12 seine Dialoge
     // erst nach einem eigenen AJAX-Roundtrip anzeigt. Das ist der Punkt,
     // an dem sich waitForElement (MutationObserver statt Polling) beweisen
-    // muss. Noch keine Fachlogik: die Quick-Search-Trefferliste oeffnet
-    // hier noch nichts, das Reiter-Umschalten im Link-Dialog setzt noch
-    // keine active-pane-Klasse - beides baut Sub-Task 3 auf diesen
-    // Selektoren auf.
+    // muss. Sub-Task 3 baut auf diesen Selektoren auf: die Quick-Search-
+    // Trefferliste oeffnet je nach eingegebenem Text den Custom-Field- bzw.
+    // den Link-Dialog, das Reiter-Umschalten im Link-Dialog setzt die
+    // active-pane-Klasse, und ein Klick auf den Primaerbutton eines Dialogs
+    // entfernt ihn wieder (Ersatz fuer Jiras eigenen AJAX-Rundtrip).
     (function () {
       'use strict';
+
+      // Fuer den Testfall "Fallback greift": unterdrueckt die Tastatur-
+      // Shortcuts l und ., damit der Ablauf ueber die DOM-Selektoren gehen
+      // muss.
+      window.__suppressShortcuts = false;
+
+      // Vorbelegter Wert des Custom-Field-Dialogs - per __setCustomFieldValue
+      // aus dem Test aenderbar, damit previousReference pruefbar ist.
+      var customFieldValue = 'Alter Wert';
+      window.__setCustomFieldValue = function (value) {
+        customFieldValue = value;
+      };
 
       function appendHtml(html) {
         var wrapper = document.createElement('div');
         wrapper.innerHTML = html;
-        document.body.appendChild(wrapper.firstElementChild);
+        var node = wrapper.firstElementChild;
+        // Ersetzt einen vorherigen Dialog mit derselben id statt zu
+        // duplizieren - die Schnellsuche wird im vollen Ablauf zweimal
+        // geoeffnet (Kunden Referenz, dann Web-Link).
+        var existing = document.getElementById(node.id);
+        if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+        document.body.appendChild(node);
       }
 
       function afterDelay(html) {
@@ -69,16 +95,17 @@
         '</div>' +
         '</div>';
 
-      var CUSTOMFIELD_DIALOG_HTML =
-        '<div id="customfield-dialog" class="aui-dialog2 aui-dialog2-medium">' +
-        '<div class="aui-dialog2-header"><h2 class="aui-dialog2-header-main">Kunden Referenz bearbeiten</h2></div>' +
-        '<div class="aui-dialog2-content">' +
-        '<input id="customfield_11000" type="text" value="Alter Wert">' +
-        '</div>' +
-        '<div class="aui-dialog2-footer"><div class="aui-dialog2-footer-actions">' +
-        '<button type="button" class="aui-button aui-button-primary">Aktualisieren</button>' +
-        '</div></div>' +
-        '</div>';
+      function customFieldDialogHtml() {
+        return '<div id="customfield-dialog" class="aui-dialog2 aui-dialog2-medium">' +
+          '<div class="aui-dialog2-header"><h2 class="aui-dialog2-header-main">Kunden Referenz bearbeiten</h2></div>' +
+          '<div class="aui-dialog2-content">' +
+          '<input id="customfield_11000" type="text" value="' + customFieldValue + '">' +
+          '</div>' +
+          '<div class="aui-dialog2-footer"><div class="aui-dialog2-footer-actions">' +
+          '<button type="button" class="aui-button aui-button-primary">Aktualisieren</button>' +
+          '</div></div>' +
+          '</div>';
+      }
 
       var LINK_DIALOG_HTML =
         '<div id="link-issue-dialog" class="aui-dialog2 aui-dialog2-medium">' +
@@ -108,17 +135,65 @@
         afterDelay(QUICK_SEARCH_HTML);
       };
       window.__openCustomFieldDialog = function () {
-        afterDelay(CUSTOMFIELD_DIALOG_HTML);
+        afterDelay(customFieldDialogHtml());
       };
       window.__openLinkDialog = function () {
         afterDelay(LINK_DIALOG_HTML);
       };
 
+      // Schnellsuche hat keine echte Trefferliste - sie oeffnet je nach
+      // eingegebenem Text direkt den passenden Dialog, so wie die Jira-
+      // Oberflaeche mit ihrer Ergebnisnavigation.
+      function handleQuickSearchSubmit(value) {
+        var text = (value || '').toLowerCase();
+        if (text.indexOf('link') !== -1) {
+          window.__openLinkDialog();
+        } else if (text.indexOf('kunden referenz') !== -1) {
+          window.__openCustomFieldDialog();
+        }
+      }
+
       // Tastaturkuerzel wie in der echten Jira-Oberflaeche: l oeffnet die
       // Kennzeichen, . die Schnellsuche - beide Dialoge kommen verzoegert.
+      // Fuer den Fallback-Testfall per __suppressShortcuts abschaltbar.
       document.addEventListener('keydown', function (event) {
+        if (window.__suppressShortcuts) return;
         if (event.key === 'l') window.__openLabelDialog();
         if (event.key === '.') window.__openQuickSearchDialog();
+        if (event.key === 'Enter' && event.target && event.target.id === 'quick-search-input') {
+          handleQuickSearchSubmit(event.target.value);
+        }
+      });
+
+      // Ein Klick auf den Primaerbutton eines aui-dialog2 entfernt ihn aus
+      // dem DOM - Ersatz fuer Jiras eigenen AJAX-Rundtrip beim Speichern,
+      // damit waitForGone auf allen drei Dialogen greift.
+      document.addEventListener('click', function (event) {
+        var button = event.target.closest ? event.target.closest('.aui-dialog2-footer .aui-button-primary') : null;
+        if (button) {
+          var dialog = button.closest('.aui-dialog2');
+          if (dialog && dialog.parentNode) dialog.parentNode.removeChild(dialog);
+          return;
+        }
+
+        var tab = event.target.closest ? event.target.closest('.aui-tabs .menu-item a[href="#web-link"]') : null;
+        if (tab) {
+          event.preventDefault();
+          var panel = document.getElementById('web-link');
+          var jiraPanel = document.getElementById('jira-link-panel');
+          if (panel) panel.classList.add('active-pane');
+          if (jiraPanel) jiraPanel.classList.remove('active-pane');
+        }
+      });
+
+      // Fallback-Ebene: die im Kopf fest vorhandenen Elemente oeffnen dieselben
+      // verzoegerten Dialoge wie die Tastatur-Shortcuts.
+      document.getElementById('edit-labels').addEventListener('click', function (event) {
+        event.preventDefault();
+        window.__openLabelDialog();
+      });
+      document.getElementById('link-issue').addEventListener('click', function () {
+        window.__openLinkDialog();
       });
     })();
   </script>
