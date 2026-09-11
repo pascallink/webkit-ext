@@ -35,6 +35,7 @@
         "src/editlock.js",
         "src/otrslink.js",
         "src/jiraui.js",
+        "src/otrsflow.js",
         "src/content.js"
       ],
       "css": [
