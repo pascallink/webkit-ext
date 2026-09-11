@@ -30,20 +30,23 @@
 
   // Ereignisse, mit denen Jira das Inline-Bearbeiten beendet: der Klick
   // daneben und der Fokuswechsel aus dem Feld heraus. Zeigergeraete melden
-  // sich vor der Maus - moderne Oberflaechen haengen daran.
-  var GUARDED = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick',
+  // sich vor der Maus - moderne Oberflaechen haengen daran. `click` und
+  // `dblclick` stehen bewusst nicht mehr in der Liste: Jira macht das
+  // Schliessen am Pointer-/Fokuswechsel fest, nicht am Klick selbst - wird
+  // der Klick durchgelassen, oeffnen Toolbar-Links und Dialoge wieder normal
+  // und Jira faengt seine eigenen Links wieder ab (Issue #112).
+  var GUARDED = ['pointerdown', 'pointerup', 'mousedown', 'mouseup',
     'touchstart', 'focus', 'focusin', 'focusout', 'blur'];
 
   // Ereignisse, bei denen der Fokus das Feld verlaesst. Sie werden nur
   // gestoppt, wenn sie aus dem eingefrorenen Feld kommen.
   var LEAVING = { focusout: true, blur: true };
 
-  // Unsere eigene Oberflaeche muss bedienbar bleiben - Jira muss davon aber
-  // nichts mitbekommen, sonst schliesst es das Feld, sobald jemand den
-  // schwebenden Editor benutzt. Durchgelassen wird darum nur der Klick, an
-  // dem unsere Knoepfe haengen. Fokus, Einfuegemarke und Auswahl erledigt
-  // der Browser von selbst; das haelt kein gestopptes Ereignis auf.
-  var OWN_UI_PASS = { click: true, dblclick: true };
+  // Ziele, die trotz Sperre immer bedienbar bleiben: Speichern und Abbrechen
+  // liegen in Jira oft ausserhalb des Rahmens, den AREA_SELECTOR um das Feld
+  // findet (Issue #90) - `guard()` stoppt dort nichts, egal wo sie liegen.
+  var ALWAYS_USABLE = '.buttons-container,.save-options,.form-footer,'
+    + '.cancel,.submit,[type="submit"]';
 
   // Rahmen, die Jira um genau ein bearbeitetes Feld legt.
   var AREA_SELECTOR = [
@@ -159,6 +162,11 @@
     return !!(node && node.closest && node.closest('[data-jmd-ui]'));
   }
 
+  /** Speichern, Abbrechen und die Werkzeugleiste bleiben immer bedienbar. */
+  function isAlwaysUsable(node) {
+    return !!(node && node.closest && node.closest(ALWAYS_USABLE));
+  }
+
   function insideAnyLock(node) {
     for (var i = 0; i < locks.length; i++) {
       if (inside(locks[i], node)) return true;
@@ -197,8 +205,9 @@
     if (!locks.length) return;
     var node = event.target;
     if (!node || !node.nodeType) return;
+    if (isAlwaysUsable(node)) return;
     if (isOwnUi(node)) {
-      if (!OWN_UI_PASS[event.type]) block(event);
+      block(event);
       return;
     }
 
@@ -211,11 +220,14 @@
     block(event);
   }
 
-  /** Escape bricht das Bearbeiten in Jira ab - solange eingefroren ist, nicht. */
+  /**
+   * Escape bricht das Bearbeiten in Jira ab - solange eingefroren ist, nicht,
+   * aber nur innerhalb des gesperrten Feldes. Steht der Cursor woanders
+   * (Dialog, Zusammenfassung, Picker), gehoert das Escape Jira.
+   */
   function onKeydown(event) {
     if (!locks.length || event.key !== 'Escape') return;
-    if (isOwnUi(event.target)) return;
-    block(event);
+    if (insideAnyLock(event.target)) block(event);
   }
 
   function onBeforeUnload(event) {
