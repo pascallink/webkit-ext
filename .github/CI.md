@@ -19,6 +19,23 @@ auf - seit der Modulaufteilung in Issue #55 ist das weiterhin der Gesamtlauf
 ueber alle Testmodule (Details: `.github/TESTS.md`), der Workflow selbst bleibt
 unveraendert.
 
+### Caches im Build
+
+`build-extension.yml` haelt zwei Caches, beide rein zeitsparend - ein kalter
+Lauf ist nie falsch, nur langsamer.
+
+- **npm**: ueber `actions/setup-node` (`cache: npm`), Schluessel aus den
+  Lockfiles im Root und in den Projektordnern.
+- **Chromium**: `~/.cache/ms-playwright`, Schluessel aus den
+  Playwright-Versionen aller Projekte (`devDependencies.playwright`), nicht aus
+  dem Lockfile-Hash - sonst wuerfe jeder eslint-Bump die rund 160 MB Browser
+  mit weg. Ein Versionswechsel invalidiert den Cache also genau dann, wenn er
+  soll. `playwright install --with-deps chromium` bleibt im Lauf: bei einem
+  Treffer laedt es nichts nach und setzt nur die apt-Bibliotheken.
+
+Die Agenten-Sandbox braucht beides nicht - dort ist Chromium im Image, siehe
+`.github/TESTS.md`.
+
 Die beiden KI-Workflows brauchen das Repository-Secret `ANTHROPIC_API_KEY`.
 Gemeinsamer API-Client: `scripts/lib/anthropic.js` - Modell-ID und
 Retry-Verhalten stehen dort an *einer* Stelle und gelten fuer beide Skripte.
