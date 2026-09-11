@@ -54,3 +54,36 @@ Strg+V im Rich-Text-Editor; Einfrieren im Textmodus inklusive Escape und
 Klick daneben; Speichern ueber Submit-Knoepfe; Abbrechen im
 Kommentarformular und in der Inline-Beschreibung; eigene Vorlagen ueber die
 Optionsseite.
+
+## GitHub-Nummern
+
+Angelegt am 2026-09-12; Bearbeitungsreihenfolge und Nummern auch in `docs/nightrun/issues.json`.
+
+| Doc | GitHub | Titel |
+| --- | --- | --- |
+| 01 | #88 | Konverter haengt bei einer Zeile, die nur aus einem Listenmarker besteht |
+| 02 | #89 | Einfrieren: Sperre haengt nur an `isConnected` - Haertung fuer versteckte Felder |
+| 03 | #90 | Einfrieren: Abbrechen und Escape im Dialog "Vorgang bearbeiten" sind blockiert |
+| 04 | #91 | Einfuegen mitten in einer Zeile klebt Ueberschriften, Listen und Tabellen an den Text |
+| 05 | #92 | Automatik beim Einfuegen zerstoert Text, der bereits Jira-Markup ist |
+| 06 | #93 | Jira-Sonderzeichen im Fliesstext werden nicht maskiert (`[...]`, `-x-`, `~x~`, `^x^`, `??x??`) |
+| 07 | #94 | Tabellen: maskierter senkrechter Strich (`\|`) wird roh ausgegeben und bricht die Zelle |
+| 08 | #95 | Nach dem Code-Dialog liegt der Fokus auf dem Button, das naechste Einfuegen landet vor dem Codeblock |
+| 09 | #96 | Strg+Z nach der Einfuege-Automatik loescht das ganze Feld statt die Umwandlung zurueckzunehmen |
+| 10 | #97 | Kontextmenue und Tastenkuerzel injizieren die komplette Oberflaeche samt Einfrieren auf beliebigen Seiten |
+| 11 | #98 | Inline-Code mit geschweiften Klammern erzeugt kaputtes `{{...}}` |
+| 12 | #99 | Azure-DevOps-Spezifika landen roh im Ticket (Bildgroesse, `[[_TOC_]]`, Anhang-Pfade, HTML-Tags) |
+| 13 | #100 | Kleinere Konverter-Luecken (verschachtelte Zitate, mailto-Label, `\|` in URLs, Backslash-Umbruch, Listen-Fortsetzung) |
+| 14 | #101 | Buttonleiste fehlt, wenn das Feld beim ersten Scan kleiner als 48 px ist |
+| 15 | #102 | Schwebender MD-Button erscheint auf jeder Jira-Seite, auch Login, Dashboard und Boards |
+| 16 | #103 | Doku-Drift: OTRS-Module ausgeliefert aber unverdrahtet, CHANGELOG ohne 1.3.1-1.3.4, TESTS.md und CLAUDE.md veraltet |
+| 17 | #104 | Browser-Tests laden die Quellen in die Seite statt als Erweiterung - isolierte Welt, Storage, Service-Worker und Popup bleiben ungeprueft |
+| 18 | #105 | Popup "In Jira einfuegen" ignoriert die Rich-Text-Einstellungen und fuegt Markup als Text ein |
+| 19 | #106 | Auf einer HTTP-Instanz sind Einfuegen, "Aus Zwischenablage" und beide Kopieren-Knoepfe tot |
+| 20 | #107 | Visueller Modus: Beschreibung ist nach dem Oeffnen nicht eingefroren - Klick daneben speichert den halben Text |
+| 21 | #108 | Code-Dialog im visuellen Modus liefert Monospace-Text statt eines Codeblocks |
+| 22 | #109 | Panel-Vorlage im visuellen Modus kommt als fetter Titel plus Absatz an - kein Panel |
+| 23 | #110 | "Vorher auf den Markup-Modus umschalten" findet den Umschalter von Jira 9.12 nicht |
+| 24 | #111 | Unsichtbares Einfrieren: jede kleine Textarea (Labels, Versionen, Komponenten) sperrt die Seite ohne Schloss |
+| 25 | #112 | Solange ein Feld eingefroren ist, navigieren Toolbar-Links weg vom Vorgang - Entwurf verloren |
+| 26 | #113 | OTRS-Flow: alle drei Schritte adressieren Dialoge, die es in Jira 9.12.2 so nicht gibt |
