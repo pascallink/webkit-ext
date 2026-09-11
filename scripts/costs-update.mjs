@@ -116,14 +116,22 @@ function subagentDir(transcriptPath) {
   return path.join(dir, base, 'subagents');
 }
 
+const STDIN_TIMEOUT_MS = 2000;
+
 /**
  * JSON-Payload eines Claude-Code-Hooks von stdin lesen, falls vorhanden.
  * Liest nur bei explizitem --stdin-Schalter UND wenn stdin tatsaechlich eine
  * FIFO ist - sonst wuerde ein interaktiver oder umgeleiteter Aufruf ohne
  * Payload blockierend auf EOF warten und im schlimmsten Fall einen Commit
  * haengen lassen.
+ *
+ * Gelesen wird ueber den Stream statt fs.readFileSync(0), weil ein
+ * blockierender Read einer offenen Pipe ohne Daten (oder einer spaet
+ * geschlossenen Pipe) sonst unbegrenzt haengt. Ein hartes Zeitlimit bricht
+ * den Lesevorgang notfalls ab; der Timer haelt den Prozess dabei nicht am
+ * Leben (unref).
  */
-function readStdinJson(argv) {
+async function readStdinJson(argv) {
   if (!argv.includes('--stdin')) return null;
   let stat;
   try {
@@ -132,12 +140,36 @@ function readStdinJson(argv) {
     return null;
   }
   if (!stat.isFIFO()) return null;
-  let raw;
-  try {
-    raw = fs.readFileSync(0, 'utf8');
-  } catch {
+
+  const readAll = (async () => {
+    const chunks = [];
+    for await (const chunk of process.stdin) {
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks).toString('utf8');
+  })();
+  // Verhindert einen unhandled rejection, falls der Read nach dem Timeout
+  // (durch das destroy() unten) noch mit einem Fehler abschliesst.
+  readAll.catch(() => {});
+
+  let timer;
+  const timedOut = await new Promise((resolve) => {
+    timer = setTimeout(() => resolve(true), STDIN_TIMEOUT_MS);
+    timer.unref();
+    readAll.then(
+      () => resolve(false),
+      () => resolve(false),
+    );
+  });
+  clearTimeout(timer);
+
+  if (timedOut) {
+    process.stdin.destroy();
+    warn('stdin lieferte binnen 2s keinen vollstaendigen Payload - uebersprungen.');
     return null;
   }
+
+  const raw = await readAll;
   if (!raw || !raw.trim()) return null;
   try {
     return JSON.parse(raw);
@@ -152,14 +184,14 @@ function readStdinJson(argv) {
  * nur mit --stdin und FIFO) -> neuestes .jsonl unter
  * ~/.claude/projects/<cwd-slug>/.
  */
-function resolveSession(argv) {
+async function resolveSession(argv) {
   const flagIndex = argv.indexOf('--transcript');
   if (flagIndex !== -1 && argv[flagIndex + 1]) {
     const transcriptPath = argv[flagIndex + 1];
     return { transcriptPath, sessionId: sessionIdFromPath(transcriptPath) };
   }
 
-  const stdinPayload = readStdinJson(argv);
+  const stdinPayload = await readStdinJson(argv);
   if (stdinPayload) {
     const cwd = stdinPayload.cwd || process.cwd();
     let transcriptPath = stdinPayload.transcript_path || null;
@@ -436,7 +468,7 @@ async function main() {
     return;
   }
 
-  const session = resolveSession(argv);
+  const session = await resolveSession(argv);
   if (!session || !session.sessionId || !session.transcriptPath) {
     warn('Keine Session ermittelbar - uebersprungen.');
     return;
