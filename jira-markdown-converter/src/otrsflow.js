@@ -32,10 +32,17 @@
     return null;
   }
 
-  /** Fehler mit step-Eigenschaft, damit der Aufrufer den gescheiterten Schritt erkennt. */
-  function stepError(step, message) {
+  /**
+   * Fehler mit step-Eigenschaft, damit der Aufrufer den gescheiterten Schritt
+   * erkennt. previousReference ist optional - nur setReference() liefert ihn,
+   * damit der Aufrufer den alten Feldwert auch im Fehlerfall noch hat.
+   */
+  function stepError(step, message, previousReference) {
     var error = new Error(message);
     error.step = step;
+    if (previousReference !== undefined) {
+      error.previousReference = previousReference;
+    }
     return error;
   }
 
@@ -118,9 +125,17 @@
       });
   }
 
-  /** Fallback: das Feld steht bereits inline auf der Seite, ohne Dialog. */
+  /**
+   * Fallback: das Feld steht bereits inline auf der Seite, ohne Dialog.
+   * Zwei getrennte Anlaeufe statt einer Selektorliste in einem querySelector
+   * - eine Liste loest in Dokumentreihenfolge auf, nicht in Listenreihenfolge,
+   * und wuerde damit die Prioritaet der beiden Selektoren durcheinanderbringen.
+   */
   function locateReferenceFallback(fieldName, doc) {
-    var field = doc.querySelector('[data-field-name="' + fieldName + '"] input, .customfield input');
+    var field = doc.querySelector('[data-field-name="' + fieldName + '"] input');
+    if (!field) {
+      field = doc.querySelector('.customfield input');
+    }
     if (!field) {
       return Promise.reject(new Error('Feld fuer Kunden Referenz nicht gefunden'));
     }
@@ -129,15 +144,24 @@
 
   function setReference(text, fieldName, doc, timeout) {
     var ui = getUi();
+    var previousReference = '';
     return locateReferenceInDialog(fieldName, doc, timeout)
       .catch(function () {
         return locateReferenceFallback(fieldName, doc);
       })
       .then(function (target) {
-        var previousReference = (target.field.value || '').trim();
+        previousReference = (target.field.value || '').trim();
         ui.setValue(target.field, text);
         if (!target.dialog) {
-          ui.sendKey(target.field, 'Enter');
+          var form = target.field.closest('form');
+          var confirmButton = form ? form.querySelector('button[type="submit"], .aui-button[type="submit"]') : null;
+          if (confirmButton) {
+            ui.click(confirmButton);
+          } else {
+            // Letzter Versuch: synthetische KeyboardEvents loesen keine
+            // Default-Action aus, Enter allein committet das Feld nicht.
+            ui.sendKey(target.field, 'Enter');
+          }
           return previousReference;
         }
         var button = target.dialog.querySelector('.aui-dialog2-footer .aui-button-primary');
@@ -147,7 +171,7 @@
         });
       })
       .catch(function (error) {
-        throw stepError('reference', 'Kunden Referenz konnte nicht gesetzt werden: ' + error.message);
+        throw stepError('reference', 'Kunden Referenz konnte nicht gesetzt werden: ' + error.message, previousReference);
       });
   }
 
@@ -189,7 +213,11 @@
         var tab = dialog.querySelector('.aui-tabs .menu-item a[href="#web-link"]');
         if (!tab) throw new Error('Reiter Web-Link nicht gefunden');
         ui.click(tab);
-        return ui.waitForElement('#web-link.active-pane', { root: doc, timeout: timeout });
+        // Auf dialogRef statt doc scopen: AUI laesst beim Oeffnen oft einen
+        // alten, ausgeblendeten .aui-dialog2-Knoten stehen (siehe findMatch-
+        // Kommentar in jiraui.js) - Panel und Primaerbutton muessen aus
+        // demselben Dialogknoten stammen, sonst laufen sie auseinander.
+        return ui.waitForElement('#web-link.active-pane', { root: dialogRef, timeout: timeout });
       })
       .then(function (panel) {
         ui.setValue(panel.querySelector('#weblink-url'), url);
@@ -219,6 +247,10 @@
     var fieldName = opts.fieldName || DEFAULT_FIELD_NAME;
     var ui = getUi();
     var previousReference = '';
+
+    if (!ui) {
+      return Promise.reject(stepError('init', 'JiraUi nicht verfuegbar'));
+    }
 
     return addLabel(parsed.label, doc, timeout)
       .then(function () {
