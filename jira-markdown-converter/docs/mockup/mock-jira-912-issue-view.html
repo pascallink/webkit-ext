@@ -6,6 +6,7 @@
   <meta name="ajs-version-number" content="9.12.2">
   <meta name="ajs-build-number" content="9120002">
   <meta name="ajs-issue-key" content="DBREFI-10549">
+  <script src="https://unpkg.com/dompurify@3.1.6/dist/purify.min.js"></script>
   <style>
     /* Reduzierte AUI-Optik: Layout, Groessen und Sichtbarkeiten wie im Original. */
     body { margin: 0; font: 14px/1.4 -apple-system, "Segoe UI", Arial, sans-serif; color: #172b4d; background: #fff; }
@@ -653,7 +654,7 @@
       doc.open();
       doc.write('<!DOCTYPE html><html><head><style>body{font:14px/1.4 -apple-system,"Segoe UI",Arial,sans-serif;margin:0;padding:8px;color:#172b4d} pre.panel{background:#f4f5f7;border:1px solid #c1c7d0;padding:8px;font-family:ui-monospace,Menlo,monospace} div.panel{border:1px solid #c1c7d0;padding:8px 12px;margin:8px 0} panel-title{display:block;font-weight:600;border-bottom:1px solid #c1c7d0;margin-bottom:6px} table{border-collapse:collapse} th,td{border:1px solid #c1c7d0;padding:4px 8px} tt,code{font-family:ui-monospace,Menlo,monospace;background:#f4f5f7}</style></head><body id="tinymce" class="mce-content-body" contenteditable="true" data-id="mce_' + n + '" aria-label="Rich Text Area. Press ALT-0 for help." data-issuekey="' + KEY + '" data-projectkey="DBREFI"></body></html>');
       doc.close();
-      doc.body.innerHTML = textarea.value ? wikiToHtml(textarea.value) : '<p><br data-mce-bogus="1"></p>';
+      doc.body.innerHTML = textarea.value ? DOMPurify.sanitize(wikiToHtml(textarea.value)) : '<p><br data-mce-bogus="1"></p>';
       // Einfuegen: text/html bevorzugt; style auf div entfernt, pre ohne panel-Klasse ausgepackt (wie beobachtet)
       doc.body.addEventListener('paste', function (event) {
         var data = event.clipboardData;
