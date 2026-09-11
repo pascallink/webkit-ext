@@ -116,9 +116,22 @@ function subagentDir(transcriptPath) {
   return path.join(dir, base, 'subagents');
 }
 
-/** JSON-Payload eines Claude-Code-Hooks von stdin lesen, falls vorhanden. */
-function readStdinJson() {
-  if (process.stdin.isTTY) return null;
+/**
+ * JSON-Payload eines Claude-Code-Hooks von stdin lesen, falls vorhanden.
+ * Liest nur bei explizitem --stdin-Schalter UND wenn stdin tatsaechlich eine
+ * FIFO ist - sonst wuerde ein interaktiver oder umgeleiteter Aufruf ohne
+ * Payload blockierend auf EOF warten und im schlimmsten Fall einen Commit
+ * haengen lassen.
+ */
+function readStdinJson(argv) {
+  if (!argv.includes('--stdin')) return null;
+  let stat;
+  try {
+    stat = fs.fstatSync(0);
+  } catch {
+    return null;
+  }
+  if (!stat.isFIFO()) return null;
   let raw;
   try {
     raw = fs.readFileSync(0, 'utf8');
@@ -135,11 +148,18 @@ function readStdinJson() {
 }
 
 /**
- * Aufloesungsreihenfolge: stdin-JSON (Claude-Code-Hook) -> --transcript
- * <pfad> -> neuestes .jsonl unter ~/.claude/projects/<cwd-slug>/.
+ * Aufloesungsreihenfolge: --transcript <pfad> -> stdin-JSON (Claude-Code-Hook,
+ * nur mit --stdin und FIFO) -> neuestes .jsonl unter
+ * ~/.claude/projects/<cwd-slug>/.
  */
 function resolveSession(argv) {
-  const stdinPayload = readStdinJson();
+  const flagIndex = argv.indexOf('--transcript');
+  if (flagIndex !== -1 && argv[flagIndex + 1]) {
+    const transcriptPath = argv[flagIndex + 1];
+    return { transcriptPath, sessionId: sessionIdFromPath(transcriptPath) };
+  }
+
+  const stdinPayload = readStdinJson(argv);
   if (stdinPayload) {
     const cwd = stdinPayload.cwd || process.cwd();
     let transcriptPath = stdinPayload.transcript_path || null;
@@ -150,12 +170,6 @@ function resolveSession(argv) {
     if (transcriptPath) {
       return { transcriptPath, sessionId: sessionId || sessionIdFromPath(transcriptPath) };
     }
-  }
-
-  const flagIndex = argv.indexOf('--transcript');
-  if (flagIndex !== -1 && argv[flagIndex + 1]) {
-    const transcriptPath = argv[flagIndex + 1];
-    return { transcriptPath, sessionId: sessionIdFromPath(transcriptPath) };
   }
 
   const transcriptPath = newestJsonl(claudeProjectsDir(process.cwd()));
@@ -170,11 +184,15 @@ function loadPricing(repoRoot) {
   try {
     const raw = fs.readFileSync(file, 'utf8');
     const data = JSON.parse(raw);
-    return data.models || {};
+    return { models: data.models || {}, meta: data._meta || {} };
   } catch (err) {
     warn(`Preistabelle ${file} nicht lesbar - alle Kosten werden mit 0 gewertet (${err.message}).`);
-    return {};
+    return { models: {}, meta: {} };
   }
+}
+
+function defaultCacheTtl(meta) {
+  return meta.default_cache_ttl === '5m' ? '5m' : '1h';
 }
 
 function ratesFor(pricing, model, speed) {
@@ -200,13 +218,28 @@ function addUsageLine(state, model, usage) {
   const cacheRead = usage.cache_read_input_tokens || 0;
   let cacheWrite5m = 0;
   let cacheWrite1h = 0;
-  if (usage.cache_creation) {
-    cacheWrite5m = usage.cache_creation.ephemeral_5m_input_tokens || 0;
-    cacheWrite1h = usage.cache_creation.ephemeral_1h_input_tokens || 0;
+  const cc = usage.cache_creation;
+  const ephemeral5m = (cc && cc.ephemeral_5m_input_tokens) || 0;
+  const ephemeral1h = (cc && cc.ephemeral_1h_input_tokens) || 0;
+  if (ephemeral5m + ephemeral1h > 0) {
+    cacheWrite5m = ephemeral5m;
+    cacheWrite1h = ephemeral1h;
   } else if (usage.cache_creation_input_tokens) {
-    // Aeltere Transcript-Form ohne 5m/1h-Aufschluesselung - als 5m werten,
-    // das ist die Standard-Cache-TTL.
-    cacheWrite5m = usage.cache_creation_input_tokens;
+    // Aeltere Transcript-Form ohne 5m/1h-Aufschluesselung (oder leeres
+    // cache_creation-Objekt) - TTL kommt aus der Preistabelle, Default 1h.
+    const ttl = defaultCacheTtl(state.pricingMeta);
+    if (ttl === '5m') {
+      cacheWrite5m = usage.cache_creation_input_tokens;
+    } else {
+      cacheWrite1h = usage.cache_creation_input_tokens;
+    }
+    if (!state.warnedCacheFallback) {
+      state.warnedCacheFallback = true;
+      warn(
+        `cache_creation ohne 5m/1h-Aufschluesselung - cache_creation_input_tokens ` +
+          `nach Default-TTL "${ttl}" aus stats/pricing.json gebucht.`,
+      );
+    }
   }
 
   bucket.input += input;
@@ -245,8 +278,10 @@ async function collectUsage(filePath, state) {
     return;
   }
 
+  let lineNumber = 0;
   try {
     for await (const line of rl) {
+      lineNumber++;
       if (!line.trim()) continue;
       let entry;
       try {
@@ -259,7 +294,13 @@ async function collectUsage(filePath, state) {
       if (!usage) continue;
 
       // Dedupe: Retries und Streaming erzeugen sonst Doppel derselben Antwort.
-      const key = `${entry.requestId || ''}:${entry.message.id || ''}`;
+      // Fehlen requestId und message.id beide, macht Dateipfad + Zeilennummer
+      // den Schluessel eindeutig statt alle auf denselben leeren String
+      // kollidieren zu lassen.
+      const requestId = entry.requestId || '';
+      const messageId = entry.message.id || '';
+      const key =
+        requestId || messageId ? `${requestId}:${messageId}` : `${filePath}:${lineNumber}`;
       if (state.seen.has(key)) continue;
       state.seen.add(key);
 
@@ -325,7 +366,7 @@ function readCsvRows(filePath) {
 function writeCsvAtomic(filePath, header, rows) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const content = [csvRow(header), ...rows.map(csvRow)].join('\n') + '\n';
-  const tmpPath = `${filePath}.tmp`;
+  const tmpPath = `${filePath}.${process.pid}.tmp`;
   fs.writeFileSync(tmpPath, content, 'utf8');
   fs.renameSync(tmpPath, filePath);
 }
@@ -342,9 +383,16 @@ function upsertCosts(repoRoot, branch, sessionId, totalCost, updatedAt) {
   const filePath = path.join(repoRoot, 'stats', 'costs.csv');
   const map = new Map();
   for (const row of readCsvRows(filePath)) {
-    map.set(`${row[0]} ${row[1]}`, row);
+    const key = `${row[0]}\u0000${row[1]}`;
+    const existing = map.get(key);
+    // Bei doppeltem Schluessel gewinnt die Zeile mit dem groesseren
+    // updated_at (ISO-8601 sortiert lexikalisch chronologisch), nicht
+    // einfach die zuletzt gelesene - relevant nach einem Union-Merge.
+    if (!existing || row[2] > existing[2]) {
+      map.set(key, row);
+    }
   }
-  map.set(`${branch} ${sessionId}`, [branch, sessionId, updatedAt, totalCost.toFixed(4)]);
+  map.set(`${branch}\u0000${sessionId}`, [branch, sessionId, updatedAt, totalCost.toFixed(4)]);
   const rows = [...map.values()].sort((a, b) => compareRows(a, b, 2));
   writeCsvAtomic(filePath, COSTS_HEADER, rows);
 }
@@ -353,10 +401,10 @@ function upsertTokens(repoRoot, branch, sessionId, perModel) {
   const filePath = path.join(repoRoot, 'stats', 'tokens.csv');
   const map = new Map();
   for (const row of readCsvRows(filePath)) {
-    map.set(`${row[0]} ${row[1]} ${row[2]}`, row);
+    map.set(`${row[0]}\u0000${row[1]}\u0000${row[2]}`, row);
   }
   for (const [model, bucket] of perModel) {
-    map.set(`${branch} ${sessionId} ${model}`, [
+    map.set(`${branch}\u0000${sessionId}\u0000${model}`, [
       branch,
       sessionId,
       model,
@@ -398,7 +446,8 @@ async function main() {
   const state = {
     seen: new Set(),
     perModel: new Map(),
-    pricing,
+    pricing: pricing.models,
+    pricingMeta: pricing.meta,
     warnedModels: new Set(),
   };
 
@@ -407,6 +456,12 @@ async function main() {
     await collectUsage(subagentFile, state);
   }
 
+  // Je Modell zuerst auf vier Nachkommastellen runden - die Session-Summe
+  // entsteht aus diesen gerundeten Werten, damit costs.csv exakt der Summe
+  // der tokens.csv-Zeilen derselben Session entspricht.
+  for (const bucket of state.perModel.values()) {
+    bucket.costUsd = Number(bucket.costUsd.toFixed(4));
+  }
   const totalCost = [...state.perModel.values()].reduce((sum, bucket) => sum + bucket.costUsd, 0);
 
   upsertCosts(repoRoot, branch, session.sessionId, totalCost, isoNowUtc());

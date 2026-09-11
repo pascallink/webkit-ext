@@ -21,6 +21,13 @@ const PRICING_FIXTURE = {
       cache_write_5m: 2.5,
       cache_write_1h: 4,
     },
+    'claude-test-model-b': {
+      input: 3,
+      output: 7,
+      cache_read: 0.3,
+      cache_write_5m: 1.1,
+      cache_write_1h: 1.7,
+    },
   },
 };
 
@@ -58,11 +65,11 @@ function writeTranscript(dir, sessionId, lines) {
   return file;
 }
 
-function runScript(repoDir, args) {
+function runScript(repoDir, args, stdinInput = '') {
   return spawnSync('node', [SCRIPT_PATH, ...args], {
     cwd: repoDir,
     encoding: 'utf8',
-    input: '',
+    input: stdinInput,
   });
 }
 
@@ -124,9 +131,12 @@ test('legt costs.csv und tokens.csv neu an', (t) => {
     '7.0000',
   ]);
 
-  // Atomares Schreiben: keine liegen gebliebene .tmp-Datei.
-  assert.equal(fs.existsSync(path.join(dir, 'stats', 'costs.csv.tmp')), false);
-  assert.equal(fs.existsSync(path.join(dir, 'stats', 'tokens.csv.tmp')), false);
+  // Atomares Schreiben: keine liegen gebliebene .tmp-Datei (Name traegt die
+  // PID, damit parallele Laeufe sich nicht gegenseitig ueberschreiben).
+  const leftoverTmp = fs
+    .readdirSync(path.join(dir, 'stats'))
+    .filter((name) => name.endsWith('.tmp'));
+  assert.deepEqual(leftoverTmp, []);
 });
 
 test('zweiter Lauf ist ein Upsert, keine zweite Zeile', (t) => {
@@ -224,6 +234,176 @@ test('zaehlt Subagenten-Transcripts mit', (t) => {
   assert.equal(tokens.rows.length, 1);
   // 100000 (Haupt) + 50000 (Subagent) = 150000
   assert.equal(tokens.rows[0][3], '150000');
+});
+
+test('JSON auf stdin wird ohne --stdin-Schalter ignoriert', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const stdinPayload = JSON.stringify({
+    session_id: 'sess-from-stdin',
+    transcript_path: path.join(dir, 'sess-from-stdin.jsonl'),
+    cwd: dir,
+  });
+
+  // Kein --transcript, kein --stdin: der Payload darf nicht blockierend
+  // gelesen werden und muss sauber ohne ermittelte Session enden.
+  const result = runScript(dir, [], stdinPayload);
+  assert.equal(result.status, 0);
+  assert.match(result.stderr, /Keine Session ermittelbar/);
+  assert.equal(fs.existsSync(path.join(dir, 'stats', 'costs.csv')), false);
+});
+
+test('--transcript gewinnt gegen stdin-Payload, wenn beides vorliegt', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const usageReal = { input_tokens: 10_000, output_tokens: 0, cache_read_input_tokens: 0 };
+  const realTranscript = writeTranscript(dir, 'sess-real', [
+    assistantLine({ requestId: 'req-real', messageId: 'msg-real', usage: usageReal }),
+  ]);
+
+  // stdin zeigt auf eine andere, nicht existierende Session - darf nicht
+  // gewinnen, solange --transcript gesetzt ist.
+  const stdinPayload = JSON.stringify({
+    session_id: 'sess-from-stdin',
+    transcript_path: path.join(dir, 'sess-from-stdin.jsonl'),
+    cwd: dir,
+  });
+
+  const result = runScript(dir, ['--stdin', '--transcript', realTranscript], stdinPayload);
+  assert.equal(result.status, 0);
+
+  const tokens = readCsvRows(dir, 'tokens.csv');
+  assert.equal(tokens.rows.length, 1);
+  assert.equal(tokens.rows[0][1], 'sess-real');
+});
+
+test('fehlen requestId und message.id, dedupliziert nicht ueber Zeilen hinweg', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const usage1 = { input_tokens: 1_000, output_tokens: 0, cache_read_input_tokens: 0 };
+  const usage2 = { input_tokens: 2_000, output_tokens: 0, cache_read_input_tokens: 0 };
+  const transcript = writeTranscript(dir, 'sess-no-ids', [
+    assistantLine({ usage: usage1 }),
+    assistantLine({ usage: usage2 }),
+  ]);
+
+  const result = runScript(dir, ['--transcript', transcript]);
+  assert.equal(result.status, 0);
+
+  const tokens = readCsvRows(dir, 'tokens.csv');
+  assert.equal(tokens.rows.length, 1);
+  // 1000 + 2000 = 3000 - beide Zeilen gezaehlt statt auf demselben leeren
+  // Dedupe-Schluessel zu kollidieren.
+  assert.equal(tokens.rows[0][3], '3000');
+});
+
+test('leeres cache_creation-Objekt faellt zurueck auf cache_creation_input_tokens', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const usage1 = {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_read_input_tokens: 0,
+    cache_creation: {},
+    cache_creation_input_tokens: 1_000_000,
+  };
+  const usage2 = {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_read_input_tokens: 0,
+    cache_creation: {},
+    cache_creation_input_tokens: 1_000_000,
+  };
+  const transcript = writeTranscript(dir, 'sess-cache-fallback', [
+    assistantLine({ requestId: 'req-1', messageId: 'msg-1', usage: usage1 }),
+    assistantLine({ requestId: 'req-2', messageId: 'msg-2', usage: usage2 }),
+  ]);
+
+  const result = runScript(dir, ['--transcript', transcript]);
+  assert.equal(result.status, 0);
+
+  const tokens = readCsvRows(dir, 'tokens.csv');
+  assert.equal(tokens.rows.length, 1);
+  // Beide Zeilen zaehlen cache_creation_input_tokens statt es wegen des
+  // leeren cache_creation-Objekts zu verlieren: 2 Mio Token gesamt.
+  assert.equal(tokens.rows[0][6], '2000000');
+  // Fixture-pricing.json hat kein _meta.default_cache_ttl -> Default 1h.
+  // 2 Mio * 4 USD / 1e6 = 8 USD.
+  assert.equal(tokens.rows[0][7], '8.0000');
+
+  // Warnung nur einmal je Lauf, nicht einmal je Zeile.
+  const warnings = result.stderr.match(/cache_creation ohne 5m\/1h-Aufschluesselung/g) || [];
+  assert.equal(warnings.length, 1);
+});
+
+test('Rundung: costs.csv-Summe entspricht exakt der Summe der tokens.csv-Zeilen', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const usageA = { input_tokens: 111_111, output_tokens: 222_222, cache_read_input_tokens: 0 };
+  const usageB = { input_tokens: 333_333, output_tokens: 444_444, cache_read_input_tokens: 0 };
+  const transcript = writeTranscript(dir, 'sess-rundung', [
+    assistantLine({ requestId: 'req-a', messageId: 'msg-a', model: 'claude-test-model', usage: usageA }),
+    assistantLine({
+      requestId: 'req-b',
+      messageId: 'msg-b',
+      model: 'claude-test-model-b',
+      usage: usageB,
+    }),
+  ]);
+
+  const result = runScript(dir, ['--transcript', transcript]);
+  assert.equal(result.status, 0);
+
+  const costs = readCsvRows(dir, 'costs.csv');
+  const tokens = readCsvRows(dir, 'tokens.csv');
+  assert.equal(tokens.rows.length, 2);
+
+  const tokensSum = tokens.rows.reduce((sum, row) => sum + Number(row[7]), 0);
+  assert.equal(costs.rows[0][3], tokensSum.toFixed(4));
+});
+
+test('bestehende costs.csv: groesseres updated_at gewinnt bei doppeltem Schluessel', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const costsPath = path.join(dir, 'stats', 'costs.csv');
+  fs.writeFileSync(
+    costsPath,
+    [
+      'branch,session_id,updated_at,cost_usd',
+      // Juengere Zeile steht zuerst in der Datei - "zuletzt gelesen" wuerde
+      // faelschlich die aeltere behalten.
+      'test-branch,sess-dup,2026-06-01T00:00:00Z,2.0000',
+      'test-branch,sess-dup,2026-01-01T00:00:00Z,1.0000',
+    ].join('\n') + '\n',
+  );
+
+  const usage = { input_tokens: 1_000, output_tokens: 0, cache_read_input_tokens: 0 };
+  const transcript = writeTranscript(dir, 'sess-andere', [
+    assistantLine({ requestId: 'req-1', messageId: 'msg-1', usage }),
+  ]);
+
+  const result = runScript(dir, ['--transcript', transcript]);
+  assert.equal(result.status, 0);
+
+  const costs = readCsvRows(dir, 'costs.csv');
+  const dupRow = costs.rows.find((row) => row[1] === 'sess-dup');
+  assert.ok(dupRow);
+  assert.equal(dupRow[2], '2026-06-01T00:00:00Z');
+  assert.equal(dupRow[3], '2.0000');
+});
+
+test('Quelltext enthaelt keine Bytes ausserhalb ASCII 0x09/0x0a/0x20-0x7e', () => {
+  const buf = fs.readFileSync(SCRIPT_PATH);
+  for (const byte of buf) {
+    const ok = byte === 0x09 || byte === 0x0a || (byte >= 0x20 && byte <= 0x7e);
+    assert.ok(ok, `Byte 0x${byte.toString(16)} ausserhalb des erlaubten Bereichs gefunden`);
+  }
 });
 
 test('detached HEAD beendet sauber ohne zu schreiben', (t) => {
