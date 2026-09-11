@@ -5,6 +5,17 @@ festgehalten. Das Format orientiert sich an
 [Keep a Changelog](https://keepachangelog.com/de/1.0.0/), Versionierung an
 [SemVer](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Behoben
+
+- Einfrieren sperrte die Navigation und Dialoge; nun bleiben Toolbar,
+  Bedienelemente ausserhalb des Feldes und Escape funktionieren normal
+  (Issue #112).
+- Bearbeiten-Dialog und Abbrechen werden vom Einfrieren nicht blockiert
+  (Issue #90).
+- Label-Felder und andere kleine Auswahlfelder frieren nicht ein (Issue #111).
+
 ## [1.3.0] - 2026-09-07
 
 ### Hinzugefuegt
