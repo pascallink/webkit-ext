@@ -11,5 +11,6 @@ module.exports = {
   RTE: 'mock-jira-rte.html',
   INLINE: 'mock-jira-inline-edit.html',
   ISSUE: 'mock-jira-issue-description.html',
-  OTRS: 'mock-jira-otrs.html'
+  OTRS: 'mock-jira-otrs.html',
+  JIRA912: 'mock-jira-912-issue-view.html'
 };

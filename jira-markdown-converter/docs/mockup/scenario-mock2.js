@@ -3,6 +3,8 @@
 'use strict';
 const { withPage, shot, extState, logger } = require('./jira-lib');
 const log = logger('scenario-mock2.out');
+// Quelle: test/fixtures/mock-jira-912-issue-view.html (Fixture-Umzug aus
+// docs/mockup/), hier per lokalem HTTP-Server aus www/ ausgeliefert.
 const URL = 'http://localhost:8765/mock-jira-912-issue-view.html';
 const mockLog = page => page.evaluate(() => window.__mock.log.slice());
 const last = async (page, n) => (await mockLog(page)).slice(-(n || 2));
