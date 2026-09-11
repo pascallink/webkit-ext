@@ -19,6 +19,7 @@
     "test:module": "node test/run.js",
     "test:node": "node test/run.js --node",
     "test:options": "node test/run.js options",
+    "test:otrs": "node test/run.js otrs",
     "test:package": "node test/run.js package",
     "test:popup": "node test/run.js popup",
     "test:settings": "node test/run.js settings",
