@@ -3,6 +3,7 @@
     "einheit": "USD je 1 Million Token",
     "quelle": "https://www.anthropic.com/pricing (Listenpreise)",
     "stand": "2026-09-11",
+    "default_cache_ttl": "1h",
     "hinweis": "Schaetzung zu Listenpreisen, entspricht nicht der tatsaechlichen Rechnung."
   },
   "models": {
@@ -25,6 +26,13 @@
       "cache_write_1h": 4.00
     },
     "claude-haiku-4-5": {
+      "input": 1.00,
+      "output": 5.00,
+      "cache_read": 0.10,
+      "cache_write_5m": 1.25,
+      "cache_write_1h": 2.00
+    },
+    "claude-haiku-4-5-20251001": {
       "input": 1.00,
       "output": 5.00,
       "cache_read": 0.10,
