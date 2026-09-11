@@ -29,7 +29,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `background` | `src/background.js` | 7 Node | #32 |
 | `package` | `manifest.json`, `docs/store/` | 31 Node + Guard | alle |
 | `mapping` *(reserviert)* | `src/mapping.js` *(geplant)* | - | **#32** |
-| `otrs` | `src/otrslink.js` | 17 Node | #17 |
+| `otrs` | `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | 16 Node + 28 Browser | #17 |
 
 `mapping` bekommt seinen Ordner erst mit dem jeweiligen Feature -
 die Zeile hier reserviert nur den Namen, damit ein neues Modul nicht zufaellig
@@ -57,7 +57,7 @@ jira-markdown-converter/test/
     dialogs/      browser/{code,panel,placeholder}.test.js
     editlock/     browser/{inline,description}.test.js
     options/      browser/templates.test.js
-    otrs/         otrslink.test.js
+    otrs/         otrslink.test.js  browser/{jiraui,otrsflow,otrsdialog}.test.js
     popup/        browser/popup.test.js
     background/   background.test.js
     package/      manifest.test.js  sources.test.js  store.test.js
