@@ -95,7 +95,7 @@ describe('Service-Worker', function () {
 
 describe('Quellcode', function () {
   test('keine console-Ausgaben im Auslieferungscode', function () {
-    ['src/content.js', 'src/editors.js', 'src/converter.js', 'src/codedialog.js', 'src/templatedialog.js', 'src/editlock.js', 'src/settings.js', 'src/background.js'].forEach(function (file) {
+    ['src/content.js', 'src/editors.js', 'src/converter.js', 'src/codedialog.js', 'src/templatedialog.js', 'src/editlock.js', 'src/settings.js', 'src/background.js', 'src/otrsdialog.js'].forEach(function (file) {
       var source = fs.readFileSync(abs(file), 'utf8');
       assert.ok(!/console\.(log|debug|info)\(/.test(source), file + ' enthaelt console-Ausgaben');
     });
@@ -105,7 +105,8 @@ describe('Quellcode', function () {
     var templates = {
       'src/content.js': /PANEL_HTML/,
       'src/codedialog.js': /DIALOG_HTML/,
-      'src/templatedialog.js': /DIALOG_HTML/
+      'src/templatedialog.js': /DIALOG_HTML/,
+      'src/otrsdialog.js': /DIALOG_HTML/
     };
     Object.keys(templates).forEach(function (file) {
       var source = fs.readFileSync(abs(file), 'utf8');

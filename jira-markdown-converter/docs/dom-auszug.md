@@ -5,6 +5,10 @@ die Oberflaeche von Jira Server / Data Center arbeiten (Dialoge, Modale,
 Inline-Bearbeitung), ist ein Auszug aus der echten Instanz der Unterschied
 zwischen geratenen und belegten Selektoren.
 
+> Durchgespieltes Beispiel: der Auszug zu Issue #17 und was daraus wurde -
+> [`jira-dialogs-referenz.md`](jira-dialogs-referenz.md). Er hat sieben
+> angenommene Selektoren widerlegt, bevor eine Zeile Code entstanden ist.
+
 **Nicht die Seite speichern.** Ein `Strg+S` liefert das Ausgangs-HTML, nicht das
 DOM, das Jira per AJAX nachgeladen hat - genau die Dialoge fehlen dann. Und ein
 vollstaendiger Auszug enthaelt Ticketinhalte, Namen und den `atl_token`.

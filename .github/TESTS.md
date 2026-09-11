@@ -29,9 +29,9 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `background` | `src/background.js` | 7 Node | #32 |
 | `package` | `manifest.json`, `docs/store/` | 31 Node + Guard | alle |
 | `mapping` *(reserviert)* | `src/mapping.js` *(geplant)* | - | **#32** |
-| `otrs` *(reserviert)* | `src/otrs.js` *(geplant)* | - | **#17** |
+| `otrs` | `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | 16 Node + 28 Browser | #17 |
 
-`mapping` und `otrs` bekommen ihren Ordner erst mit dem jeweiligen Feature -
+`mapping` bekommt seinen Ordner erst mit dem jeweiligen Feature -
 die Zeile hier reserviert nur den Namen, damit ein neues Modul nicht zufaellig
 kollidiert. Aktuelle Testzahlen: `node test/run.js --list` (im Projektordner).
 
@@ -57,6 +57,7 @@ jira-markdown-converter/test/
     dialogs/      browser/{code,panel,placeholder}.test.js
     editlock/     browser/{inline,description}.test.js
     options/      browser/templates.test.js
+    otrs/         otrslink.test.js  browser/{jiraui,otrsflow,otrsdialog}.test.js
     popup/        browser/popup.test.js
     background/   background.test.js
     package/      manifest.test.js  sources.test.js  store.test.js
@@ -221,8 +222,7 @@ Zwei Dinge daran sind Absicht:
 
 ## Reservierte Module
 
-`mapping` (Issue #32, CustomerKey-Mapping) und `otrs` (Issue #17, OTRS Link
-Helper) sind in der Modul-Landkarte reserviert, existieren aber noch nicht:
-`src/mapping.js` und `src/otrs.js` sind geplant, nicht vorhanden. Der
-Testordner entsteht mit dem jeweiligen Feature, nach derselben Anleitung wie
-oben.
+`mapping` (Issue #32, CustomerKey-Mapping) ist in der Modul-Landkarte
+reserviert, existiert aber noch nicht: `src/mapping.js` ist geplant, nicht
+vorhanden. Der Testordner entsteht mit dem jeweiligen Feature, nach
+derselben Anleitung wie oben.
