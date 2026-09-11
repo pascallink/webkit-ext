@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "lint:commits": "commitlint --from origin/main --to HEAD --verbose",
-    "test": "node --test scripts/test"
+    "test": "node --test scripts/test/*.test.mjs"
   },
   "repository": {
     "type": "git",
