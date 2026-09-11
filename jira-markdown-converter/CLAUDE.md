@@ -9,7 +9,7 @@ Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per `chrome
 - Test: `npm test --prefix <p>`
 - Einzeln: `npm run test:node|test:browser|test:<modul> --prefix <p>` (modul: background, content, converter, dialogs, editlock, editors, options, package, popup, settings)
 - Module und Testzahlen: [`.github/TESTS.md`](../.github/TESTS.md)
-- Browser fuer `test:browser`: `npx --prefix <p> playwright install chromium` (CHROMIUM_PATH setzt Pfad bei Bedarf)
+- Browser fuer `test:browser`: **nicht installieren** - `playwright` ist exakt auf die Version des vorinstallierten Chromium gepinnt ([`.github/TESTS.md`](../.github/TESTS.md))
 
 ## Tech-Stack-Vorgaben
 
