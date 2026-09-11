@@ -837,7 +837,17 @@
       var block = document.createElement('div');
       block.className = 'issue-data-block activity-comment twixi-block expanded';
       block.id = 'comment-' + (103543 + window.__mock.comments.length);
-      block.innerHTML = '<div class="action-details">Pascal Link added a comment</div><div class="action-body flooded">' + wikiToHtml(body) + '</div>';
+      var details = document.createElement('div');
+      details.className = 'action-details';
+      details.textContent = 'Pascal Link added a comment';
+      var actionBody = document.createElement('div');
+      actionBody.className = 'action-body flooded';
+      var rendered = wikiToHtml(body);
+      var tmp = document.createElement('div');
+      tmp.innerHTML = rendered;
+      while (tmp.firstChild) actionBody.appendChild(tmp.firstChild);
+      block.appendChild(details);
+      block.appendChild(actionBody);
       document.getElementById('issue_actions_container').appendChild(block);
       closeComment('submit');
     });
