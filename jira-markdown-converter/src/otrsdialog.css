@@ -1,0 +1,58 @@
+/*
+ * Dialog "OTRS-Link einpflegen". Rahmen, Knoepfe und Felder kommen aus
+ * content.css/codedialog.css - hier nur die Vorschauzeilen, der Fehlertext
+ * und der gesperrte Zustand von "Absenden".
+ */
+
+.jmd-otrs-preview {
+  margin-top: 10px;
+  border-radius: 3px;
+  background: #f4f5f7;
+  padding: 8px 10px;
+}
+
+.jmd-otrs-preview__row {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 3px 0;
+}
+
+.jmd-otrs-preview__key {
+  color: #6b778c;
+  flex: 0 0 auto;
+}
+
+.jmd-otrs-preview__value {
+  color: #172b4d;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.jmd-otrs-error {
+  min-height: 14px;
+  color: #de350b;
+}
+
+.jmd-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .jmd-otrs-preview {
+    background: #22272b;
+  }
+
+  .jmd-otrs-preview__key {
+    color: #9fadbc;
+  }
+
+  .jmd-otrs-preview__value {
+    color: #c7d1db;
+  }
+
+  .jmd-otrs-error {
+    color: #f87168;
+  }
+}

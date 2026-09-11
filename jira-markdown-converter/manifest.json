@@ -36,11 +36,13 @@
         "src/otrslink.js",
         "src/jiraui.js",
         "src/otrsflow.js",
+        "src/otrsdialog.js",
         "src/content.js"
       ],
       "css": [
         "src/content.css",
-        "src/codedialog.css"
+        "src/codedialog.css",
+        "src/otrsdialog.css"
       ],
       "run_at": "document_start",
       "all_frames": true

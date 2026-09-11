@@ -12,8 +12,9 @@ var Converter = self.JiraMarkdown;
 var CONTENT_SCRIPT_ID = 'jira-markdown-extra-hosts';
 var CONTENT_FILES = ['src/settings.js', 'src/converter.js', 'src/editors.js',
   'src/codedialog.js', 'src/templatedialog.js', 'src/editlock.js',
-  'src/otrslink.js', 'src/jiraui.js', 'src/otrsflow.js', 'src/content.js'];
-var CONTENT_CSS = ['src/content.css', 'src/codedialog.css'];
+  'src/otrslink.js', 'src/jiraui.js', 'src/otrsflow.js', 'src/otrsdialog.js',
+  'src/content.js'];
+var CONTENT_CSS = ['src/content.css', 'src/codedialog.css', 'src/otrsdialog.css'];
 
 /* -------------------------------------------------------------------- *
  * Kontextmenue
