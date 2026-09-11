@@ -538,7 +538,7 @@
           html += '<li>' + it.c;
         });
         while (open.length) html += '</li></' + open.pop() + '>';
-        out.push(html.replace(/<\/li><li>/g, '</li><li>').replace(/^(<(ul|ol)>)<\/li>/, '$1'));
+        out.push(html.replace(/^(<(ul|ol)>)<\/li>/, '$1'));
         continue;
       }
       if (/^\s*$/.test(l)) { flush(); i++; continue; }
