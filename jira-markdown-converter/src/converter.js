@@ -724,6 +724,7 @@
     var i = 0;
 
     while (i < lines.length) {
+      var before = i;
       var line = lines[i];
 
       // Platzhalter (Codeblock) unveraendert uebernehmen.
@@ -821,6 +822,12 @@
         out.push(ctx.dialect.paragraph([convertInline(lines[i], ctx)]));
         i++;
       }
+
+      // Harte Sicherung: kein Zweig darf i unveraendert lassen (Issue #88).
+      if (i === before) {
+        out.push(ctx.dialect.paragraph([convertInline(lines[i], ctx)]));
+        i++;
+      }
     }
 
     return out;
@@ -892,7 +899,7 @@
         continue;
       }
 
-      var item = /^(\s*)([-*+]|\d+[.)])[ \t]+(.*)$/.exec(line);
+      var item = /^(\s*)([-*+]|\d+[.)])(?:[ \t]+(.*))?$/.exec(line);
       if (item && !isHorizontalRule(line)) {
         var indent = indentWidth(item[1]);
         var type = /^\d/.test(item[2]) ? '#' : '*';
@@ -912,7 +919,7 @@
           return level.type;
         });
 
-        var content = item[3];
+        var content = item[3] || '';
         var task = /^\[([ xX])\][ \t]+(.*)$/.exec(content);
         var state = null;
         if (task) {
