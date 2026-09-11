@@ -20,9 +20,10 @@
   'use strict';
 
   var dialog = null;
-  var handlers = null;       // { onSubmit: fn(parsed), onError: fn(message) } des offenen Dialogs
+  var handlers = null;       // { onSubmit: fn(parsed), onError: fn(message), onClose: fn, opener: Element } des offenen Dialogs
   var opener = null;         // Element, das vor dem Oeffnen den Fokus hatte
   var lastParsed = null;     // letztes Ergebnis von JiraOtrsLink.parse()
+  var lastReportedError = null; // zuletzt an onError gemeldete Fehlermeldung, fuer die Entprellung
 
   var DIALOG_HTML = [
     '<div class="jmd-dialog__box" role="dialog" aria-modal="true" aria-labelledby="jmd-otrs-title">',
@@ -174,7 +175,12 @@
       dialog.querySelector('[data-role="preview-link"]').textContent = '-';
       errorLine.textContent = lastParsed.error;
       submitBtn.disabled = true;
-      if (handlers && handlers.onError) handlers.onError(lastParsed.error);
+      // Nur bei geaenderter Meldung melden - sonst feuert onError bei jedem
+      // Tastendruck erneut mit derselben Meldung.
+      if (lastParsed.error !== lastReportedError) {
+        lastReportedError = lastParsed.error;
+        if (handlers && handlers.onError) handlers.onError(lastParsed.error);
+      }
     }
   }
 
@@ -201,17 +207,23 @@
    * ------------------------------------------------------------------ */
 
   /**
-   * handlers = { onSubmit: fn(parsed), onError: fn(message) }. onSubmit darf
-   * false (oder ein Promise darauf) liefern - dann bleibt der Dialog offen.
+   * handlers = { onSubmit: fn(parsed), onError: fn(message), onClose: fn,
+   *              opener: Element }. onSubmit darf false (oder ein Promise
+   * darauf) liefern - dann bleibt der Dialog offen. onClose ist optional und
+   * wird beim Schliessen aufgerufen (Abbruchsignal fuer den Aufrufer).
+   * opener ist optional - ohne Angabe zaehlt der Fokus beim Oeffnen
+   * (document.activeElement), das reicht aber nicht, wenn der Aufrufer selbst
+   * nicht den Fokus haelt (z. B. Oeffnen ueber einen Panel-Knopf).
    */
   function open(opts) {
     handlers = opts || {};
     create();
-    opener = document.activeElement;
+    opener = handlers.opener || document.activeElement;
 
     var input = dialog.querySelector('[data-role="otrs-input"]');
     input.value = '';
     lastParsed = null;
+    lastReportedError = null;
     resetPreview();
 
     dialog.classList.add('jmd-dialog--open');
@@ -221,12 +233,20 @@
 
   function close() {
     if (!dialog) return;
+    // Vor dem Entfernen der Klasse pruefen - .jmd-dialog ist display: none,
+    // danach waere der Fokus schon aus dem Dialog geblurrt.
+    var focusInDialog = dialog.contains(document.activeElement);
     dialog.classList.remove('jmd-dialog--open');
+    var done = handlers && handlers.onClose;
     handlers = null;
     lastParsed = null;
-    // Fokus zurueck ins Jira-Feld, damit die Cursorposition erhalten bleibt.
-    if (opener && opener.isConnected && opener.focus) opener.focus();
+    lastReportedError = null;
+    // Der Fokus geht nur zurueck, wenn er noch im Dialog steht (Abbrechen,
+    // Escape, Klick daneben) - hat der Aufrufer nach dem Absenden bereits
+    // ins Jira-Feld fokussiert, darf das hier nicht ueberschrieben werden.
+    if (focusInDialog && opener && opener.isConnected && opener.focus) opener.focus();
     opener = null;
+    if (done) done();
   }
 
   function isOpen() {
