@@ -120,15 +120,17 @@ const STDIN_TIMEOUT_MS = 2000;
 
 /**
  * JSON-Payload eines Claude-Code-Hooks von stdin lesen, falls vorhanden.
- * Liest nur bei explizitem --stdin-Schalter UND wenn stdin tatsaechlich eine
- * FIFO ist - sonst wuerde ein interaktiver oder umgeleiteter Aufruf ohne
- * Payload blockierend auf EOF warten und im schlimmsten Fall einen Commit
- * haengen lassen.
+ * Liest nur bei explizitem --stdin-Schalter und wenn stdin kein
+ * interaktives Terminal ist (kein Character-Device) - Pipe, Socket und
+ * Datei sind erlaubt, denn ein Elternprozess kann stdin ueber
+ * verschiedene Deskriptortypen anlegen (z. B. meldet child_process.spawn
+ * mit stdio 'pipe' unter Linux einen Socket, keine FIFO).
  *
  * Gelesen wird ueber den Stream statt fs.readFileSync(0), weil ein
  * blockierender Read einer offenen Pipe ohne Daten (oder einer spaet
- * geschlossenen Pipe) sonst unbegrenzt haengt. Ein hartes Zeitlimit bricht
- * den Lesevorgang notfalls ab; der Timer haelt den Prozess dabei nicht am
+ * geschlossenen Pipe) sonst unbegrenzt haengt. Der Schutz gegen Blockieren
+ * steckt im Zeitlimit, nicht im Dateityp: ein hartes Zeitlimit bricht den
+ * Lesevorgang notfalls ab; der Timer haelt den Prozess dabei nicht am
  * Leben (unref).
  */
 async function readStdinJson(argv) {
@@ -139,10 +141,10 @@ async function readStdinJson(argv) {
   } catch {
     return null;
   }
-  if (!stat.isFIFO()) return null;
+  if (stat.isCharacterDevice()) return null;
 
+  const chunks = [];
   const readAll = (async () => {
-    const chunks = [];
     for await (const chunk of process.stdin) {
       chunks.push(chunk);
     }
@@ -165,6 +167,17 @@ async function readStdinJson(argv) {
 
   if (timedOut) {
     process.stdin.destroy();
+    // Bis zum Timeout bereits vollstaendig empfangene Chunks nicht
+    // verwerfen - manche Hooks schreiben ihren Payload und schliessen
+    // stdin erst verzoegert.
+    const partial = Buffer.concat(chunks).toString('utf8');
+    if (partial && partial.trim()) {
+      try {
+        return JSON.parse(partial);
+      } catch {
+        // Faellt durch zur Warnung unten.
+      }
+    }
     warn('stdin lieferte binnen 2s keinen vollstaendigen Payload - uebersprungen.');
     return null;
   }
