@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>[DBREFI-10549] X - inxire JIRA (Nachbau)</title>
+  <meta name="ajs-version-number" content="9.12.2">
+  <meta name="ajs-build-number" content="9120002">
+  <meta name="ajs-issue-key" content="DBREFI-10549">
+  <style>
+    /* Reduzierte AUI-Optik: Layout, Groessen und Sichtbarkeiten wie im Original. */
+    body { margin: 0; font: 14px/1.4 -apple-system, "Segoe UI", Arial, sans-serif; color: #172b4d; background: #fff; }
+    #header .aui-header { background: #0747a6; color: #fff; padding: 8px 20px; display: flex; gap: 16px; align-items: center; }
+    #header a { color: #fff; text-decoration: none; }
+    #header input { padding: 4px 8px; border-radius: 3px; border: 0; }
+    .aui-page-panel { padding: 20px; }
+    .issue-header { border-bottom: 1px solid #dfe1e6; padding-bottom: 12px; margin-bottom: 16px; }
+    .aui-nav-breadcrumbs { list-style: none; padding: 0; margin: 0 0 6px; display: flex; gap: 8px; font-size: 12px; }
+    #summary-val { font-size: 20px; margin: 4px 0 10px; font-weight: 500; }
+    .ops-menus .aui-buttons { display: inline-block; margin-right: 8px; position: relative; }
+    .aui-button { border: 1px solid #c1c7d0; background: #f4f5f7; padding: 5px 10px; border-radius: 3px; cursor: pointer; font: inherit; color: #172b4d; text-decoration: none; display: inline-block; }
+    .aui-button-primary { background: #0052cc; color: #fff; border-color: #0052cc; }
+    .aui-button-link { border: 0; background: none; color: #0052cc; }
+    .aui-button-subtle { border-color: transparent; background: transparent; }
+    .aui-dropdown2 { display: none; position: absolute; top: 100%; left: 0; background: #fff; border: 1px solid #c1c7d0; box-shadow: 0 4px 8px rgba(9,30,66,.25); min-width: 200px; z-index: 100; }
+    .aui-dropdown2[aria-hidden="false"] { display: block; }
+    .aui-dropdown2 aui-item-link { display: block; padding: 6px 12px; cursor: pointer; }
+    .aui-dropdown2 aui-item-link:hover { background: #ebecf0; }
+    .aui-group { display: flex; gap: 24px; }
+    .issue-main-column { flex: 1 1 70%; min-width: 0; }
+    .issue-side-column { flex: 0 0 300px; }
+    .module { margin-bottom: 20px; }
+    .toggle-header { margin: 0 0 6px; font-size: 14px; }
+    .toggle-title { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: #172b4d; cursor: pointer; }
+    .property-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+    .property-list .name { color: #6b778c; font-weight: normal; display: inline-block; min-width: 120px; }
+    .editable-field { position: relative; padding: 4px; border: 1px solid transparent; border-radius: 3px; cursor: text; }
+    .editable-field.inactive:hover { background: #ebecf0; }
+    .editable-field.active { border-color: #4c9aff; cursor: auto; }
+    #description-val { min-height: 40px; }
+    .overlay-icon { position: absolute; right: 4px; top: 4px; font-size: 11px; color: #6b778c; }
+    .jira-wikifield { border: 1px solid #dfe1e6; border-radius: 3px; background: #fff; }
+    .wiki-edit-toolbar { background: #f4f5f7; border-bottom: 1px solid #dfe1e6; padding: 4px 6px; display: flex; justify-content: space-between; align-items: center; }
+    .wiki-edit-toolbar .aui-buttons a, .wiki-edit-toolbar .aui-buttons button { margin-right: 4px; color: #42526e; text-decoration: none; font-size: 12px; padding: 2px 6px; }
+    textarea.wiki-textfield { display: block; width: 100%; box-sizing: border-box; min-height: 174px; max-height: 400px; border: 0; padding: 8px; font: inherit; resize: vertical; }
+    textarea.richeditor-cover { display: none; }
+    .rte-container .tox-tinymce { border-top: 1px solid #dfe1e6; }
+    .tox-edit-area__iframe { width: 100%; height: 172px; border: 0; display: block; }
+    rich-editor { display: none; }
+    .editor-toggle-tabs { display: flex; justify-content: flex-end; padding: 4px 6px; border-top: 1px solid #dfe1e6; background: #f4f5f7; }
+    .editor-toggle-tabs ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; }
+    .editor-toggle-tabs li.aui-nav-selected .aui-button { background: #fff; border-color: #c1c7d0; font-weight: 600; }
+    .save-options { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
+    .buttons-container { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+    .addcomment-action { border: 1px dashed #c1c7d0; padding: 8px; color: #6b778c; border-radius: 3px; }
+    .addcomment-action a { color: #6b778c; text-decoration: none; }
+    .issue-data-block { border-top: 1px solid #dfe1e6; padding: 8px 0; }
+    .action-details { font-size: 12px; color: #6b778c; margin-bottom: 4px; }
+    .field-group { margin-bottom: 12px; }
+    .field-group > label { display: block; font-size: 12px; color: #6b778c; margin-bottom: 4px; }
+    input.text { padding: 6px; border: 1px solid #c1c7d0; border-radius: 3px; font: inherit; }
+    .long-field, .full-width-field { width: 100%; box-sizing: border-box; }
+    .description { font-size: 12px; color: #6b778c; }
+    /* Dialoge */
+    .jira-dialog, .aui-dialog2 { display: none; position: fixed; background: #fff; border: 1px solid #c1c7d0; box-shadow: 0 8px 24px rgba(9,30,66,.3); z-index: 3000; border-radius: 3px; }
+    .jira-dialog-open, .aui-dialog2[aria-hidden="false"] { display: block; }
+    .jira-dialog { top: 80px; left: 50%; transform: translateX(-50%); width: 560px; }
+    #link-issue-dialog { width: 760px; }
+    .aui-dialog2-xlarge { top: 40px; left: 50%; transform: translateX(-50%); width: 900px; max-height: 85vh; overflow: auto; }
+    .jira-dialog-heading, .aui-dialog2-header { background: #f4f5f7; padding: 12px 16px; border-bottom: 1px solid #dfe1e6; }
+    .jira-dialog-heading h2, .aui-dialog2-header h2 { margin: 0; font-size: 16px; }
+    .jira-dialog-content, .aui-dialog2-content { padding: 16px; }
+    .dialog-menu { list-style: none; padding: 0; margin: 0; width: 160px; }
+    .dialog-menu-item { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px; font: inherit; cursor: pointer; border-radius: 3px; }
+    .dialog-menu-item.selected { background: #ebecf0; font-weight: 600; }
+    .dialog-pane { flex: 1; }
+    #shifter-dialog { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); width: 480px; background: #fff; border: 1px solid #c1c7d0; box-shadow: 0 8px 24px rgba(9,30,66,.3); z-index: 3000; padding: 8px; display: none; }
+    #shifter-dialog.open { display: block; }
+    #shifter-dialog-field { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; }
+    #shifter-dialog-suggestions { display: none; max-height: 240px; overflow: auto; }
+    .aui-list-section { list-style: none; margin: 0; padding: 0; }
+    .aui-list-item { padding: 6px 8px; cursor: pointer; }
+    .aui-list-item.active { background: #deebff; }
+    .shifter-group-heading h5 { margin: 8px 0 2px; color: #6b778c; font-size: 11px; text-transform: uppercase; }
+    .aui-blanket { position: fixed; inset: 0; background: rgba(9,30,66,.5); z-index: 2500; display: none; }
+    .aui-blanket.visible { display: block; }
+    #mock-log { position: fixed; right: 12px; bottom: 80px; width: 360px; max-height: 220px; overflow: auto; background: #172b4d; color: #b3d4ff; font: 11px/1.4 ui-monospace, Menlo, monospace; padding: 8px; border-radius: 4px; z-index: 2147483001; }
+    #mock-log::before { content: "Mock-Protokoll (Jira-Handler)"; display: block; color: #fff; font-weight: 600; margin-bottom: 4px; }
+    #mock-navigated { background: #ffebe6; border: 1px solid #de350b; padding: 12px 16px; margin: 0 20px; }
+    .hint-container { font-size: 11px; color: #6b778c; }
+    .user-content-block h2 { font-size: 16px; margin: 6px 0; }
+    .code.panel, .noformat.panel { border: 1px solid #c1c7d0; background: #f4f5f7; padding: 8px; font-family: ui-monospace, Menlo, monospace; white-space: pre; }
+    .plain.panel { border: 1px solid #c1c7d0; padding: 8px 12px; margin: 8px 0; }
+    panel-title { display: block; font-weight: 600; border-bottom: 1px solid #c1c7d0; margin-bottom: 6px; padding-bottom: 4px; }
+    .confluenceTable { border-collapse: collapse; }
+    .confluenceTh, .confluenceTd { border: 1px solid #c1c7d0; padding: 4px 8px; }
+    .error { color: #de350b; }
+  </style>
+</head>
+<body class="aui-layout aui-theme-default aui-page-sidebar page-type-split page-issue-navigator">
+
+<!--
+  Nachbau der Vorgangsansicht von Jira Server / Data Center 9.12.2 (Build
+  9120002) mit aktiviertem Rich-Text-Editor (TinyMCE 6, "tox"), gezogen am
+  2026-09-11 aus dem DOM-Geruest von DBREFI-10549 auf jira.inxire.com.
+  Kennungen, Klassen und Verschachtelung entsprechen der Instanz - alle mit
+  [belegt] markierten Teile stammen aus dem Auszug. [ANNAHME] kennzeichnet
+  die wenigen Stellen, an denen das Verhalten nachgebaut, aber nicht im DOM
+  belegt ist.
+
+  Beobachtetes Verhalten, das der Nachbau abbildet:
+    - Editor-Modus (Visuell/Text) ist eine Nutzereinstellung fuer ALLE Felder;
+      ein Klick auf den Umschalter aendert sie dauerhaft (hier: localStorage).
+    - Inline-Beschreibung: Klick daneben SPEICHERT (Jira 9 "click outside to
+      save"), Escape bricht ab. Beide Handler haengen in der Erfassungsphase am
+      Dokument, vor jeder Erweiterung.
+    - Kommentarformular: Abbrechen entfernt das Formular aus dem DOM (kein
+      hidden); mit Inhalt fragt Jira per confirm(). Absenden entfernt es
+      ebenfalls und haengt den Kommentar in #issue_actions_container.
+    - Toolbar-Links (#edit-issue, #assign-issue ...) sind echte Links mit href;
+      ihr Klick-Handler oeffnet den Dialog und verhindert die Navigation. Wird
+      der Handler unterdrueckt, folgt der Browser dem href (hier: Reload mit
+      ?left=... und Hinweisbanner).
+    - Rich-Text-Editor: iframe#mce_N_ifr.tox-edit-area__iframe mit Body
+      #tinymce.mce-content-body; beim Einfuegen von text/html entfernt der
+      Editor style-Attribute auf <div> und packt <pre> ohne panel-Klasse aus
+      (so beobachtet). Wiki-Makros erscheinen als pre.code.panel[data-language],
+      pre.noformat.panel, div.plain.panel > panel-title, blockquote, tt.
+    - Der Umschalter Text/Visuell konvertiert ueber einen kleinen
+      Wiki<->HTML-Konverter (Teilmenge dessen, was Jira serverseitig macht).
+    - Taste l: Label-Dialog (#edit-labels-dialog, Legacy-JiraDialog).
+      Taste .: Shifter (#shifter-dialog) mit "Kunden Referenz" (oeffnet
+      #modal-field-view mit input#customfield_10027) und "Link"
+      (oeffnet #link-issue-dialog; Web Link ueber button#add-web-link-link).
+    - Alle Jira-Handler protokollieren nach window.__mock.log und #mock-log.
+
+  Zustand direkt anspringen: ?state=comment | description | edit | labels | link | shifter
+-->
+
+<header id="header" role="banner">
+  <nav class="aui-header" role="navigation">
+    <strong>Jira</strong>
+    <a href="#">Dashboards</a> <a href="#">Projects</a> <a href="#">Issues</a>
+    <!-- [belegt] Schnellsuche im Kopf -->
+    <form id="quicksearch" class="aui-quicksearch dont-default-focus ajs-dirty-warning-exempt" method="get" action="#">
+      <input id="quickSearchInput" class="search" type="text" placeholder="Search" name="searchString" autocomplete="off" role="searchbox">
+    </form>
+  </nav>
+</header>
+
+<div id="mock-navigated" hidden></div>
+
+<div id="page">
+<section id="content" role="main">
+<div class="aui-page-panel"><div class="aui-page-panel-inner"><section class="aui-page-panel-content">
+
+<div id="issue-content" class="issue-edit-form">
+  <!-- [belegt] Kopf: Breadcrumb, Summary (inline editierbar), Werkzeugleiste -->
+  <header id="stalker" class="issue-header js-stalker">
+    <div class="issue-header-content">
+      <div class="aui-page-header"><div class="aui-page-header-inner">
+        <div class="aui-page-header-main">
+          <ol class="aui-nav aui-nav-breadcrumbs">
+            <li><a id="project-name-val" href="#">DB Refinement</a></li>
+            <li><a id="key-val" class="issue-link" data-issue-key="DBREFI-10549" href="#">DBREFI-10549</a></li>
+          </ol>
+          <h2 id="summary-val" class="editable-field inactive" title="Click to edit">X<span class="overlay-icon aui-icon aui-icon-small aui-iconfont-edit" role="button" aria-label="X: Edit Summary"></span></h2>
+        </div>
+      </div></div>
+      <div class="command-bar"><div class="ops-cont"><div class="ops-menus aui-toolbar2"><div class="aui-toolbar2-inner">
+        <div class="aui-toolbar2-primary">
+          <div id="opsbar-edit-issue_container" class="aui-buttons pluggable-ops">
+            <a id="edit-issue" class="aui-button toolbar-trigger issueaction-edit-issue" role="button" title="Edit this issue ( Type 'e' )" href="?left=EditIssue!default.jspa"><span class="trigger-label">Edit</span></a>
+          </div>
+          <div id="opsbar-comment-issue_container" class="aui-buttons pluggable-ops">
+            <a id="comment-issue" class="aui-button toolbar-trigger issueaction-comment-issue add-issue-comment inline-comment" role="button" title="Comment on this issue" href="?left=AddComment!default.jspa"><span class="trigger-label">Comment</span></a>
+          </div>
+          <div id="opsbar-opsbar-operations" class="aui-buttons pluggable-ops">
+            <a id="assign-issue" class="aui-button toolbar-trigger issueaction-assign-issue" role="button" title="Assign this issue to someone ( Type 'a' )" href="?left=AssignIssue!default.jspa"><span class="trigger-label">Assign</span></a>
+            <a id="opsbar-operations_more" class="aui-button aui-dropdown2-trigger" aria-haspopup="true" aria-expanded="false" aria-controls="opsbar-operations_more_drop" href="#"><span class="dropdown-text">More</span></a>
+            <div id="opsbar-operations_more_drop" class="aui-dropdown2 aui-style-default" aria-hidden="true" role="menu">
+              <aui-item-link id="log-work" href="?left=LogWork!default.jspa">Log work</aui-item-link>
+              <aui-item-link id="link-issue" class="issueaction-link-issue" title="Link this issue to another issue or item" href="?left=LinkJiraIssue!default.jspa">Link</aui-item-link>
+              <aui-item-link id="edit-labels" class="issueaction-edit-labels" href="?left=EditLabels!default.jspa">Labels</aui-item-link>
+            </div>
+          </div>
+          <div id="opsbar-opsbar-transitions" class="aui-buttons pluggable-ops">
+            <a id="action_id_21" class="aui-button toolbar-trigger issueaction-workflow-transition" href="?left=WorkflowUIDispatcher.jspa&action=21"><span class="trigger-label">In Progress</span></a>
+          </div>
+        </div>
+        <div class="aui-toolbar2-secondary">
+          <div id="opsbar-jira.issue.tools" class="aui-buttons pluggable-ops">
+            <a id="jira-share-trigger" class="aui-button toolbar-trigger viewissue-share" role="button" href="#"><span class="trigger-label">Share</span></a>
+          </div>
+        </div>
+      </div></div></div></div>
+    </div>
+  </header>
+
+  <div class="issue-body-content">
+    <div class="aui-group issue-body">
+      <div class="aui-item issue-main-column">
+
+        <!-- [belegt] Details mit Kennzeichen (Labels) -->
+        <div id="details-module" class="module toggle-wrap">
+          <div id="details-module_heading" class="mod-header">
+            <h3 id="details-module-label" class="toggle-header"><button class="aui-button toggle-title" aria-label="Details" aria-controls="details-module" aria-expanded="true"><span class="aui-toggle-header-button-label">Details</span></button></h3>
+            <ul class="ops"></ul>
+          </div>
+          <div class="mod-content">
+            <ul id="issuedetails" class="property-list two-cols">
+              <li class="item"><div class="wrap"><strong class="name" title="Type"><label for="issuetype">Type:</label></strong> <span id="type-val" class="value editable-field inactive" title="Click to edit">Task</span></div></li>
+              <li class="item item-right"><div class="wrap"><strong class="name" title="Resolution">Resolution:</strong> <span id="resolution-val" class="value unresolved">Unresolved</span></div></li>
+              <li class="item new"><div class="wrap"><strong class="name" title="Priority"><label for="priority-field">Priority:</label></strong> <span id="priority-val" class="value editable-field inactive" title="Click to edit">Major</span></div></li>
+              <li class="item item-right"><div class="wrap"><strong class="name" title="Fix Version/s">Fix Version/s:</strong> <span id="fixfor-val" class="value editable-field inactive" title="Click to edit">None</span></div></li>
+              <li class="item full-width"><div id="wrap-labels" class="wrap"><strong class="name" title="Labels"><label for="labels-textarea">Labels:</label></strong>
+                <div class="labels-wrap value editable-field inactive" title="Click to edit"><span id="labels-48410-value" class="labels">None</span><span class="overlay-icon aui-icon aui-icon-small aui-iconfont-edit" role="button" aria-label="Edit Labels"></span></div>
+              </div></li>
+            </ul>
+            <div id="customfieldmodule">
+              <div id="customfield-tabs" class="aui-tabs horizontal-tabs" role="application">
+                <div id="customfield-panel-1" class="active-pane">
+                  <ul class="property-list">
+                    <li id="rowForcustomfield_10005" class="item"><div class="wrap"><strong class="name" title="Business Value"><label for="customfield_10005">Business Value:</label></strong>
+                      <div id="customfield_10005-val" class="value type-float editable-field inactive" data-fieldtype="float" title="Click to edit">0.5</div></div></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- [belegt] Beschreibung: Inline-Bearbeitung ueber #description-val -->
+        <div id="descriptionmodule" class="module toggle-wrap">
+          <div id="descriptionmodule_heading" class="mod-header">
+            <h3 id="descriptionmodule-label" class="toggle-header"><button class="aui-button toggle-title" aria-label="Description" aria-controls="descriptionmodule" aria-expanded="true"><span class="aui-toggle-header-button-label">Description</span></button></h3>
+            <ul class="ops"></ul>
+          </div>
+          <div class="mod-content">
+            <div id="description-val" class="field-ignore-highlight editable-field inactive" title="Click to edit"></div>
+          </div>
+        </div>
+
+        <!-- [belegt] Aktivitaet mit Kommentaren -->
+        <div id="activitymodule" class="module toggle-wrap">
+          <div id="activitymodule_heading" class="mod-header">
+            <h3 class="toggle-header"><button class="aui-button toggle-title" aria-controls="activitymodule" aria-expanded="true"><span class="aui-toggle-header-button-label">Activity</span></button></h3>
+          </div>
+          <div class="mod-content">
+            <div id="issue-tabs" class="aui-tabs horizontal-tabs">
+              <ul class="tabs-menu"><li class="menu-item active-tab"><a href="#issue_actions_container"><strong>Comments</strong></a></li></ul>
+              <div class="issuePanelContainer" id="issue_actions_container">
+                <div class="issue-data-block activity-comment twixi-block expanded" id="comment-103542">
+                  <div class="action-details">Pascal Link added a comment</div>
+                  <div class="action-body flooded"><p>Erster Kommentar.</p></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- [belegt] Kommentieren: Platzhalter-Link im Footer; das Formular wird erst beim Oeffnen eingehaengt -->
+        <div id="addcomment" class="module sticky" data-sticky-comment-enabled="true">
+          <div id="addcomment-inner" class="module">
+            <div class="mod-footer">
+              <ul class="ops"><li><div class="addcomment-action">
+                <a id="footer-comment-button" href="?left=AddComment!default.jspa" name="add-comment"><span>Comment</span></a>
+                <div class="hint-container overflow-ellipsis" title="press m to comment"><b>Pro tip:</b> press <kbd>m</kbd> to comment</div>
+              </div></li></ul>
+            </div>
+          </div>
+          <jira-create-comment-form></jira-create-comment-form>
+        </div>
+      </div>
+
+      <!-- [belegt] Seitenspalte -->
+      <div id="viewissuesidebar" class="aui-item issue-side-column">
+        <div id="peoplemodule" class="module toggle-wrap">
+          <div id="peoplemodule_heading" class="mod-header"><h3 id="peoplemodule-label" class="toggle-header"><button class="aui-button toggle-title" aria-controls="peoplemodule" aria-expanded="true"><span class="aui-toggle-header-button-label">People</span></button></h3></div>
+          <div class="mod-content"><div id="peopledetails" class="item-details people-details">
+            <dl><dt title="Assignee"><label for="assignee-field">Assignee:</label></dt><dd><span id="assignee-val" class="view-issue-field editable-field inactive" title="Click to edit">Pascal Link</span></dd></dl>
+            <dl><dt title="Reporter"><label for="reporter-field">Reporter:</label></dt><dd><span id="reporter-val" class="view-issue-field editable-field inactive" title="Click to edit">Pascal Link</span></dd></dl>
+          </div></div>
+        </div>
+        <div id="datesmodule" class="module toggle-wrap">
+          <div id="datesmodule_heading" class="mod-header"><h3 class="toggle-header"><button class="aui-button toggle-title" aria-controls="datesmodule" aria-expanded="true"><span class="aui-toggle-header-button-label">Dates</span></button></h3></div>
+          <div class="mod-content"><dl><dt>Created:</dt><dd id="created-val">11/Sep/26 10:52 PM</dd></dl></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</section></div></div>
+</section>
+</div>
+
+<div class="aui-blanket" id="mock-blanket"></div>
+
+<!-- [belegt] Dialog "Edit Issue": AUI-Dialog2 (xlarge), Knoepfe in .buttons-container AUSSERHALB der .field-group -->
+<section id="edit-issue-dialog" class="aui-layer jira-dialog2 aui-dialog2 aui-dialog2-xlarge jira-dialog-core" role="dialog" aria-hidden="true">
+  <header class="aui-dialog2-header jira-dialog-core-heading"><h2 id="jira-dialog2__heading" title="Edit Issue : DBREFI-10549">Edit Issue : DBREFI-10549</h2></header>
+  <div class="aui-dialog2-content jira-dialog-core-content">
+    <div class="qf-container"><div class="qf-unconfigurable-form"><div>
+      <form class="aui" name="jiraform" action="#" method="post">
+        <div class="form-body">
+          <div class="content">
+            <div id="horizontal" class="aui-tabs horizontal-tabs" role="application">
+              <ul class="tabs-menu" role="tablist"><li class="menu-item first active-tab"><a id="aui-uid-1" href="#tab-0" role="tab"><strong>Field Tab</strong></a></li></ul>
+              <div id="tab-0" class="tabs-pane active-pane" role="tabpanel">
+                <div class="field-group">
+                  <label for="summary">Summary<span class="visually-hidden">Required</span></label>
+                  <input id="summary" class="text long-field" name="summary" type="text" value="X">
+                </div>
+                <div class="field-group">
+                  <label for="customfield_11004">Acceptance Criteria</label>
+                  <textarea id="customfield_11004" class="textarea long-field" name="customfield_11004" rows="5"></textarea>
+                  <div id="customfield_11004-description" class="description">Einfaches mehrzeiliges Textfeld ohne Wiki-Renderer.</div>
+                </div>
+                <div class="field-group">
+                  <label for="description">Description</label>
+                  <div class="jira-wikifield" data-mock-wikifield="description"></div>
+                </div>
+                <div class="field-group aui-field-wikiedit comment-input">
+                  <label for="comment">Comment</label>
+                  <div class="jira-wikifield" data-mock-wikifield="comment"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="buttons-container form-footer">
+          <div class="buttons">
+            <span class="throbber"></span>
+            <input id="edit-issue-submit" class="button aui-button aui-button-primary" name="Update" type="submit" value="Update">
+            <button class="aui-button aui-button-link cancel" type="button">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </div></div></div>
+  </div>
+</section>
+
+<!-- [belegt] Dialog "Labels": Legacy-JiraDialog, Taste l -->
+<div id="edit-labels-dialog" class="jira-dialog box-shadow popup" role="dialog">
+  <div class="jira-dialog-heading jira-dialog-core-heading"><h2 id="edit-labels-dialog-title">Labels</h2></div>
+  <div class="jira-dialog-content jira-dialog-core-content">
+    <form class="aui edit-labels" action="#">
+      <div class="form-body">
+        <div class="field-group aui-field-labelpicker">
+          <label for="labels-textarea">Labels</label>
+          <div id="labels-multi-select" class="jira-multi-select long-field">
+            <textarea id="labels-textarea" class="text long-field" role="combobox" aria-autocomplete="list" aria-expanded="false" rows="1"></textarea>
+            <div id="labels-suggestions" class="aui-list"></div>
+            <div class="representation"><ul class="items" role="listbox"></ul></div>
+          </div>
+          <div class="description">Begin typing to find and create labels or press down to select a suggested label.</div>
+        </div>
+        <fieldset class="group"><div class="field-group"><input id="send-notifications" class="checkbox" name="sendNotification" type="checkbox" value="true" checked><label for="send-notifications">Send notifications</label></div></fieldset>
+      </div>
+      <div class="buttons-container form-footer">
+        <div class="buttons">
+          <span class="throbber"></span>
+          <button id="submit" class="aui-button" accesskey="s" name="edit-labels-submit" type="submit">Update</button>
+          <a id="cancel" class="aui-button aui-button-link cancel" accesskey="`" href="?left=browse">Cancel</a>
+        </div>
+        <p id="hint" class="hint-container overflow-ellipsis" title="Pressing l also opens this dialog box">Pressing <kbd>l</kbd> also opens this dialog box</p>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- [belegt] Dialog "Link": Legacy-JiraDialog mit Menue links; Web Link laedt das Pane nach -->
+<div id="link-issue-dialog" class="jira-dialog box-shadow popup" role="dialog">
+  <div class="jira-dialog-heading jira-dialog-core-heading"><h2 id="link-issue-dialog-title">Link</h2></div>
+  <div class="jira-dialog-content jira-dialog-core-content">
+    <div class="aui-group">
+      <div class="aui-item dialog-menu-group">
+        <ul class="dialog-menu">
+          <li><button id="add-jira-issue-link-link" class="dialog-menu-item selected" data-url="/secure/LinkJiraIssue!default.jspa?id=48410" type="button">Jira Issue</button></li>
+          <li><button id="add-confluence-page-link-link" class="dialog-menu-item" data-url="/secure/LinkConfluencePage!default.jspa?id=48410" type="button">Confluence Page</button></li>
+          <li><button id="add-web-link-link" class="dialog-menu-item" data-url="/secure/AddWebLink!default.jspa?id=48410" type="button">Web Link</button></li>
+        </ul>
+      </div>
+      <div class="aui-item dialog-pane">
+        <form class="aui dnd-attachment-support" action="#">
+          <div class="form-body" data-mock-linkpane></div>
+          <div class="buttons-container form-footer">
+            <div class="buttons">
+              <span class="throbber"></span>
+              <input class="aui-button" accesskey="s" name="Link" type="submit" value="Link">
+              <a class="aui-button aui-button-link cancel" accesskey="`" href="?left=browse">Cancel</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- [belegt] Modal fuer ein Feld aus dem Shifter (z.B. Kunden Referenz = customfield_10027) -->
+<div id="modal-field-view" class="jira-dialog jira-dialog-core box-shadow" role="dialog">
+  <div class="jira-dialog-heading jira-dialog-core-heading"><h2 id="modal-field-view-title">Kunden Referenz</h2></div>
+  <div class="jira-dialog-content jira-dialog-core-content"><div class="aui-dialog-content">
+    <form class="aui" action="#">
+      <div class="form-body">
+        <div class="field-group">
+          <input id="customfield_10027" class="textfield text long-field" name="customfield_10027" type="text" value="">
+          <div id="customfield_10027-description" class="description"><p></p></div>
+        </div>
+      </div>
+      <div class="buttons-container form-footer">
+        <div class="buttons"><span class="throbber"></span><input class="button" type="submit" value="Submit"><a class="cancel" href="#">Cancel</a></div>
+      </div>
+    </form>
+  </div></div>
+</div>
+
+<!-- [belegt] Shifter ("." - Find Actions) -->
+<div id="shifter-dialog" class="shifter-dialog">
+  <form class="aui ajs-dirty-warning-exempt" action="#">
+    <div id="shifter-dialog-queryable-container" class="queryable-select">
+      <input id="shifter-dialog-field" class="text" role="combobox" aria-autocomplete="list" aria-expanded="false" type="text" aria-controls="shifter-dialog-suggestions" placeholder="Find Actions..." autocomplete="off">
+    </div>
+    <div id="shifter-dialog-suggestions" class="aui-list">
+      <div class="aui-list-scroll" role="presentation">
+        <div class="shifter-group-heading"><h5>Edit fields</h5><span class="shifter-group-context"></span></div>
+        <ul id="edit-fields" class="aui-list-section" role="listbox">
+          <li id="kunden-referenz-35" class="aui-list-item aui-list-item-li-kunden-referenz" role="option" data-mock-action="modal-field"><span class="aui-list-item-link" role="presentation">Kunden Referenz</span></li>
+          <li id="labels-40" class="aui-list-item" role="option" data-mock-action="labels"><span class="aui-list-item-link" role="presentation">Labels</span></li>
+        </ul>
+        <div class="shifter-group-heading"><h5>Operations</h5><span class="shifter-group-context"></span></div>
+        <ul id="operations" class="aui-list-section aui-last" role="listbox">
+          <li id="link-83" class="aui-list-item" role="option" data-mock-action="link"><span class="aui-list-item-link" role="presentation">Link</span></li>
+          <li id="edit-issue-1" class="aui-list-item" role="option" data-mock-action="edit"><span class="aui-list-item-link" role="presentation">Edit</span></li>
+        </ul>
+      </div>
+    </div>
+  </form>
+  <div class="hint-container overflow-ellipsis" title="Pressing period (.) opens this dialog box">Pressing <kbd>.</kbd> opens this dialog box</div>
+</div>
+
+<div id="mock-log" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+  var KEY = 'DBREFI-10549';
+  var log = document.getElementById('mock-log');
+  window.__mock = { log: [], saved: {}, description: 'h2. Referenz\n* punkt\n{code:java}\nint x = 1;\n{code}\n\nSpielwiese fuer PowerEdit for Jira.', comments: [], editorCounter: 0 };
+  function note(msg) {
+    window.__mock.log.push(msg);
+    var line = document.createElement('div');
+    line.textContent = msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  /* ---------------- Editor-Modus: globale Nutzereinstellung ---------------- */
+  function editorMode() { try { return localStorage.getItem('jira.editor.mode') || 'wysiwyg'; } catch (e) { return 'wysiwyg'; } }
+  function setEditorMode(m) { try { localStorage.setItem('jira.editor.mode', m); } catch (e) { /* egal */ } }
+
+  /* ---------------- Wiki <-> HTML (Teilmenge des Jira-Renderers) ---------------- */
+  function inlineWikiToHtml(t) {
+    return esc(t)
+      .replace(/\{\{(.+?)\}\}/g, '<tt>$1</tt>')
+      .replace(/\{color:(#[0-9a-f]{3,6})\}(.+?)\{color\}/gi, '<span style="color: $1;">$2</span>')
+      .replace(/\[([^\]|]+)\|(https?:[^\]]+)\]/g, '<a href="$2" class="external-link" target="_blank" rel="nofollow noopener">$1</a>')
+      .replace(/\[(https?:[^\]]+)\]/g, '<a href="$1" class="external-link">$1</a>')
+      .replace(/(^|[\s(])\*(\S.*?\S|\S)\*(?=[\s).,;:!?]|$)/g, '$1<strong>$2</strong>')
+      .replace(/(^|[\s(])_(\S.*?\S|\S)_(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>')
+      .replace(/(^|[\s(])-(\S.*?\S|\S)-(?=[\s).,;:!?]|$)/g, '$1<del>$2</del>')
+      .replace(/(^|[\s(])\+(\S.*?\S|\S)\+(?=[\s).,;:!?]|$)/g, '$1<ins>$2</ins>')
+      .replace(/(^|[\s(])\^(\S.*?\S|\S)\^(?=[\s).,;:!?]|$)/g, '$1<sup>$2</sup>')
+      .replace(/(^|[\s(])~(\S.*?\S|\S)~(?=[\s).,;:!?]|$)/g, '$1<sub>$2</sub>')
+      .replace(/\[([^\]|]+)\](?!\()/g, '<span class="error">[$1]</span>');
+  }
+  function wikiToHtml(wiki) {
+    var lines = String(wiki || '').replace(/\r\n?/g, '\n').split('\n');
+    var out = [], i = 0, para = [];
+    function flush() { if (para.length) { out.push('<p>' + para.map(inlineWikiToHtml).join('<br>') + '</p>'); para = []; } }
+    while (i < lines.length) {
+      var l = lines[i];
+      var m;
+      if ((m = /^\{code(?::([a-z0-9]+))?\}\s*$/.exec(l))) {
+        flush(); var body = []; i++;
+        while (i < lines.length && !/^\{code\}\s*$/.test(lines[i])) body.push(lines[i++]);
+        i++;
+        out.push('<pre class="code panel" style="border-width: 1px;"' + (m[1] ? ' data-language="code-' + m[1] + '"' : '') + '>' + esc(body.join('\n')) + '\n</pre>');
+        continue;
+      }
+      if (/^\{noformat\}\s*$/.test(l)) {
+        flush(); var nb = []; i++;
+        while (i < lines.length && !/^\{noformat\}\s*$/.test(lines[i])) nb.push(lines[i++]);
+        i++;
+        out.push('<pre class="noformat panel" style="border-width: 1px;">' + esc(nb.join('\n')) + '\n</pre>');
+        continue;
+      }
+      if ((m = /^\{panel(?::([^}]*))?\}\s*$/.exec(l))) {
+        flush(); var pb = []; i++;
+        while (i < lines.length && !/^\{panel\}\s*$/.test(lines[i])) pb.push(lines[i++]);
+        i++;
+        var attrs = {}; (m[1] || '').split('|').forEach(function (kv) { var p = kv.split('='); if (p[1]) attrs[p[0].trim()] = p[1].trim(); });
+        var style = 'background-color: ' + (attrs.bgColor || '#f4f5f7') + '; border-color: ' + (attrs.borderColor || '#c1c7d0') + '; border-width: 1px;';
+        out.push('<div class="plain panel" style="' + style + '">' + (attrs.title ? '<panel-title style="border-bottom-width: 1px; border-bottom-color: ' + (attrs.borderColor || '#c1c7d0') + '; background-color: ' + (attrs.bgColor || '#f4f5f7') + ';">' + esc(attrs.title) + '</panel-title>' : '') + wikiToHtml(pb.join('\n')) + '</div>');
+        continue;
+      }
+      if (/^\{quote\}\s*$/.test(l)) {
+        flush(); var qb = []; i++;
+        while (i < lines.length && !/^\{quote\}\s*$/.test(lines[i])) qb.push(lines[i++]);
+        i++;
+        out.push('<blockquote>' + wikiToHtml(qb.join('\n')) + '</blockquote>');
+        continue;
+      }
+      if ((m = /^bq\.\s+(.*)$/.exec(l))) { flush(); out.push('<blockquote><p>' + inlineWikiToHtml(m[1]) + '</p></blockquote>'); i++; continue; }
+      if ((m = /^h([1-6])\.\s+(.*)$/.exec(l))) { flush(); out.push('<h' + m[1] + '>' + inlineWikiToHtml(m[2]) + '</h' + m[1] + '>'); i++; continue; }
+      if (/^-{4,}\s*$/.test(l)) { flush(); out.push('<hr>'); i++; continue; }
+      if (/^\|\|/.test(l) || /^\|/.test(l)) {
+        flush(); var rows = [];
+        while (i < lines.length && /^\|/.test(lines[i])) {
+          var head = /^\|\|/.test(lines[i]);
+          var cells = lines[i].replace(/^\|\|?/, '').replace(/\|\|?\s*$/, '').split(head ? '||' : /(?<!\\)\|/).map(function (c) { return c.replace(/\\\|/g, '|').trim(); });
+          rows.push('<tr>' + cells.map(function (c) { return head ? '<th class="confluenceTh">' + inlineWikiToHtml(c) + '</th>' : '<td class="confluenceTd">' + inlineWikiToHtml(c) + '</td>'; }).join('') + '</tr>');
+          i++;
+        }
+        out.push('<div class="table-wrap"><table class="confluenceTable"><tbody>' + rows.join('') + '</tbody></table></div>');
+        continue;
+      }
+      if ((m = /^([*#]+)\s+(.*)$/.exec(l))) {
+        flush(); var items = [];
+        while (i < lines.length && (m = /^([*#]+)\s+(.*)$/.exec(lines[i]))) { items.push({ d: m[1].length, t: m[1].slice(-1) === '#' ? 'ol' : 'ul', c: inlineWikiToHtml(m[2]) }); i++; }
+        var html = '', open = [];
+        items.forEach(function (it) {
+          while (open.length > it.d) html += '</li></' + open.pop() + '>';
+          while (open.length < it.d) { html += (open.length ? '' : '') + '<' + it.t + '>'; open.push(it.t); html += open.length < it.d ? '<li>' : ''; }
+          if (html.slice(-4) !== '<' + it.t + '>' && !/<li>$/.test(html)) html += '</li>';
+          html += '<li>' + it.c;
+        });
+        while (open.length) html += '</li></' + open.pop() + '>';
+        out.push(html.replace(/<\/li><li>/g, '</li><li>').replace(/^(<(ul|ol)>)<\/li>/, '$1'));
+        continue;
+      }
+      if (/^\s*$/.test(l)) { flush(); i++; continue; }
+      para.push(l); i++;
+    }
+    flush();
+    return out.join('');
+  }
+  function htmlToWiki(root) {
+    function inline(node) {
+      var s = '';
+      Array.prototype.forEach.call(node.childNodes, function (n) {
+        if (n.nodeType === 3) { s += n.nodeValue; return; }
+        if (n.nodeType !== 1) return;
+        var t = n.tagName, c = inline(n);
+        if (t === 'STRONG' || t === 'B') s += '*' + c + '*';
+        else if (t === 'EM' || t === 'I') s += '_' + c + '_';
+        else if (t === 'DEL' || t === 'S') s += '-' + c + '-';
+        else if (t === 'INS' || t === 'U') s += '+' + c + '+';
+        else if (t === 'SUP') s += '^' + c + '^';
+        else if (t === 'SUB') s += '~' + c + '~';
+        else if (t === 'TT' || t === 'CODE') s += '{{' + c + '}}';
+        else if (t === 'A') s += '[' + c + '|' + n.getAttribute('href') + ']';
+        else if (t === 'BR') s += '\n';
+        else if (t === 'SPAN' && /color/.test(n.getAttribute('style') || '')) s += '{color:' + (n.style.color || '#000') + '}' + c + '{color}';
+        else s += c;
+      });
+      return s;
+    }
+    function block(node, depth) {
+      var out = [];
+      Array.prototype.forEach.call(node.childNodes, function (n) {
+        if (n.nodeType === 3) { if (n.nodeValue.trim()) out.push(n.nodeValue.trim()); return; }
+        if (n.nodeType !== 1) return;
+        var t = n.tagName, m;
+        if ((m = /^H([1-6])$/.exec(t))) out.push('h' + m[1] + '. ' + inline(n));
+        else if (t === 'P') { var txt = inline(n).replace(/ /g, ' '); out.push(txt.trim() ? txt : ' '); }
+        else if (t === 'PRE' && /\bcode\b/.test(n.className)) out.push('{code' + (n.getAttribute('data-language') ? ':' + n.getAttribute('data-language').replace(/^code-/, '') : '') + '}\n' + n.textContent.replace(/\n$/, '') + '\n{code}');
+        else if (t === 'PRE' && /\bnoformat\b/.test(n.className)) out.push('{noformat}\n' + n.textContent.replace(/\n$/, '') + '\n{noformat}');
+        else if (t === 'PRE') out.push(inline(n));
+        else if (t === 'DIV' && /\bpanel\b/.test(n.className)) {
+          var title = n.querySelector('panel-title'); var attrs = ['title=' + (title ? title.textContent : '')];
+          if (n.style.borderColor) attrs.push('borderColor=' + n.style.borderColor); if (n.style.backgroundColor) attrs.push('bgColor=' + n.style.backgroundColor);
+          var inner = document.createElement('div'); Array.prototype.forEach.call(n.childNodes, function (k) { if (!(k.tagName === 'PANEL-TITLE')) inner.appendChild(k.cloneNode(true)); });
+          out.push('{panel:' + attrs.join('|') + '}\n' + block(inner, depth).join('\n') + '\n{panel}');
+        }
+        else if (t === 'BLOCKQUOTE') out.push('{quote}\n' + block(n, depth).join('\n') + '\n{quote}');
+        else if (t === 'UL' || t === 'OL') {
+          Array.prototype.forEach.call(n.children, function (li) {
+            var own = ''; var nested = [];
+            Array.prototype.forEach.call(li.childNodes, function (k) { if (k.nodeType === 1 && (k.tagName === 'UL' || k.tagName === 'OL')) nested.push(k); else if (k.nodeType === 3) own += k.nodeValue; else if (k.nodeType === 1) own += inline(k); });
+            out.push(' ' + new Array(depth + 1).join(t === 'OL' ? '#' : '*') + (t === 'OL' ? '#' : '*') + ' ' + own.trim());
+            nested.forEach(function (sub) { out = out.concat(block({ childNodes: [sub] }, depth + 1)); });
+          });
+        }
+        else if (t === 'TABLE' || (t === 'DIV' && n.querySelector('table'))) {
+          var rows = [];
+          Array.prototype.forEach.call(n.querySelectorAll('tr'), function (tr) {
+            var head = !!tr.querySelector('th');
+            var cells = Array.prototype.map.call(tr.children, function (td) { return inline(td).replace(/\|/g, '\\|'); });
+            rows.push(head ? '||' + cells.join('||') + '||' : '|' + cells.join('|') + '|');
+          });
+          out.push(rows.join('\n'));
+        }
+        else if (t === 'HR') out.push('----');
+        else if (t === 'DIV') out = out.concat(block(n, depth));
+        else out.push(inline(n));
+      });
+      return out;
+    }
+    return block(root, 0).join('\n\n').replace(/\n{3,}/g, '\n\n');
+  }
+
+  /* ---------------- Wiki-Feld (Toolbar, Textarea, RTE, Umschalter) ---------------- */
+  var toolbarCounter = 0;
+  function buildWikifield(host, fieldId, textareaClass) {
+    var idx = toolbarCounter++;
+    host.innerHTML = [
+      '<div class="wiki-edit">',
+      '  <div id="wiki-edit-wikiEdit' + idx + '" class="wiki-edit-toolbar">',
+      '    <div class="aui-toolbar2"><div class="aui-toolbar2-inner" role="toolbar"><div class="aui-toolbar2-primary">',
+      '      <div class="aui-buttons wiki-edit-toolbar-section"><a class="aui-button aui-button-subtle wiki-edit-operation" href="#" title="Bold (⌘+B)">B</a><a class="aui-button aui-button-subtle wiki-edit-operation" href="#" title="Italic (⌘+I)">I</a><a class="aui-button aui-button-subtle wiki-edit-operation" href="#" title="Underline (⌘+U)">U</a></div>',
+      '      <div class="aui-buttons"><a class="aui-button aui-button-subtle aui-dropdown2-trigger wiki-edit-operation-dropdown wiki-edit-link-picker-trigger" href="#" title="Link (⌘+K)">Link</a><a class="aui-button aui-button-subtle aui-dropdown2-trigger wiki-edit-operation-dropdown" href="#" title="Attachment">Attach</a></div>',
+      '      <div class="aui-buttons wiki-edit-toolbar-section"><a class="aui-button aui-button-subtle wiki-edit-operation" href="#" title="Bullet list">&bull;</a><a class="aui-button aui-button-subtle wiki-edit-operation" href="#" title="Numbered list">1.</a></div>',
+      '    </div></div></div>',
+      '    <div class="aui-buttons wiki-edit-toolbar-last"><button class="aui-button aui-button-subtle wiki-edit-visible-toggle wiki-edit-hide-toolbar wiki-edit-tooltip" type="button" title="Hide toolbar">&#9650;</button></div>',
+      '  </div>',
+      '  <div id="' + fieldId + '-wiki-edit" class="wiki-edit-content">',
+      '    <textarea id="' + fieldId + '" class="textarea long-field wiki-textfield ' + (textareaClass || '') + ' mentionable wiki-editor-initialised wiki-edit-wrapped" name="' + fieldId + '" rows="10" wrap="virtual" data-projectkey="DBREFI" data-issuekey="' + KEY + '"></textarea>',
+      '    <div class="rte-container"></div>',
+      '    <div class="content-inner"></div>',
+      '    <div class="phantom-caret"></div>',
+      '    <nav class="aui-navgroup aui-navgroup-horizontal editor-toggle-tabs"><div class="aui-navgroup-inner"><div class="aui-navgroup-primary"><ul class="aui-nav">',
+      '      <li data-mode="wysiwyg"><button class="aui-button" type="button" aria-pressed="false">Visual</button></li>',
+      '      <li data-mode="source"><button class="aui-button" type="button" aria-pressed="false">Text</button></li>',
+      '    </ul></div></div></nav>',
+      '    <span class="aui-label editor-toggle-tooltip"></span>',
+      '  </div>',
+      '</div>'
+    ].join('\n');
+    var textarea = host.querySelector('textarea');
+    var rte = host.querySelector('.rte-container');
+    var nav = host.querySelector('.editor-toggle-tabs');
+    var state = { textarea: textarea, rte: rte, mode: null };
+
+    function mountVisual() {
+      var n = window.__mock.editorCounter++;
+      textarea.classList.add('richeditor-cover');
+      textarea.setAttribute('data-rich-editor-active', 'true');
+      rte.innerHTML = '<div class="tox tox-tinymce jira-editor-container" role="application" aria-disabled="false" style="visibility: hidden; height: 172px;"><div class="tox-editor-container"><div class="tox-editor-header"><div class="tox-anchorbar"></div></div><div class="tox-sidebar-wrap"><div class="tox-edit-area"><iframe id="mce_' + n + '_ifr" class="tox-edit-area__iframe" title="Rich Text Area"></iframe></div><div class="tox-sidebar" role="complementary"></div></div><div class="tox-statusbar"><div class="tox-statusbar__resize-handle" title="Resize"></div></div></div></div>';
+      var frame = rte.querySelector('iframe');
+      var doc = frame.contentDocument;
+      doc.open();
+      doc.write('<!DOCTYPE html><html><head><style>body{font:14px/1.4 -apple-system,"Segoe UI",Arial,sans-serif;margin:0;padding:8px;color:#172b4d} pre.panel{background:#f4f5f7;border:1px solid #c1c7d0;padding:8px;font-family:ui-monospace,Menlo,monospace} div.panel{border:1px solid #c1c7d0;padding:8px 12px;margin:8px 0} panel-title{display:block;font-weight:600;border-bottom:1px solid #c1c7d0;margin-bottom:6px} table{border-collapse:collapse} th,td{border:1px solid #c1c7d0;padding:4px 8px} tt,code{font-family:ui-monospace,Menlo,monospace;background:#f4f5f7}</style></head><body id="tinymce" class="mce-content-body" contenteditable="true" data-id="mce_' + n + '" aria-label="Rich Text Area. Press ALT-0 for help." data-issuekey="' + KEY + '" data-projectkey="DBREFI"></body></html>');
+      doc.close();
+      doc.body.innerHTML = textarea.value ? wikiToHtml(textarea.value) : '<p><br data-mce-bogus="1"></p>';
+      // Einfuegen: text/html bevorzugt; style auf div entfernt, pre ohne panel-Klasse ausgepackt (wie beobachtet)
+      doc.body.addEventListener('paste', function (event) {
+        var data = event.clipboardData;
+        var html = data ? data.getData('text/html') : '';
+        var text = data ? data.getData('text/plain') : '';
+        note('rte paste ' + fieldId + ': html=' + (html ? html.length + ' Zeichen' : 'nein') + ', text=' + text.length + ' Zeichen');
+        event.preventDefault();
+        var sel = doc.defaultView.getSelection();
+        var range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
+        var box = doc.createElement('div');
+        if (html) {
+          box.innerHTML = html;
+          Array.prototype.forEach.call(box.querySelectorAll('div,p,span,td,th,table'), function (el) { el.removeAttribute('style'); });
+          Array.prototype.forEach.call(box.querySelectorAll('pre'), function (pre) {
+            if (/\bpanel\b/.test(pre.className)) return;
+            var p = doc.createElement('p'); while (pre.firstChild) p.appendChild(pre.firstChild); pre.parentNode.replaceChild(p, pre);
+          });
+        } else {
+          text.split('\n').forEach(function (line) { var p = doc.createElement('p'); p.textContent = line; box.appendChild(p); });
+        }
+        var frag = doc.createDocumentFragment(); while (box.firstChild) frag.appendChild(box.firstChild);
+        if (range) { range.deleteContents(); range.insertNode(frag); sel.collapseToEnd(); } else { doc.body.appendChild(frag); }
+        syncFromVisual();
+      });
+      doc.body.addEventListener('input', syncFromVisual);
+      doc.body.addEventListener('focus', function () { note('rte focus ' + fieldId); });
+      state.frame = frame;
+      // Jira fokussiert den Editor beim Oeffnen selbst
+      setTimeout(function () { try { frame.contentWindow.focus(); doc.body.focus(); } catch (e) { /* egal */ } }, 50);
+    }
+    function syncFromVisual() { try { textarea.value = htmlToWiki(state.frame.contentDocument.body); } catch (e) { /* egal */ } }
+    function unmountVisual() {
+      syncFromVisual();
+      rte.innerHTML = '<rich-editor id="' + (state.frame ? state.frame.id.replace(/_ifr$/, '') : 'mce_x') + '" data-issue-key="' + KEY + '" data-content-present="true" aria-hidden="true"></rich-editor>';
+      textarea.classList.remove('richeditor-cover');
+      textarea.removeAttribute('data-rich-editor-active');
+      state.frame = null;
+    }
+    function apply(m) {
+      state.mode = m;
+      Array.prototype.forEach.call(nav.querySelectorAll('li'), function (li) {
+        var on = li.getAttribute('data-mode') === m;
+        li.classList.toggle('aui-nav-selected', on);
+        li.querySelector('button').setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      if (m === 'wysiwyg') mountVisual(); else unmountVisual();
+    }
+    // [belegt] Der Umschalter reagiert auf den Button, nicht auf das li
+    Array.prototype.forEach.call(nav.querySelectorAll('li button'), function (btn) {
+      btn.addEventListener('click', function (event) {
+        event.preventDefault();
+        var m = btn.parentNode.getAttribute('data-mode');
+        if (m === state.mode) return;
+        setEditorMode(m);
+        apply(m);
+        note('editor toggle ' + fieldId + ' -> ' + m + ' (gespeichert fuer alle Felder)');
+      });
+    });
+    apply(editorMode());
+    state.value = function () { if (state.mode === 'wysiwyg') syncFromVisual(); return textarea.value; };
+    state.set = function (v) { textarea.value = v; if (state.mode === 'wysiwyg') { state.frame.contentDocument.body.innerHTML = wikiToHtml(v); } };
+    return state;
+  }
+
+  /* ---------------- Navigation als Folge unterdrueckter Handler ---------------- */
+  var params = new URLSearchParams(location.search);
+  if (params.get('left')) {
+    var banner = document.getElementById('mock-navigated');
+    banner.hidden = false;
+    banner.textContent = 'Navigation nach /secure/' + params.get('left') + ' ist passiert: Jiras Klick-Handler hat den Link nicht abgefangen - offene Felder sind weg.';
+  }
+  function guardLink(el, handler) {
+    el.addEventListener('click', function (event) { event.preventDefault(); handler(event); });
+  }
+
+  /* ---------------- Beschreibung ---------------- */
+  var descVal = document.getElementById('description-val');
+  var descState = null;
+  function descEditing() { return descVal.classList.contains('active'); }
+  function descRead() {
+    descState = null;
+    descVal.className = 'field-ignore-highlight editable-field inactive';
+    descVal.setAttribute('title', 'Click to edit');
+    descVal.innerHTML = '<div class="user-content-block">' + wikiToHtml(window.__mock.description) + '</div><span class="overlay-icon aui-icon aui-icon-small aui-iconfont-edit" role="button" aria-label="Edit Description"></span>';
+  }
+  function descEdit() {
+    descVal.className = 'field-ignore-highlight editable-field active';
+    descVal.removeAttribute('title');
+    descVal.innerHTML = [
+      '<form id="description-form" class="ajs-dirty-warning-exempt aui" action="#">',
+      '  <div class="inline-edit-fields show-button-bar"><div class="field-group"><div class="jira-wikifield" data-mock-wikifield="description"></div></div></div>',
+      '  <span class="overlay-icon throbber"></span>',
+      '  <div class="save-options show-button-bar">',
+      '    <div class="tabs-placeholder" style="width: 134px; height: 30px;"></div>',
+      '    <div class="wiki-button-bar-content">',
+      '      <div class="wiki-edit-undo-redo-buttons aui-buttons"><button class="aui-button aui-button-subtle wiki-operation-undo" type="button" title="Undo (⌘+Z)">&#8630;</button><button class="aui-button aui-button-subtle wiki-operation-redo" type="button" title="Redo (⌘+Shift+Z)">&#8631;</button></div>',
+      '      <div class="field-tools"><button id="description-preview_link" class="jira-icon-button fullscreen wiki-preview" type="button" title="Preview">&#128065;</button><a id="viewHelp" class="help-lnk" href="#" title="Get help">?</a></div>',
+      '      <button class="aui-button aui-button-primary submit" type="submit" title="Save">Save</button>',
+      '      <button class="aui-button aui-button-link cancel" type="button" title="Cancel">Cancel</button>',
+      '    </div>',
+      '  </div>',
+      '</form>'
+    ].join('');
+    descState = buildWikifield(descVal.querySelector('[data-mock-wikifield]'), 'description', 'long-field');
+    descState.set(window.__mock.description);
+    if (descState.mode === 'source') descState.textarea.focus();
+    descVal.querySelector('form').addEventListener('submit', function (event) {
+      event.preventDefault();
+      window.__mock.description = descState.value();
+      window.__mock.saved.description = window.__mock.description;
+      note('description SAVE: ' + JSON.stringify(window.__mock.description).slice(0, 60));
+      descRead();
+    });
+    descVal.querySelector('.save-options .cancel').addEventListener('click', function () { note('description CANCEL click'); descRead(); });
+    note('description inline edit opened (' + descState.mode + ')');
+  }
+  document.addEventListener('click', function (event) {
+    if (descEditing()) return;
+    if (descVal.contains(event.target)) descEdit();
+  });
+  // [belegt] Klick daneben SPEICHERT in Jira 9 (Erfassungsphase am Dokument)
+  document.addEventListener('mousedown', function (event) {
+    if (descEditing() && !descVal.contains(event.target) && !event.target.closest('[data-jmd-ui]')) {
+      window.__mock.description = descState.value();
+      window.__mock.saved.description = window.__mock.description;
+      note('description SAVED by click outside (' + (event.target.id || event.target.className || event.target.tagName) + ')');
+      descRead();
+    }
+  }, true);
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+    if (descEditing()) { note('description CANCEL by escape'); descRead(); }
+    if (editDialog.getAttribute('aria-hidden') === 'false') { note('edit dialog closed by escape'); closeEdit(); }
+    Array.prototype.forEach.call(document.querySelectorAll('.jira-dialog.jira-dialog-open'), function (d) { note(d.id + ' closed by escape'); closeLegacy(d); });
+    if (shifter.classList.contains('open')) closeShifter();
+    if (!document.querySelector('.jira-dialog-open') && editDialog.getAttribute('aria-hidden') === 'true') blanket.classList.remove('visible');
+  }, true);
+
+  /* ---------------- Kommentar ---------------- */
+  var addcomment = document.getElementById('addcomment');
+  var footerBtn = document.getElementById('footer-comment-button');
+  var commentState = null;
+  function commentOpen() { return !!document.getElementById('issue-comment-add'); }
+  function openComment() {
+    if (commentOpen()) return;
+    addcomment.classList.add('active');
+    addcomment.querySelector('.mod-footer').hidden = true;
+    var wrap = document.createElement('div');
+    wrap.className = 'mod-content';
+    wrap.innerHTML = [
+      '<form id="issue-comment-add" class="aui top-label ajs-dirty-warning-exempt" action="#" method="post">',
+      '  <div class="form-body">',
+      '    <div class="hidden"><input name="atl_token" type="hidden" value="..."><input name="id" type="hidden" value="48410"></div>',
+      '    <div class="field-group aui-field-wikiedit comment-input">',
+      '      <label for="comment">Comment</label>',
+      '      <div class="jira-wikifield" data-mock-wikifield="comment"></div>',
+      '      <div class="save-options wiki-button-bar">',
+      '        <div class="tabs-placeholder" style="width: 134px; height: 30px;"></div>',
+      '        <div class="wiki-button-bar-content">',
+      '          <div class="wiki-edit-undo-redo-buttons aui-buttons wiki-edit-separate-section"><button class="aui-button aui-button-subtle wiki-operation-undo" type="button" title="Undo (⌘+Z)">&#8630;</button><button class="aui-button aui-button-subtle wiki-operation-redo" type="button" title="Redo (⌘+Shift+Z)">&#8631;</button></div>',
+      '          <div class="security-level"><div id="commentLevel-multi-select" class="select-menu"><a class="drop" role="button" href="#">&#128275;</a><div id="commentLevel-suggestions" class="aui-list aui-list-checked"></div></div><span id="currentLevel" class="current-level">All Users</span></div>',
+      '          <button id="issue-comment-add-submit" class="aui-button aui-button-primary" accesskey="s" name="Add" title="Press Ctrl+Alt+s to submit this form" type="submit">Add</button>',
+      '          <a id="issue-comment-add-cancel" class="aui-button aui-button-link cancel" accesskey="`" href="#" title="Press Ctrl+Alt+` to cancel">Cancel</a>',
+      '        </div>',
+      '        <div style="clear: both;"></div>',
+      '      </div>',
+      '    </div>',
+      '  </div>',
+      '</form>'
+    ].join('\n');
+    document.getElementById('addcomment-inner').appendChild(wrap);
+    commentState = buildWikifield(wrap.querySelector('[data-mock-wikifield]'), 'comment', '');
+    if (commentState.mode === 'source') commentState.textarea.focus();
+    wrap.querySelector('form').addEventListener('submit', function (event) {
+      event.preventDefault();
+      var body = commentState.value();
+      window.__mock.saved.comment = body;
+      window.__mock.comments.push(body);
+      note('comment SUBMIT: ' + JSON.stringify(body).slice(0, 60));
+      var block = document.createElement('div');
+      block.className = 'issue-data-block activity-comment twixi-block expanded';
+      block.id = 'comment-' + (103543 + window.__mock.comments.length);
+      block.innerHTML = '<div class="action-details">Pascal Link added a comment</div><div class="action-body flooded">' + wikiToHtml(body) + '</div>';
+      document.getElementById('issue_actions_container').appendChild(block);
+      closeComment('submit');
+    });
+    wrap.querySelector('#issue-comment-add-cancel').addEventListener('click', function (event) {
+      event.preventDefault();
+      note('comment CANCEL click');
+      if (commentState.value().trim() && !window.confirm('You have entered a comment on this issue. If you navigate away from this page without first saving, the comment will be lost.')) { note('comment cancel abgebrochen (confirm=false)'); return; }
+      closeComment('cancel');
+    });
+    note('comment form opened (' + commentState.mode + ')');
+  }
+  function closeComment(reason) {
+    var wrap = addcomment.querySelector('#addcomment-inner > .mod-content');
+    if (wrap) wrap.parentNode.removeChild(wrap);
+    addcomment.classList.remove('active');
+    addcomment.querySelector('.mod-footer').hidden = false;
+    commentState = null;
+    note('comment form removed (' + reason + ')');
+  }
+  guardLink(footerBtn, openComment);
+  guardLink(document.getElementById('comment-issue'), openComment);
+
+  /* ---------------- Werkzeugleiste, Mehr-Menue ---------------- */
+  var more = document.getElementById('opsbar-operations_more');
+  var moreDrop = document.getElementById('opsbar-operations_more_drop');
+  guardLink(more, function () {
+    var open = moreDrop.getAttribute('aria-hidden') === 'false';
+    moreDrop.setAttribute('aria-hidden', open ? 'true' : 'false');
+    more.setAttribute('aria-expanded', open ? 'false' : 'true');
+  });
+  document.addEventListener('click', function (event) {
+    if (!more.contains(event.target) && !moreDrop.contains(event.target)) { moreDrop.setAttribute('aria-hidden', 'true'); more.setAttribute('aria-expanded', 'false'); }
+  });
+  guardLink(document.getElementById('assign-issue'), function () { note('assign click reached jira (Dialog wuerde oeffnen)'); });
+  guardLink(document.getElementById('action_id_21'), function () { note('workflow transition click reached jira'); });
+  guardLink(document.getElementById('jira-share-trigger'), function () { note('share click reached jira'); });
+  guardLink(document.getElementById('log-work'), function () { note('log work click reached jira'); });
+
+  /* ---------------- Dialog "Edit Issue" ---------------- */
+  var editDialog = document.getElementById('edit-issue-dialog');
+  var blanket = document.getElementById('mock-blanket');
+  var editStates = {};
+  function openEdit() {
+    editDialog.setAttribute('aria-hidden', 'false');
+    editDialog.classList.add('jira-dialog-open');
+    blanket.classList.add('visible');
+    Array.prototype.forEach.call(editDialog.querySelectorAll('[data-mock-wikifield]'), function (host) {
+      var id = host.getAttribute('data-mock-wikifield');
+      editStates[id] = buildWikifield(host, id, id === 'description' ? 'long-field' : '');
+      if (id === 'description') editStates[id].set(window.__mock.description);
+    });
+    document.getElementById('summary').focus();
+    note('edit dialog opened');
+  }
+  function closeEdit() {
+    editDialog.setAttribute('aria-hidden', 'true');
+    editDialog.classList.remove('jira-dialog-open');
+    blanket.classList.remove('visible');
+    Array.prototype.forEach.call(editDialog.querySelectorAll('[data-mock-wikifield]'), function (host) { host.innerHTML = ''; });
+  }
+  guardLink(document.getElementById('edit-issue'), openEdit);
+  editDialog.querySelector('form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    window.__mock.description = editStates.description.value();
+    window.__mock.saved.dialogDescription = window.__mock.description;
+    window.__mock.saved.dialogComment = editStates.comment.value();
+    note('edit dialog SUBMIT: ' + JSON.stringify(window.__mock.description).slice(0, 60));
+    closeEdit();
+    descRead();
+  });
+  editDialog.querySelector('button.cancel').addEventListener('click', function () { note('edit dialog CANCEL click'); closeEdit(); });
+
+  /* ---------------- Legacy-Dialoge: Labels, Link, Feld-Modal ---------------- */
+  function openLegacy(d) { d.classList.add('jira-dialog-open'); blanket.classList.add('visible'); }
+  function closeLegacy(d) { d.classList.remove('jira-dialog-open'); if (!document.querySelector('.jira-dialog-open') && editDialog.getAttribute('aria-hidden') === 'true') blanket.classList.remove('visible'); }
+  var labelsDialog = document.getElementById('edit-labels-dialog');
+  function openLabels() { openLegacy(labelsDialog); document.getElementById('labels-textarea').focus(); note('labels dialog opened'); }
+  labelsDialog.querySelector('form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var v = document.getElementById('labels-textarea').value.trim();
+    window.__mock.saved.labels = v;
+    document.getElementById('labels-48410-value').textContent = v || 'None';
+    note('labels SUBMIT: ' + JSON.stringify(v));
+    closeLegacy(labelsDialog);
+  });
+  guardLink(document.getElementById('cancel'), function () { note('labels CANCEL click'); closeLegacy(labelsDialog); });
+  guardLink(document.getElementById('edit-labels'), openLabels);
+  document.querySelector('#wrap-labels .labels-wrap').addEventListener('click', openLabels);
+
+  var linkDialog = document.getElementById('link-issue-dialog');
+  var linkPane = linkDialog.querySelector('[data-mock-linkpane]');
+  function showLinkPane(which) {
+    Array.prototype.forEach.call(linkDialog.querySelectorAll('.dialog-menu-item'), function (b) { b.classList.toggle('selected', b.id === which); });
+    if (which === 'add-web-link-link') {
+      linkPane.innerHTML = '<div class="action-description"></div>' +
+        '<div class="field-group"><label for="web-link-url">URL</label><input id="web-link-url" class="text full-width-field" type="text" name="url" value="http://" aria-required="true"><div id="web-link-url-description" class="description"></div></div>' +
+        '<div class="field-group"><label for="web-link-title">Link Text</label><input id="web-link-title" class="text full-width-field" type="text" name="title" value="" aria-required="true"></div>' +
+        '<div class="field-group aui-field-wikiedit comment-input"><label for="comment">Comment</label><div class="jira-wikifield" data-mock-wikifield="comment"></div></div>';
+      buildWikifield(linkPane.querySelector('[data-mock-wikifield]'), 'comment', '');
+      document.getElementById('web-link-url').focus();
+    } else {
+      linkPane.innerHTML = '<div class="action-description"></div><div class="field-group"><label for="link-type">This issue</label><select id="link-type" class="select" name="linkDesc"><option>blocks</option><option>relates to</option></select></div>' +
+        '<div class="field-group"><label for="jira-issue-keys-textarea">Issue</label><div id="jira-issue-keys-multi-select" class="jira-multi-select long-field jira-issue-picker"><textarea id="jira-issue-keys-textarea" class="text long-field" role="combobox" rows="1"></textarea></div></div>';
+    }
+    note('link dialog pane: ' + which + ' (per AJAX nachgeladen)');
+  }
+  function openLink() { openLegacy(linkDialog); showLinkPane('add-jira-issue-link-link'); note('link dialog opened'); }
+  Array.prototype.forEach.call(linkDialog.querySelectorAll('.dialog-menu-item'), function (b) { b.addEventListener('click', function () { setTimeout(function () { showLinkPane(b.id); }, 120); }); });
+  linkDialog.querySelector('form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var url = document.getElementById('web-link-url'), title = document.getElementById('web-link-title');
+    window.__mock.saved.weblink = url ? { url: url.value, title: title.value } : null;
+    note('link SUBMIT: ' + JSON.stringify(window.__mock.saved.weblink));
+    closeLegacy(linkDialog);
+  });
+  guardLink(linkDialog.querySelector('a.cancel'), function () { note('link CANCEL click'); closeLegacy(linkDialog); });
+  guardLink(document.getElementById('link-issue'), openLink);
+
+  var fieldModal = document.getElementById('modal-field-view');
+  function openFieldModal() { openLegacy(fieldModal); document.getElementById('customfield_10027').focus(); note('modal-field-view opened (Kunden Referenz)'); }
+  fieldModal.querySelector('form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    window.__mock.saved.kundenReferenz = document.getElementById('customfield_10027').value;
+    note('kunden referenz SUBMIT: ' + JSON.stringify(window.__mock.saved.kundenReferenz));
+    closeLegacy(fieldModal);
+  });
+  guardLink(fieldModal.querySelector('a.cancel'), function () { note('modal-field-view CANCEL'); closeLegacy(fieldModal); });
+
+  /* ---------------- Shifter ---------------- */
+  var shifter = document.getElementById('shifter-dialog');
+  var shifterField = document.getElementById('shifter-dialog-field');
+  var suggestions = document.getElementById('shifter-dialog-suggestions');
+  function openShifter() { shifter.classList.add('open'); shifterField.value = ''; filterShifter(); shifterField.focus(); note('shifter opened'); }
+  function closeShifter() { shifter.classList.remove('open'); suggestions.style.display = 'none'; }
+  function filterShifter() {
+    var q = shifterField.value.trim().toLowerCase();
+    var first = null;
+    Array.prototype.forEach.call(suggestions.querySelectorAll('.aui-list-item'), function (li) {
+      var hit = !q || li.textContent.toLowerCase().indexOf(q) !== -1;
+      li.style.display = hit ? '' : 'none';
+      li.classList.remove('active');
+      if (hit && !first) first = li;
+    });
+    if (first) first.classList.add('active');
+    suggestions.style.display = q ? 'block' : 'none';
+    shifterField.setAttribute('aria-expanded', q ? 'true' : 'false');
+    if (first) shifterField.setAttribute('aria-activedescendant', first.id);
+  }
+  shifterField.addEventListener('input', filterShifter);
+  function runShifter(li) {
+    closeShifter();
+    var action = li.getAttribute('data-mock-action');
+    note('shifter -> ' + li.textContent.trim());
+    setTimeout(function () {
+      if (action === 'modal-field') openFieldModal();
+      else if (action === 'labels') openLabels();
+      else if (action === 'link') { openLink(); }
+      else if (action === 'edit') openEdit();
+    }, 120);
+  }
+  shifter.querySelector('form').addEventListener('submit', function (event) { event.preventDefault(); var li = suggestions.querySelector('.aui-list-item.active'); if (li) runShifter(li); });
+  Array.prototype.forEach.call(suggestions.querySelectorAll('.aui-list-item'), function (li) { li.addEventListener('click', function () { runShifter(li); }); });
+
+  // [belegt] Tastaturkuerzel haengen am Dokument (Bubble-Phase, wie AUI keyboard shortcuts)
+  document.addEventListener('keydown', function (event) {
+    var t = event.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (event.key === 'l') { event.preventDefault(); openLabels(); }
+    if (event.key === '.') { event.preventDefault(); openShifter(); }
+    if (event.key === 'm') { event.preventDefault(); openComment(); }
+    if (event.key === 'e') { event.preventDefault(); openEdit(); }
+  });
+
+  /* ---------------- Start ---------------- */
+  descRead();
+  var state = params.get('state');
+  if (state === 'comment') openComment();
+  else if (state === 'description') descEdit();
+  else if (state === 'edit') openEdit();
+  else if (state === 'labels') openLabels();
+  else if (state === 'link') openLink();
+  else if (state === 'shifter') openShifter();
+  note('mock ready (Jira 9.12.2, Editor-Modus: ' + editorMode() + ')');
+})();
+</script>
+</body>
+</html>
