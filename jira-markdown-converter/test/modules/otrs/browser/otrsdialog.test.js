@@ -235,4 +235,50 @@ describe('JiraOtrsDialog - Eingabedialog', { skip: !hasPlaywright }, function ()
     assert.strictEqual(errors[0], errors[1], 'beide Meldungen muessen denselben Wortlaut haben');
     await page.close();
   });
+
+  test('Strg+Enter ohne Eingabe meldet den Fehler statt abzusenden', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+    await page.evaluate(function () {
+      window.__submitted = [];
+      window.__errors = [];
+      window.JiraOtrsDialog.open({
+        onSubmit: function (parsed) { window.__submitted.push(parsed); },
+        onError: function (message) { window.__errors.push(message); }
+      });
+    });
+    // Kein page.fill - lastParsed bleibt null, submit() darf daran nicht stolpern.
+    await page.press('#jmd-otrs-input', 'Control+Enter');
+    var state = await page.evaluate(function () {
+      return { submitted: window.__submitted, errors: window.__errors, open: window.JiraOtrsDialog.isOpen() };
+    });
+    assert.strictEqual(state.submitted.length, 0, 'onSubmit haette nicht aufgerufen werden duerfen');
+    assert.deepStrictEqual(state.errors, ['Eingabe ist leer.']);
+    assert.strictEqual(state.open, true, 'Dialog haette offen bleiben muessen');
+    await page.close();
+  });
+
+  test('Strg+Enter bei ungueltiger Eingabe sendet nicht ab', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+    await page.evaluate(function () {
+      window.__submitted = [];
+      window.__errors = [];
+      window.JiraOtrsDialog.open({
+        onSubmit: function (parsed) { window.__submitted.push(parsed); },
+        onError: function (message) { window.__errors.push(message); }
+      });
+    });
+    await page.fill('#jmd-otrs-input', 'Text ohne jede URL');
+    await page.press('#jmd-otrs-input', 'Control+Enter');
+    var state = await page.evaluate(function () {
+      return { submitted: window.__submitted, errors: window.__errors, open: window.JiraOtrsDialog.isOpen() };
+    });
+    assert.strictEqual(state.submitted.length, 0, 'onSubmit haette nicht aufgerufen werden duerfen');
+    // onError feuert hier zweimal mit derselben Meldung (updatePreview beim
+    // fill, dann submit) - darum nur auf > 0 pruefen, nicht auf length === 1.
+    assert.ok(state.errors.length > 0, 'kein Fehler gemeldet');
+    assert.strictEqual(state.open, true, 'Dialog haette offen bleiben muessen');
+    await page.close();
+  });
 });
