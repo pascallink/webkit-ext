@@ -151,6 +151,56 @@ Revision, die dort nicht liegt - die Browser-Tests scheitern mit
 - `CHROMIUM_PATH` bleibt der Notausgang fuer lokale Rechner ohne
   vorinstallierten Browser (siehe `test/lib/browser.js`).
 
+Nachladen ist in der Sandbox ohnehin keine Option: die Netz-Allowlist der
+Stufe **Trusted** kennt npm, aber nicht `cdn.playwright.dev` und
+`playwright.download.prss.microsoft.com`. Ein `playwright install` laeuft dort
+in ein 403 des Proxys. Die Version muss also passen, sie laesst sich nicht
+zurechtinstallieren.
+
+### Setup-Script fuer das Cloud-Environment
+
+Optionale Absicherung, kein Muss - der Stand oben laeuft auch ohne. Das Script
+gehoert in das Feld **Setup script** des Environments (claude.ai/code ->
+Environment-Einstellungen) und laeuft einmal je Snapshot, nicht je Sitzung.
+Passt die Version zum Image, ist es nach zwei Sekunden fertig und laedt nichts.
+
+```bash
+#!/bin/bash
+# Setup-Script fuer das Cloud-Environment von webkit-ext.
+# Laeuft einmal pro Environment-Snapshot, nicht pro Sitzung.
+PW_VERSION=1.56.0
+WARMUP=/opt/pw-warmup
+
+mkdir -p "$WARMUP" && cd "$WARMUP" || exit 0
+
+npm init -y >/dev/null 2>&1
+npm install --no-audit --no-fund "playwright@${PW_VERSION}" >/dev/null 2>&1
+
+if npx playwright install chromium >/dev/null 2>&1; then
+  echo "webkit-ext: Chromium fuer Playwright ${PW_VERSION} liegt bereit."
+else
+  echo "webkit-ext: ACHTUNG - Chromium fuer Playwright ${PW_VERSION} fehlt und"
+  echo "  liess sich nicht laden. Entweder passt die gepinnte Version nicht zum"
+  echo "  Image (Revisionen: ls /opt/pw-browsers), oder cdn.playwright.dev und"
+  echo "  playwright.download.prss.microsoft.com fehlen in der Netz-Allowlist"
+  echo "  des Environments (Network access: Custom)."
+  echo "  Solange das gilt, laufen nur die Node-Tests: npm run test:node."
+fi
+
+exit 0
+```
+
+Zwei Dinge daran sind Absicht:
+
+- **`exit 0` am Ende, kein `set -e`.** Ein Setup-Script, das nicht mit 0
+  endet, laesst die Sitzung gar nicht erst starten. Ein fehlender Browser darf
+  die Arbeit an `converter.js` nicht blockieren.
+- **`PW_VERSION` steht hier doppelt** (Environment und `package.json`). Das
+  Script sieht das Repo nicht zuverlaessig, darum die Kopie. Beim Anheben der
+  Playwright-Version also beide Stellen - und dann braucht das Environment
+  einmalig **Network access: Custom** mit den beiden Download-Hosts oben, sonst
+  meldet das Script genau das.
+
 ## Neues Modul anlegen
 
 1. Ordner unter `test/modules/<modul>/` anlegen; Browser-Tests kommen in
