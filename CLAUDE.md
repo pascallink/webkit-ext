@@ -23,6 +23,12 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
 | Test | `npm test --prefix <projekt>` |
 | Commits | `npm install && npm run lint:commits` (prueft `origin/main..HEAD`) |
 
+In einer Cloud-Sitzung erledigt `.claude/hooks/session-start.sh` den Install
+beim Start - je Ordner mit `package.json`, nur wenn das Lockfile neuer ist als
+`node_modules`. Lokal tut der Hook nichts. Er meldet ausserdem, ob der
+vorinstallierte Chromium zur gepinnten Playwright-Version passt
+([`.github/TESTS.md`](.github/TESTS.md)).
+
 ### CLI & Build-Rules
 
 - **Nie global, immer gefiltert**: ein Task pro Projekt (`--prefix <projekt>`),
