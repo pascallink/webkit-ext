@@ -26,6 +26,9 @@ export default [
         ClipboardItem: 'readonly',
         MutationObserver: 'readonly',
         HTMLTextAreaElement: 'readonly',
+        HTMLInputElement: 'readonly',
+        KeyboardEvent: 'readonly',
+        MouseEvent: 'readonly',
         importScripts: 'readonly'
       }
     },
