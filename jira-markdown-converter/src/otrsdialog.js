@@ -169,6 +169,9 @@
         lastParsed.linkText + ' (' + lastParsed.url + ')';
       errorLine.textContent = '';
       submitBtn.disabled = false;
+      // Reset fuer die Entprellung: nach einer gueltigen Eingabe zaehlt eine
+      // erneut auftretende Fehlermeldung wieder als neu.
+      lastReportedError = null;
     } else {
       dialog.querySelector('[data-role="preview-label"]').textContent = '-';
       dialog.querySelector('[data-role="preview-reference"]').textContent = '-';

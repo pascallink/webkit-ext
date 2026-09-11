@@ -38,6 +38,11 @@ async function loadPage(browser) {
   var context = await browser.newContext();
   var page = await context.newPage();
   await page.goto(OTRS_FIXTURE);
+  // .jmd-dialog ist per default display: none - erst mit den Stylesheets
+  // wird jmd-dialog--open sichtbar und der Fokus verhaelt sich wie im echten
+  // Content-Script (relevant fuer die Fokus-Testfaelle unten).
+  await page.addStyleTag({ content: browserLib.readSource('src/codedialog.css') });
+  await page.addStyleTag({ content: browserLib.readSource('src/otrsdialog.css') });
   await page.addScriptTag({ content: browserLib.readSource('src/otrslink.js') });
   await page.addScriptTag({ content: browserLib.readSource('src/otrsdialog.js') });
   return page;
@@ -129,6 +134,105 @@ describe('JiraOtrsDialog - Eingabedialog', { skip: !hasPlaywright }, function ()
     });
     await page.press('#jmd-otrs-input', 'Escape');
     assert.strictEqual(await page.evaluate(function () { return window.JiraOtrsDialog.isOpen(); }), false);
+    await page.close();
+  });
+
+  test('close() gibt den Fokus an handlers.opener zurueck', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+    await page.evaluate(function () {
+      var opener = document.createElement('button');
+      opener.id = 'opener-btn';
+      opener.textContent = 'Oeffnen';
+      document.body.appendChild(opener);
+      window.JiraOtrsDialog.open({ opener: opener });
+    });
+    await page.evaluate(function () {
+      window.JiraOtrsDialog.close();
+    });
+    var focusedId = await page.evaluate(function () {
+      return document.activeElement && document.activeElement.id;
+    });
+    assert.strictEqual(focusedId, 'opener-btn', 'Fokus liegt nach close() nicht auf dem opener');
+    await page.close();
+  });
+
+  test('onSubmit setzt den Fokus selbst, close() ueberschreibt ihn nicht mit dem opener', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+    await page.evaluate(function () {
+      var opener = document.createElement('button');
+      opener.id = 'opener-btn';
+      document.body.appendChild(opener);
+      var target = document.createElement('textarea');
+      target.id = 'target-field';
+      document.body.appendChild(target);
+      window.JiraOtrsDialog.open({
+        opener: opener,
+        onSubmit: function () {
+          document.getElementById('target-field').focus();
+          return true;
+        }
+      });
+    });
+    await page.fill('#jmd-otrs-input', LINK);
+    await page.click('[data-otrs-action="submit"]');
+    assert.strictEqual(await page.evaluate(function () { return window.JiraOtrsDialog.isOpen(); }), false,
+      'Dialog haette nach erfolgreichem Absenden schliessen muessen');
+    var focusedId = await page.evaluate(function () {
+      return document.activeElement && document.activeElement.id;
+    });
+    assert.strictEqual(focusedId, 'target-field', 'Fokus muss im Zielfeld bleiben, nicht auf dem opener landen');
+    await page.close();
+  });
+
+  test('onClose feuert genau einmal beim Abbruch und nach dem Absenden, ein zweiter close()-Aufruf feuert nicht erneut', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+
+    var abbruch = await page.evaluate(function () {
+      window.__closed = 0;
+      window.JiraOtrsDialog.open({ onClose: function () { window.__closed++; } });
+      window.JiraOtrsDialog.close();
+      window.JiraOtrsDialog.close();
+      return window.__closed;
+    });
+    assert.strictEqual(abbruch, 1, 'onClose muss beim Abbruch genau einmal feuern, auch bei doppeltem close()');
+
+    await page.evaluate(function () {
+      window.__closed = 0;
+      window.JiraOtrsDialog.open({
+        onSubmit: function () { return true; },
+        onClose: function () { window.__closed++; }
+      });
+    });
+    await page.fill('#jmd-otrs-input', LINK);
+    await page.click('[data-otrs-action="submit"]');
+    await page.waitForFunction(function () { return window.JiraOtrsDialog.isOpen() === false; });
+    var nachAbsenden = await page.evaluate(function () { return window.__closed; });
+    assert.strictEqual(nachAbsenden, 1, 'onClose muss auch nach erfolgreichem Absenden genau einmal feuern');
+    await page.close();
+  });
+
+  test('onError entprellt gleiche Fehlermeldungen, meldet sie aber nach gueltiger Zwischeneingabe wieder', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+    await page.evaluate(function () {
+      window.__errors = [];
+      window.JiraOtrsDialog.open({
+        onError: function (message) { window.__errors.push(message); }
+      });
+    });
+    await page.fill('#jmd-otrs-input', 'Text ohne jede URL');
+    await page.fill('#jmd-otrs-input', 'Text ohne jede URL');
+    var errors = await page.evaluate(function () { return window.__errors; });
+    assert.strictEqual(errors.length, 1, 'dieselbe Fehlermeldung darf nicht doppelt gemeldet werden');
+
+    await page.fill('#jmd-otrs-input', LINK);
+    await page.fill('#jmd-otrs-input', 'Text ohne jede URL');
+    errors = await page.evaluate(function () { return window.__errors; });
+    assert.strictEqual(errors.length, 2, 'nach einer gueltigen Zwischeneingabe muss dieselbe Meldung erneut kommen');
+    assert.strictEqual(errors[0], errors[1], 'beide Meldungen muessen denselben Wortlaut haben');
     await page.close();
   });
 });
