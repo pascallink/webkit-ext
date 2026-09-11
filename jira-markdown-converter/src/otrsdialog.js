@@ -213,7 +213,8 @@
    * handlers = { onSubmit: fn(parsed), onError: fn(message), onClose: fn,
    *              opener: Element }. onSubmit darf false (oder ein Promise
    * darauf) liefern - dann bleibt der Dialog offen. onClose ist optional und
-   * wird beim Schliessen aufgerufen (Abbruchsignal fuer den Aufrufer).
+   * feuert bei jedem Schliessen, auch nach einem erfolgreichen Absenden. Wer
+   * Abbruch und Erfolg unterscheiden muss, merkt sich das in onSubmit.
    * opener ist optional - ohne Angabe zaehlt der Fokus beim Oeffnen
    * (document.activeElement), das reicht aber nicht, wenn der Aufrufer selbst
    * nicht den Fokus haelt (z. B. Oeffnen ueber einen Panel-Knopf).
@@ -245,8 +246,10 @@
     lastParsed = null;
     lastReportedError = null;
     // Der Fokus geht nur zurueck, wenn er noch im Dialog steht (Abbrechen,
-    // Escape, Klick daneben) - hat der Aufrufer nach dem Absenden bereits
-    // ins Jira-Feld fokussiert, darf das hier nicht ueberschrieben werden.
+    // Escape) - ein Klick auf den Hintergrund hat den Fokus schon vorher
+    // verloren (blurrt die Textarea); hat der Aufrufer nach dem Absenden
+    // bereits ins Jira-Feld fokussiert, darf das hier nicht ueberschrieben
+    // werden.
     if (focusInDialog && opener && opener.isConnected && opener.focus) opener.focus();
     opener = null;
     if (done) done();
