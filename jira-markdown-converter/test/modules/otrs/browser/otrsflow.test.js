@@ -142,4 +142,130 @@ describe('JiraOtrsFlow.run - Ablauf gegen die AUI-Fixture', { skip: !hasPlaywrig
     assert.strictEqual(result.step, 'link');
     await page.close();
   });
+
+  /**
+   * Regressionsfall: ein ausgeblendeter, alter .aui-dialog2-Knoten mit
+   * eigenem #web-link.active-pane steht schon vor dem Lauf im DOM - so wie
+   * AUI ihn nach einem frueheren Oeffnen stehen laesst (siehe findMatch-
+   * Kommentar in src/jiraui.js). Die Felder des stale-Knotens tragen eigene
+   * ids, damit sich echter und stale Dialog eindeutig unterscheiden lassen:
+   * schreibt addWebLink in den stale-Knoten, bleiben die echten ids
+   * unbeschrieben und die stale-ids stattdessen befuellt.
+   *
+   * Die Fixture selbst schaltet das aktive Tab-Panel global ueber
+   * document.getElementById('web-link') um - mit der doppelten id trifft
+   * das nicht mehr zuverlaessig den echten Reiter, unabhaengig vom Fix in
+   * addWebLink. Ein Capture-Phase-Listener (gleiches Muster wie im
+   * Timeout-Testfall unten) uebernimmt das Umschalten deshalb vorher,
+   * beschraenkt auf den echten Dialogknoten.
+   */
+  test('stale Dialog wird nicht bespielt', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+    await installCapture(page);
+    await page.evaluate(function () {
+      var stale = document.createElement('div');
+      stale.className = 'aui-dialog2';
+      stale.style.display = 'none';
+      stale.innerHTML =
+        '<div class="tabs-pane active-pane" id="web-link">' +
+        '<input id="stale-weblink-url" type="text">' +
+        '<input id="stale-weblink-linktext" type="text">' +
+        '</div>';
+      document.body.insertBefore(stale, document.body.firstChild);
+
+      document.addEventListener('click', function (event) {
+        var tab = event.target.closest ? event.target.closest('.aui-tabs .menu-item a[href="#web-link"]') : null;
+        if (!tab) return;
+        event.stopImmediatePropagation();
+        event.preventDefault();
+        var dialog = tab.closest('.aui-dialog2');
+        var panel = dialog ? dialog.querySelector('#web-link') : null;
+        var jiraPanel = dialog ? dialog.querySelector('#jira-link-panel') : null;
+        if (panel) panel.classList.add('active-pane');
+        if (jiraPanel) jiraPanel.classList.remove('active-pane');
+      }, true);
+    });
+    var result = await page.evaluate(function (parsed) {
+      return window.JiraOtrsFlow.run(parsed, {});
+    }, PARSED);
+    assert.strictEqual(result.ok, true);
+    var captured = await page.evaluate(function () { return window.__captured; });
+    assert.strictEqual(captured.weblinkUrl, PARSED.url);
+    assert.strictEqual(captured.weblinkLinktext, PARSED.linkText);
+    var staleValues = await page.evaluate(function () {
+      return {
+        url: document.getElementById('stale-weblink-url').value,
+        linktext: document.getElementById('stale-weblink-linktext').value
+      };
+    });
+    assert.strictEqual(staleValues.url, '', 'der stale Knoten haette nicht beschrieben werden duerfen');
+    assert.strictEqual(staleValues.linktext, '', 'der stale Knoten haette nicht beschrieben werden duerfen');
+    await page.close();
+  });
+
+  /**
+   * Regressionsfall: bei unterdrueckten Shortcuts muss die Fallback-Suche
+   * ueber [data-field-name="Kunden Referenz"] input gehen, nicht ueber die
+   * erstbeste .customfield input - ein fremdes Custom Field steht dazu vor
+   * dem echten Referenzfeld im DOM.
+   */
+  test('Fallback trifft das richtige Custom Field', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+    await page.evaluate(function () {
+      window.__suppressShortcuts = true;
+      var foreign = document.createElement('div');
+      foreign.className = 'customfield';
+      foreign.setAttribute('data-field-name', 'Anderes Feld');
+      foreign.innerHTML = '<input id="fremdes-feld" type="text">';
+      document.body.insertBefore(foreign, document.body.firstChild);
+    });
+    var result = await page.evaluate(function (parsed) {
+      return window.JiraOtrsFlow.run(parsed, {});
+    }, PARSED);
+    assert.strictEqual(result.ok, true);
+    var values = await page.evaluate(function () {
+      return {
+        fremd: document.getElementById('fremdes-feld').value,
+        referenz: document.querySelector('[data-field-name="Kunden Referenz"] input').value
+      };
+    });
+    assert.strictEqual(values.fremd, '', 'das fremde Feld haette nicht beschrieben werden duerfen');
+    assert.strictEqual(values.referenz, PARSED.reference);
+    await page.close();
+  });
+
+  /**
+   * Regressionsfall: haengt der Dialog nach dem Bestaetigen (Klick auf den
+   * Primaerbutton) trotzdem im DOM - Ersatz fuer einen ausbleibenden AJAX-
+   * Rundtrip -, muss previousReference am abgelehnten Promise haengen. Der
+   * capture-Listener laeuft vor dem Entfernen-Listener der Fixture (beide
+   * auf document, aber dieser in der Capture-Phase) und stoppt ihn per
+   * stopImmediatePropagation, sobald das Ziel im customfield-Dialog liegt.
+   */
+  test('Timeout nach dem Schreiben behaelt previousReference', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+    await page.evaluate(function () {
+      window.__setCustomFieldValue('Alter Wert');
+      document.addEventListener('click', function (event) {
+        var target = event.target;
+        if (target && target.closest && target.closest('#customfield-dialog')) {
+          event.stopImmediatePropagation();
+        }
+      }, true);
+    });
+    var result = await page.evaluate(function (parsed) {
+      return window.JiraOtrsFlow.run(parsed, { timeout: 300 }).then(function () {
+        return { rejected: false };
+      }, function (error) {
+        return { rejected: true, step: error.step, previousReference: error.previousReference };
+      });
+    }, PARSED);
+    assert.strictEqual(result.rejected, true);
+    assert.strictEqual(result.step, 'reference');
+    assert.strictEqual(result.previousReference, 'Alter Wert');
+    await page.close();
+  });
 });
