@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Mock Jira Server 9.12 - OTRS Link Helper</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; }
+    .issue-header { margin-bottom: 24px; }
+    .aui-dialog2 { border: 1px solid #ccc; padding: 12px; margin-top: 16px; width: 420px; }
+    .aui-list { list-style: none; padding: 0; }
+    .menu-item-list { list-style: none; display: flex; gap: 12px; padding: 0; }
+    .tabs-pane { display: none; }
+    .tabs-pane.active-pane { display: block; }
+  </style>
+</head>
+<body>
+  <!-- Kopf des Vorgangs: Ticketschluessel, immer sofort im DOM -->
+  <div class="issue-header">
+    <h1>PROJ-123: Beispielvorgang fuer den OTRS-Link-Helfer</h1>
+    <span id="key-val">PROJ-123</span>
+  </div>
+
+  <script>
+    // Baut die vier AUI-Modale erst bei Bedarf und immer verzoegert
+    // (setTimeout 120 ms) ins DOM ein - so wie Jira 9.12 seine Dialoge
+    // erst nach einem eigenen AJAX-Roundtrip anzeigt. Das ist der Punkt,
+    // an dem sich waitForElement (MutationObserver statt Polling) beweisen
+    // muss. Noch keine Fachlogik: die Quick-Search-Trefferliste oeffnet
+    // hier noch nichts, das Reiter-Umschalten im Link-Dialog setzt noch
+    // keine active-pane-Klasse - beides baut Sub-Task 3 auf diesen
+    // Selektoren auf.
+    (function () {
+      'use strict';
+
+      function appendHtml(html) {
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        document.body.appendChild(wrapper.firstElementChild);
+      }
+
+      function afterDelay(html) {
+        setTimeout(function () {
+          appendHtml(html);
+        }, 120);
+      }
+
+      var LABEL_DIALOG_HTML =
+        '<div id="edit-labels-dialog" class="aui-dialog2 aui-dialog2-medium">' +
+        '<div class="aui-dialog2-header"><h2 class="aui-dialog2-header-main">Kennzeichen bearbeiten</h2></div>' +
+        '<div class="aui-dialog2-content">' +
+        '<div class="labels-wrap"><ul class="labels-list"></ul></div>' +
+        '<textarea id="labels-textarea" class="labels-textarea"></textarea>' +
+        '<select id="labels-multi-select" multiple="multiple"></select>' +
+        '</div>' +
+        '<div class="aui-dialog2-footer"><div class="aui-dialog2-footer-actions">' +
+        '<button type="button" class="aui-button aui-button-primary">Kennzeichen speichern</button>' +
+        '</div></div>' +
+        '</div>';
+
+      var QUICK_SEARCH_HTML =
+        '<div id="quick-search-dialog" class="aui-dialog2 aui-dialog2-small">' +
+        '<div class="aui-dialog2-header"><h2 class="aui-dialog2-header-main">Schnellsuche</h2></div>' +
+        '<div class="aui-dialog2-content">' +
+        '<input id="quick-search-input" type="text">' +
+        '<ul class="aui-list">' +
+        '<li><a href="#customfield">Kunden Referenz</a></li>' +
+        '<li><a href="#link">Link</a></li>' +
+        '</ul>' +
+        '</div>' +
+        '</div>';
+
+      var CUSTOMFIELD_DIALOG_HTML =
+        '<div id="customfield-dialog" class="aui-dialog2 aui-dialog2-medium">' +
+        '<div class="aui-dialog2-header"><h2 class="aui-dialog2-header-main">Kunden Referenz bearbeiten</h2></div>' +
+        '<div class="aui-dialog2-content">' +
+        '<input id="customfield_11000" type="text" value="Alter Wert">' +
+        '</div>' +
+        '<div class="aui-dialog2-footer"><div class="aui-dialog2-footer-actions">' +
+        '<button type="button" class="aui-button aui-button-primary">Aktualisieren</button>' +
+        '</div></div>' +
+        '</div>';
+
+      var LINK_DIALOG_HTML =
+        '<div id="link-issue-dialog" class="aui-dialog2 aui-dialog2-medium">' +
+        '<div class="aui-dialog2-header"><h2 class="aui-dialog2-header-main">Verweis erstellen</h2></div>' +
+        '<div class="aui-dialog2-content">' +
+        '<div class="aui-tabs horizontal-tabs">' +
+        '<ul class="menu-item-list">' +
+        '<li class="menu-item active-tab"><a id="jira-link" href="#jira-link-panel">Vorgang</a></li>' +
+        '<li class="menu-item"><a href="#web-link">Web-Link</a></li>' +
+        '</ul>' +
+        '<div class="tabs-pane active-pane" id="jira-link-panel"></div>' +
+        '<div class="tabs-pane" id="web-link">' +
+        '<input id="weblink-url" type="text">' +
+        '<input id="weblink-linktext" type="text">' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+        '<div class="aui-dialog2-footer"><div class="aui-dialog2-footer-actions">' +
+        '<button type="button" class="aui-button aui-button-primary">Verweis erstellen</button>' +
+        '</div></div>' +
+        '</div>';
+
+      window.__openLabelDialog = function () {
+        afterDelay(LABEL_DIALOG_HTML);
+      };
+      window.__openQuickSearchDialog = function () {
+        afterDelay(QUICK_SEARCH_HTML);
+      };
+      window.__openCustomFieldDialog = function () {
+        afterDelay(CUSTOMFIELD_DIALOG_HTML);
+      };
+      window.__openLinkDialog = function () {
+        afterDelay(LINK_DIALOG_HTML);
+      };
+
+      // Tastaturkuerzel wie in der echten Jira-Oberflaeche: l oeffnet die
+      // Kennzeichen, . die Schnellsuche - beide Dialoge kommen verzoegert.
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'l') window.__openLabelDialog();
+        if (event.key === '.') window.__openQuickSearchDialog();
+      });
+    })();
+  </script>
+</body>
+</html>

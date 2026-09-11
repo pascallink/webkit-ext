@@ -33,6 +33,8 @@
         "src/codedialog.js",
         "src/templatedialog.js",
         "src/editlock.js",
+        "src/otrslink.js",
+        "src/jiraui.js",
         "src/content.js"
       ],
       "css": [
