@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT_PATH = path.join(__dirname, '..', 'costs-update.mjs');
@@ -70,6 +70,65 @@ function runScript(repoDir, args, stdinInput = '') {
     cwd: repoDir,
     encoding: 'utf8',
     input: stdinInput,
+  });
+}
+
+/**
+ * Fuehrt das Skript asynchron aus und verbindet stdin ueber eine echte,
+ * benannte FIFO statt einer anonymen spawn-Pipe. Anonyme Pipes landen in
+ * manchen Sandboxes als Socket auf Deskriptor 0 - der isFIFO()-Check im
+ * Skript greift dann nie, egal was auf stdin liegt (siehe runScript oben,
+ * das genau daran vorbeitestet). Eine benannte FIFO ist plattformunabhaengig
+ * garantiert eine echte FIFO und macht den --stdin-Pfad damit erst testbar.
+ */
+function runScriptAsync(repoDir, args, { payload, closeStdin = false } = {}) {
+  return new Promise((resolve, reject) => {
+    const fifoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'costs-update-fifo-'));
+    const fifoPath = path.join(fifoDir, 'stdin.fifo');
+    execFileSync('mkfifo', [fifoPath]);
+
+    const readFd = fs.openSync(fifoPath, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+    const child = spawn('node', [SCRIPT_PATH, ...args], {
+      cwd: repoDir,
+      stdio: [readFd, 'pipe', 'pipe'],
+    });
+    fs.closeSync(readFd);
+
+    let writeFd = null;
+    if (payload) {
+      writeFd = fs.openSync(fifoPath, 'w');
+      fs.writeSync(writeFd, payload);
+    }
+    if (closeStdin && writeFd !== null) {
+      fs.closeSync(writeFd);
+      writeFd = null;
+    }
+
+    let stderr = '';
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.stdout.resume();
+
+    // Sicherheitsnetz: haengt der Kindprozess trotzdem, spaetestens nach 8s
+    // gewaltsam beenden, damit kein Testlauf blockiert.
+    const killTimer = setTimeout(() => child.kill('SIGKILL'), 8000);
+
+    const finish = (settle) => {
+      clearTimeout(killTimer);
+      if (writeFd !== null) {
+        try {
+          fs.closeSync(writeFd);
+        } catch {
+          // bereits geschlossen
+        }
+      }
+      fs.rmSync(fifoDir, { recursive: true, force: true });
+      settle();
+    };
+
+    child.on('error', (err) => finish(() => reject(err)));
+    child.on('close', (code) => finish(() => resolve({ status: code, stderr })));
   });
 }
 
@@ -277,6 +336,76 @@ test('--transcript gewinnt gegen stdin-Payload, wenn beides vorliegt', (t) => {
   const tokens = readCsvRows(dir, 'tokens.csv');
   assert.equal(tokens.rows.length, 1);
   assert.equal(tokens.rows[0][1], 'sess-real');
+});
+
+test('stdin-Payload wird gelesen, wenn der Erzeuger schliesst', async (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const usage = { input_tokens: 1_000, output_tokens: 0, cache_read_input_tokens: 0 };
+  const transcript = writeTranscript(dir, 'sess-stdin-close', [
+    assistantLine({ requestId: 'req-1', messageId: 'msg-1', usage }),
+  ]);
+  const payload = JSON.stringify({
+    session_id: 'sess-stdin-close',
+    transcript_path: transcript,
+    cwd: dir,
+  });
+
+  const result = await runScriptAsync(dir, ['--stdin'], { payload, closeStdin: true });
+  assert.equal(result.status, 0);
+
+  const costs = readCsvRows(dir, 'costs.csv');
+  assert.ok(costs);
+  assert.equal(costs.rows.length, 1);
+  assert.equal(costs.rows[0][1], 'sess-stdin-close');
+});
+
+test('stdin-Payload wird verworfen, wenn der Erzeuger die Pipe offen laesst', async (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const usage = { input_tokens: 1_000, output_tokens: 0, cache_read_input_tokens: 0 };
+  const transcript = writeTranscript(dir, 'sess-stdin-open', [
+    assistantLine({ requestId: 'req-1', messageId: 'msg-1', usage }),
+  ]);
+  const payload = JSON.stringify({
+    session_id: 'sess-stdin-open',
+    transcript_path: transcript,
+    cwd: dir,
+  });
+
+  // Der Payload liegt vollstaendig auf der Pipe, der Erzeuger schliesst aber
+  // nicht. costs-update.mjs verwirft im timedOut-Zweig von readStdinJson()
+  // bereits gepufferte Daten ungeprueft nach dem 2s-Zeitlimit - nur das
+  // Schliessen der Pipe zaehlt, nicht das blosse Vorhandensein der Daten.
+  const result = await runScriptAsync(dir, ['--stdin'], { payload, closeStdin: false });
+  assert.equal(result.status, 0);
+  assert.match(result.stderr, /binnen 2s keinen vollstaendigen Payload/);
+  assert.equal(fs.existsSync(path.join(dir, 'stats', 'costs.csv')), false);
+});
+
+test('offene Pipe ohne Payload blockiert nicht', async (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const result = await runScriptAsync(dir, ['--stdin'], { closeStdin: false });
+  assert.equal(result.status, 0);
+  assert.match(result.stderr, /binnen 2s keinen vollstaendigen Payload/);
+  assert.equal(fs.existsSync(path.join(dir, 'stats', 'costs.csv')), false);
+});
+
+test('--stdin mit ungueltigem JSON', async (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const result = await runScriptAsync(dir, ['--stdin'], {
+    payload: '{nicht-valides-json',
+    closeStdin: true,
+  });
+  assert.equal(result.status, 0);
+  assert.match(result.stderr, /kein gueltiges JSON/);
+  assert.equal(fs.existsSync(path.join(dir, 'stats', 'costs.csv')), false);
 });
 
 test('fehlen requestId und message.id, dedupliziert nicht ueber Zeilen hinweg', (t) => {
