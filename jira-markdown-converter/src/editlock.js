@@ -63,6 +63,20 @@
     '[data-testid*="rich-text"]'
   ].join(',');
 
+  // Nur was eine Leiste bekommen hat oder als Wiki-Feld gilt, darf einfrieren
+  // - kleine Auswahl-Textareas (Labels, Versionen, Picker) bleiben aussen vor,
+  // auch wenn `editors.js` sie (noch) nicht als solche kennt (#111). Die
+  // Oder-Verknuepfung ist noetig, weil der Fokus vor dem 400-ms-Scan aus
+  // `content.js` ankommen kann und die Leiste dann noch fehlt.
+  var FREEZABLE_SELECTOR = [
+    '.wiki-textfield',
+    '.jira-wikifield textarea',
+    '.wiki-edit textarea',
+    'textarea#description',
+    'textarea#comment',
+    'textarea#environment'
+  ].join(',');
+
   var LOCKED = { glyph: '🔒', text: 'Eingefroren' };
   var OPEN = { glyph: '🔓', text: 'Einfrieren' };
 
@@ -278,6 +292,11 @@
     return indexIn(locks, field) !== -1;
   }
 
+  /** Traegt dieses Feld eine Leiste, oder gilt es als Wiki-Feld? Nur dann friert es ein. */
+  function isFreezable(field) {
+    return !!(field.dataset && field.dataset.jmdButtonAttached) || matches(field, FREEZABLE_SELECTOR);
+  }
+
   /**
    * Friert ein Feld ein. Ein per Hand geoeffnetes Schloss bleibt offen -
    * sonst wuerde schon der naechste Klick ins Feld wieder einfrieren.
@@ -285,6 +304,7 @@
   function lock(field) {
     if (!enabled || !field || isLocked(field)) return false;
     if (indexIn(opened, field) !== -1) return false;
+    if (!isFreezable(field)) return false;
     locks.push(field);
     listen();
     showState();
