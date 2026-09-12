@@ -1628,12 +1628,14 @@
   }
 
   function start() {
-    document.addEventListener('paste', onPaste, true);
-
-    // Feldleisten, schwebender Button und Einfrieren gehoeren nur zu Jira -
-    // auf einer fremden Seite bleibt nur das Panel uebrig (onPaste, onMessage,
-    // Settings.onChange laufen unveraendert weiter).
+    // Feldleisten, schwebender Button, Einfrieren und die Einfuege-Automatik
+    // gehoeren nur zu Jira - auf einer fremden Seite bleibt nur das Panel
+    // uebrig (onMessage, Settings.onChange laufen unveraendert weiter). Das
+    // automatische Umschreiben beim Einfuegen ist Jira-Verhalten und darf
+    // auf einer fremden Seite nicht still mitlaufen. Issue #97.
     if (!standalone) {
+      document.addEventListener('paste', onPaste, true);
+
       document.addEventListener('focusin', function (event) {
         var field = Editors.editableFrom(event.target);
         if (!field) return;
