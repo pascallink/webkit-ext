@@ -4,7 +4,9 @@ Feste Vorlagen fuer die Uebergabe zwischen Sessions: Opus reviewt, Haiku oder
 Sonnet korrigiert. Prosa-Prompts driften und kosten Tokens - die Struktur steht
 deshalb genau einmal hier, nicht in der Root-`CLAUDE.md`. Wer wann uebergibt,
 steht dort ("Workflow & QA-Regeln"). Das Planungstemplate verweist auf diese
-Datei: [`.github/PLAN.template.md`](PLAN.template.md).
+Datei: [`.github/PLAN.template.md`](PLAN.template.md). Die Subagents unter
+`.claude/agents/` fahren dieselbe Kette ohne Copy-Paste - siehe "Subagents"
+am Ende.
 
 ## Ausgaberegeln (gelten fuer jede Stufe)
 
@@ -89,3 +91,31 @@ Constraints:
   Root-`CLAUDE.md`). Bleibt die Abschlussmeldung aus, gilt die Korrektur als
   nicht geliefert, nicht als erledigt.
 - Repo-Regeln bleiben bindend, auch wenn der Prompt sie nicht wiederholt.
+
+## Subagents
+
+Dieselbe Kette ohne neuen Chat: `.claude/agents/` haelt je Stufe einen Agenten,
+das Frontmatter setzt Modell und Werkzeuge, der Rumpf die Rolle.
+
+| Stufe | Agent | Modell | Zustaendig fuer |
+| --- | --- | --- | --- |
+| Umsetzung | `umsetzer` | Sonnet | ein Subtask, ein Modul, ein Scope |
+| Review | `reviewer` | Opus | Stufe 1 plus 0 bis 2 Folge-Prompts, ohne Edit |
+| Korrektur | `korrektur-style` | Haiku | `STYLE`/`MINOR`, eine Datei, kein Verhalten |
+| Korrektur | `korrektur-logik` | Sonnet | alles andere, Testanpassung erlaubt |
+
+- **Diese Datei bleibt die Quelle der Formate.** Die Agenten wiederholen sie
+  nicht, sie verweisen darauf - der `reviewer` liest sie zu Beginn seines Laufs.
+  Aendert sich ein Format, aendert es sich hier und nirgends sonst.
+- **Der Rumpf traegt nur, was hier nicht steht:** Rolle, Scope-Grenzen,
+  Abbruchbedingung, Ausgabeform. Repo- und Test-Kontext-Regeln kommen aus der
+  Root-`CLAUDE.md` und gelten fuer jeden Agenten ohnehin.
+- **Werkzeuge beschneiden ist Teil des Vertrags.** Der `reviewer` hat kein
+  `Edit`, die Korrektur-Agenten kein `Glob` - was ein Agent nicht hat, kann er
+  auch nicht an Kontext verbrennen.
+- **Ein Agent startet kalt.** Er kennt die rufende Sitzung nicht, der Auftrag
+  muss vollstaendig sein. Deshalb stehen `branch` und `base_sha` im Stufe-2-
+  Block: ohne diesen Anker korrigiert der Agent auf irgendeinem Stand.
+- **Parallel nur getrennt.** Zwei Agenten gleichzeitig auf demselben Branch
+  kollidieren im Arbeitsbaum - entweder nacheinander oder je in einem eigenen
+  Worktree.
