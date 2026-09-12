@@ -386,19 +386,20 @@
 
   /**
    * Dieselbe Vorlage als HTML - fuer den Rich-Text-Editor, der Wiki-Markup
-   * woertlich stehen lassen wuerde. Statt eines umlaufenden Rahmens traegt
-   * nur die linke Kante die Statusfarbe - modernere Jira-Panels blenden den
-   * vollen Rahmen ebenfalls aus.
+   * woertlich stehen lassen wuerde. Kein eigener Akzentbalken mehr: TinyMCE
+   * in 9.12 raeumt bei jedem div ein fremdes style-Attribut ab und akzeptiert
+   * nur diese Form, die es beim Speichern selbst wieder nach
+   * {panel:title=...|borderColor=...|bgColor=...} zurueckwandelt.
    */
   function panelHtml(template, body) {
     if (!template) return '';
     var border = panelColor(template.borderColor) || '#dfe1e6';
     var background = panelColor(template.bgColor) || '#f4f5f7';
-    var style = 'border-left: 4px solid ' + border + '; border-radius: 0 6px 6px 0;' +
-      ' background-color: ' + background + '; padding: 12px 16px; margin: 12px 0;';
+    var divStyle = 'background-color: ' + background + '; border-color: ' + border + '; border-width: 1px;';
     var title = panelTitle(template.title);
-    var head = title ? '<p><strong>' + escapeHtml(title) + '</strong></p>' : '';
-    return '<div style="' + escapeAttribute(style) + '">' + head +
+    var head = title ? '<panel-title style="' + escapeAttribute('border-bottom-width: 1px; border-bottom-color: ' +
+      border + '; background-color: ' + background + ';') + '">' + escapeHtml(title) + '</panel-title>' : '';
+    return '<div class="plain panel" style="' + escapeAttribute(divStyle) + '">' + head +
       '<p>' + escapeHtml(panelBody(template, body)) + '</p></div>';
   }
 

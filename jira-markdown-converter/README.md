@@ -161,7 +161,7 @@ Was ankommt, haengt am Feldtyp:
 | Feld | Ausgabe |
 | --- | --- |
 | reines Textfeld | `{panel:title=Info\|borderColor=#0052cc\|bgColor=#deebff} … {panel}` |
-| Rich-Text-Editor (TinyMCE, Textarea mit iframe) | dasselbe als HTML: ein `div` mit denselben Farben, Titel fett darueber |
+| Rich-Text-Editor (TinyMCE, Textarea mit iframe) | dasselbe als HTML: ein `div.plain.panel` mit `panel-title` und denselben Farben, die der Editor beim Speichern selbst nach `{panel}` zurueckwandelt |
 | ProseMirror-Editor (Jira Cloud, neuer Full Editor in Data Center) - ausser Scope, nicht gepflegt | Wiki-Markup wie oben, dazu ein Hinweis-Toast |
 
 Das ADF-Schema von ProseMirror kennt keinen frei gestylten Div-Rahmen; HTML wuerde beim Einfuegen auf nackten Absatztext zusammenfallen (Issue #64).
