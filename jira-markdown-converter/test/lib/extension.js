@@ -217,10 +217,25 @@ function canRunExtension() {
   });
 }
 
+/**
+ * Oeffnet eine Seite der Erweiterung selbst (Popup, Optionsseite) als
+ * eigenen Tab im Kontext, z. B. extensionPage(ctx, id, 'popup/popup.html').
+ * chrome.storage wird ausschliesslich von dort gelesen - die Fixture-Seite
+ * (isolierte Welt des Content-Scripts) hat darauf keinen eigenen Zugriff.
+ */
+function extensionPage(context, extensionId, relativePath) {
+  return context.newPage().then(function (page) {
+    return page.goto('chrome-extension://' + extensionId + '/' + relativePath).then(function () {
+      return page;
+    });
+  });
+}
+
 module.exports = {
   hasPlaywright: hasPlaywright,
   serveFixtures: serveFixtures,
   extensionCopy: extensionCopy,
   launchExtension: launchExtension,
-  canRunExtension: canRunExtension
+  canRunExtension: canRunExtension,
+  extensionPage: extensionPage
 };
