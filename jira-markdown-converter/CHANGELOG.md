@@ -9,6 +9,8 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Panel-Vorlagen im visuellen Modus kommen jetzt als echtes Panel an statt als
+  fetter Titel mit Absatz (Issue #109).
 - Code-Dialog liefert im visuellen Modus einen echten Codeblock statt
   Inline-Monospace (Issue #108).
 - Beim Einfuegen von bereits vorhandenem Jira-Markup wird nicht mehr
