@@ -661,14 +661,48 @@
       }
     }
     if (!write) {
+      if (fallbackToLegacyRich(html, text)) return;
       copyText(html, 'HTML als Text kopiert.');
       return;
     }
     write.then(function () {
       toast('Formatiert kopiert.');
     }, function () {
+      if (fallbackToLegacyRich(html, text)) return;
       copyText(html, 'HTML als Text kopiert.');
     });
+  }
+
+  /**
+   * Legacy-Rueckfall nur, wenn navigator.clipboard.writeText selbst fehlt -
+   * reine http-Instanzen kennen navigator.clipboard ueberhaupt nicht. Ist
+   * writeText vorhanden (nur write/ClipboardItem fehlt), bleibt der alte Weg
+   * ueber copyText()/writeText die bessere Wahl als das veraltete
+   * execCommand. Rueckgabe true heisst: erledigt, kein weiterer Rueckfall.
+   */
+  function fallbackToLegacyRich(html, text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return false;
+    if (!copyRichViaCommand(html, text)) return false;
+    toast('Formatiert kopiert.');
+    return true;
+  }
+
+  /**
+   * Rueckfall fuer copyRich() ohne navigator.clipboard.write: ein einmaliger
+   * copy-Listener belegt das Ereignis mit text/html und text/plain, bevor
+   * copyViaCommand() ueber das alte execCommand kopiert. Ohne Zwischenablage
+   * ueberhaupt (Listener greift nicht) liefert copyViaCommand() false.
+   */
+  function copyRichViaCommand(html, text) {
+    var listener = function (event) {
+      event.clipboardData.setData('text/html', html);
+      event.clipboardData.setData('text/plain', text);
+      event.preventDefault();
+    };
+    document.addEventListener('copy', listener);
+    var success = copyViaCommand(text);
+    document.removeEventListener('copy', listener);
+    return success;
   }
 
   function refreshPreview() {
@@ -1319,11 +1353,44 @@
       navigator.clipboard.writeText(text).then(function () {
         toast(message || 'Jira-Markup kopiert.');
       }, function () {
-        toast('Kopieren nicht moeglich.', true);
+        copyTextFallback(text, message);
       });
       return;
     }
-    toast('Kopieren nicht moeglich.', true);
+    copyTextFallback(text, message);
+  }
+
+  /** Meldet copyViaCommand() ueber denselben Toast wie den Erfolgspfad. */
+  function copyTextFallback(text, message) {
+    if (copyViaCommand(text)) {
+      toast(message || 'Jira-Markup kopiert.');
+    } else {
+      toast('Kopieren nicht moeglich.', true);
+    }
+  }
+
+  /**
+   * Rueckfall ohne Clipboard-API (reine http-Jira-Instanzen kennen
+   * navigator.clipboard nicht): verstecktes Textarea befuellen, markieren,
+   * mit dem alten execCommand kopieren, Knoten wieder entfernen.
+   */
+  function copyViaCommand(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.top = '-1000px';
+    area.style.left = '-1000px';
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    var success = false;
+    try {
+      success = document.execCommand('copy');
+    } catch (error) {
+      success = false;
+    }
+    document.body.removeChild(area);
+    return success;
   }
 
   function toast(message, isError) {
