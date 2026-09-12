@@ -527,6 +527,37 @@
     element.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  /**
+   * Schreibt ueber execCommand('insertText'), damit die Aenderung im
+   * Undo-Stack der Textarea landet (der native Value-Setter in
+   * setTextareaValue() loescht den Verlauf ersatzlos). Geht nur, solange das
+   * Feld wirklich fokussiert ist - execCommand wirkt sonst auf die falsche
+   * Auswahl oder gar nicht. Liefert true nur, wenn der Browser den Befehl
+   * bestaetigt UND der Wert danach wie erwartet aussieht; sonst (und bei
+   * jedem Wurf) faellt insertIntoTextarea() auf den nativen Setter zurueck.
+   */
+  function insertViaCommand(element, payload, expected, mode) {
+    if (!payload) return false;
+    if (element.ownerDocument.activeElement !== element) return false;
+    try {
+      if (mode === 'replace') {
+        element.select();
+      } else {
+        element.setSelectionRange(element.selectionStart, element.selectionEnd);
+      }
+      var ok = element.ownerDocument.execCommand('insertText', false, payload);
+      if (!ok || String(element.value || '') !== expected) return false;
+      // Kein input-Event nachschieben - execCommand feuert es selbst; Jiras
+      // eigene Aenderungserkennung braucht zusaetzlich das change-Event, das
+      // React/Backbone bei einem echten Tastaturereignis erst beim
+      // Verlassen des Feldes bekaemen.
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
   /** Fuegt Text an der Cursorposition einer Textarea ein. */
   function insertIntoTextarea(element, text, mode) {
     // Steht der Cursor noch im Feld, gilt die aktuelle Auswahl. Erst wenn der
@@ -539,7 +570,9 @@
     var end = element.selectionEnd;
 
     if (mode === 'replace' || start === null || start === undefined) {
-      setTextareaValue(element, text);
+      if (!insertViaCommand(element, text, text, mode)) {
+        setTextareaValue(element, text);
+      }
       element.setSelectionRange(text.length, text.length);
       // Sofort merken statt auf selectionchange zu warten - das kommt
       // asynchron und sieht das Feld womoeglich schon unfokussiert (naechster
@@ -552,7 +585,9 @@
     var after = value.slice(end);
     var payload = mode === 'block' ? asOwnLines(text, before, after) : text;
     var next = before + payload + after;
-    setTextareaValue(element, next);
+    if (!insertViaCommand(element, payload, next, mode)) {
+      setTextareaValue(element, next);
+    }
     var caret = start + payload.length;
     element.setSelectionRange(caret, caret);
     // Sofort merken statt auf selectionchange zu warten - das kommt
