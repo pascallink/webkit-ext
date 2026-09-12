@@ -1,3 +1,6 @@
 branch,session_id,model,input,output,cache_read,cache_write,cost_usd
 feature/issue-49-part-2,88612e92-6ed4-5c3b-8b68-50d671d7eed1,claude-opus-5,46,14097,2078309,74359,2.1354
 feature/issue-49-part-2,88612e92-6ed4-5c3b-8b68-50d671d7eed1,claude-sonnet-5,46,262,593111,34487,0.2076
+fix/issue-49-stdin-schalter,88612e92-6ed4-5c3b-8b68-50d671d7eed1,<synthetic>,0,0,0,0,0.0000
+fix/issue-49-stdin-schalter,88612e92-6ed4-5c3b-8b68-50d671d7eed1,claude-opus-5,128,53887,6513729,262726,7.0470
+fix/issue-49-stdin-schalter,88612e92-6ed4-5c3b-8b68-50d671d7eed1,claude-sonnet-5,92,5950,1075741,87392,0.4933
