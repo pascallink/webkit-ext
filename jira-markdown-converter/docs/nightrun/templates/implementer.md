@@ -37,7 +37,9 @@ Vorgehen:
    in den Body, letzte Zeile `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
    Deutsch ohne Umlaute (ue, ae, oe) in Commit, Kommentaren und UI-Texten.
 8. Nur wenn {{IS_LAST}} = true und Tests gruen: `git push -u origin {{BRANCH}}` und
-   `gh pr create --repo pascallink/webkit-ext --base {{BASE}} --head {{BRANCH}} --title "<erste Commit-Zeile>" --body "<Body>"`.
+   `gh pr create --repo pascallink/webkit-ext --draft --base {{BASE}} --head {{BRANCH}} --title "<erste Commit-Zeile>" --body "<Body>"`.
+   Der PR bleibt Draft; der Orchestrator hebt den Draft erst nach dem
+   Opus-Review auf.
    Body: je Issue eine Zeile `Closes #<nummer>`, dann drei bis sechs Zeilen
    was geaendert wurde und wie getestet, abschliessend die Zeile
    `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.

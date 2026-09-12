@@ -42,7 +42,8 @@ nennen am Ende je Issue PR, Status, Runden und die Merge-Reihenfolge.
 
 ## Leitplanken
 
-Hoechstens 3 Korrekturrunden je PR (Issue 17: 2), derselbe Fehler zweimal
+PRs entstehen als Draft und werden erst nach gruener CI und Opus-APPROVED
+auf "ready" gesetzt; geparkte PRs bleiben Draft. Hoechstens 3 Korrekturrunden je PR (Issue 17: 2), derselbe Fehler zweimal
 oder mehr als 90 Minuten je Issue fuehren zum Parken (PR als Draft plus
 Kommentar), drei geparkte Issues in Folge oder 9 Stunden Laufzeit beenden
 den Lauf. Geparkte Branches werden nie Base fuer den naechsten PR.
