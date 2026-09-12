@@ -1147,7 +1147,14 @@
     var body = [];
     var i = start;
     while (i < lines.length && /^ {0,3}>/.test(lines[i])) {
-      body.push(lines[i].replace(/^ {0,3}>[ \t]?/, ''));
+      // Verschachtelte Marker ('>>', '>>>' ...) komplett abstreifen, nicht nur
+      // eine Ebene - sonst sieht convertWith() weiter unten noch ein '>' und
+      // baut eine zweite Huelle um das Zitat (Issue #100).
+      var stripped = lines[i];
+      while (/^ {0,3}>/.test(stripped)) {
+        stripped = stripped.replace(/^ {0,3}>[ \t]?/, '');
+      }
+      body.push(stripped);
       i++;
     }
     // Lazy continuation: Folgezeilen ohne '>' gehoeren noch zum Zitat.

@@ -88,6 +88,10 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   test('Zitat', function () {
     html('> Zitat', '<blockquote>\n<p>Zitat</p>\n</blockquote>');
   });
+  test('verschachteltes Zitat bleibt eine Huelle', function () {
+    html('> a\n>> b\n>>> c',
+      '<blockquote>\n<p>a<br>\nb<br>\nc</p>\n</blockquote>');
+  });
   test('Hinweisblock wird Zitat mit Ueberschrift', function () {
     html('> [!WARNING]\n> Vorsicht',
       '<blockquote>\n<p><strong>Warnung</strong></p>\n<p>Vorsicht</p>\n</blockquote>');

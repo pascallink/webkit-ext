@@ -86,6 +86,10 @@ describe('Zitate, Trenner, Panels', function () {
   test('mehrzeiliges Zitat', function () {
     eq('> Zeile eins\n> Zeile zwei', '{quote}\nZeile eins\nZeile zwei\n{quote}');
   });
+  test('verschachteltes Zitat bleibt eine Huelle', function () {
+    eq('> a\n>> b\n>>> c', '{quote}\na\nb\nc\n{quote}');
+    eq('> a\n>\n>> b', '{quote}\na\n\nb\n{quote}');
+  });
   test('horizontale Linie', function () {
     eq('---', '----');
     eq('***', '----');
