@@ -15,10 +15,24 @@ var stubClipboard = require('../../../lib/dom').stubClipboard;
 
 var SERVER = fixtures.SERVER;
 var RTE = fixtures.RTE;
+var JIRA912 = fixtures.JIRA912;
 var CODE_BUTTON = '.jmd-fieldbar__btn:text-is("Code")';
 
 var hasPlaywright = browserLib.hasPlaywright();
 var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
+
+/**
+ * Beschreibungsfeld im JIRA912-Nachbau oeffnen, Jira wechselt sofort in den
+ * visuellen Modus. Nach dem Muster von openDescriptionVisual in
+ * test/modules/editlock/browser/visual.test.js - nur bis der Rahmen
+ * angehaengt ist warten, nicht auf die Feldleiste (die kommt separat aus dem
+ * 400-ms-Scan in content.js).
+ */
+async function openDescriptionVisual(page) {
+  await page.click('#description-val');
+  await page.waitForSelector('#description-val.active iframe.tox-edit-area__iframe',
+    { state: 'attached', timeout: 4000 });
+}
 
 describe('Code einfuegen', { skip: !hasPlaywright }, function () {
   test('Knopf an der Feldleiste oeffnet den Dialog', async function () {
@@ -324,6 +338,37 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     await page.click('.jmd-dialog [data-code-action="insert"]');
     assert.ok(await page.locator('.jmd-dialog--open').count(), 'Dialog haette offen bleiben muessen');
     assert.strictEqual(await page.inputValue('#description'), '');
+    await page.close();
+  });
+});
+
+describe('Code im visuellen Modus (JIRA912)', { skip: !hasPlaywright }, function () {
+  test('Codeblock kommt als {code:java} im Wiki an', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, JIRA912);
+    await openDescriptionVisual(page);
+    // Feldleiste kommt erst mit dem 400-ms-Scan aus content.js.
+    await page.waitForSelector('.jmd-fieldbar', { timeout: 4000 });
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.selectOption('#jmd-code-language', 'java');
+    await page.fill('#jmd-code-input', 'int x = 1;\nreturn x;');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    // Umschalter auf Text, der Nachbau synct dabei aus dem Rahmen zurueck.
+    await page.click('.editor-toggle-tabs li[data-mode="source"] button');
+    var value = await page.inputValue('#description');
+    assert.ok(value.indexOf('{code:java}\nint x = 1;\nreturn x;\n{code}') !== -1,
+      'kein Codeblock im Wiki-Text angekommen: ' + value);
+    assert.ok(value.indexOf('{{') === -1,
+      'Codeblock kam als Inline-Monospace statt als Codeblock an: ' + value);
+    // Nebenbefund: keine Zeile darf nur aus einem geschuetzten Leerzeichen
+    // bestehen (Ueberbleibsel eines ausgepackten Blocks). Ohne rohe
+    // Anfuehrungszeichen im Regex-Literal, sonst desynct der Quote-Scanner
+    // aus package/isolation.test.js.
+    var strayProtectedSpace = value.split('\n').some(function (line) {
+      return /^ $/.test(line);
+    });
+    assert.strictEqual(strayProtectedSpace, false,
+      'eine Zeile besteht nur aus einem geschuetzten Leerzeichen: ' + value);
     await page.close();
   });
 });
