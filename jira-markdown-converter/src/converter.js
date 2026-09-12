@@ -129,8 +129,17 @@
   // Im Zweifel wird maskiert: ein ueberfluessiger Backslash bleibt in Jira
   // unsichtbar, ein fehlender faerbt den Text rot oder loest ungewolltes
   // Markup aus.
-  var JIRA_ESCAPE_CHARS = '{}[]-~^+?';
-  var JIRA_UNCONDITIONAL_ESCAPE_RE = /[{}\[\]]/g;
+  // Ausnahmen von der bedingungslosen Klammer-Maskierung - Jira-eigene
+  // Kurzformen, die sonst ihre Funktion verlieren wuerden:
+  //   [~name]   Erwaehnung eines Benutzers.
+  //   [^datei]  Anhangverweis.
+  //   [#anker]  Ankerlink.
+  var JIRA_ESCAPE_CHARS = '{}[]-~^+';
+  var JIRA_LINK_FORM_RE = /\[[~^#][^\[\]\n]*\]/;
+  var JIRA_UNCONDITIONAL_ESCAPE_RE = new RegExp(
+    JIRA_LINK_FORM_RE.source + '|[{}\\[\\]]',
+    'g'
+  );
   var JIRA_PAIRED_MARKERS = ['-', '~', '^', '+', '??'];
 
   function isJiraEscapeChar(ch) {
@@ -194,9 +203,12 @@
       //    Nicht-Leerzeichen-Nachbarn, das duerfen die gleich danach
       //    eingefuegten Backslashes vor {}/[] nicht durcheinanderbringen.
       text = escapePairedMarks(text);
-      // b) danach die unbedingten Zeichen {}/[].
-      return text.replace(JIRA_UNCONDITIONAL_ESCAPE_RE, function (ch) {
-        return '\\' + ch;
+      // b) danach die unbedingten Zeichen {}/[] - ausser bei den Jira-
+      //    Kurzformen [~...], [^...] und [#...] (siehe JIRA_LINK_FORM_RE),
+      //    die unveraendert bleiben muessen.
+      return text.replace(JIRA_UNCONDITIONAL_ESCAPE_RE, function (match) {
+        if (match.length > 1) return match;
+        return '\\' + match;
       });
     },
     mark: function (kind) {
