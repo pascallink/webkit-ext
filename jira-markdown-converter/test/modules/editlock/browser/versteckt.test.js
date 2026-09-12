@@ -85,6 +85,31 @@ describe('Einfrieren gegen ein verstecktes Feld (JIRA912)', { skip: !hasPlaywrig
     await page.close();
   });
 
+  test('verstecktes, geaendertes Feld fragt beim Verlassen nicht mehr', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, JIRA912);
+    await openComment(page);
+    await page.keyboard.type('Wichtiger Kommentar');
+    await page.waitForFunction(function () {
+      return window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
+
+    await page.evaluate(function () {
+      document.getElementById('issue-comment-add').hidden = true;
+    });
+    await page.waitForFunction(function () {
+      return !window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
+
+    var asked = await page.evaluate(function () {
+      var event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    assert.strictEqual(asked, false, 'ein verstecktes Feld haette nicht mehr fragen duerfen');
+    await page.close();
+  });
+
   test('geoeffnetes Kommentarfeld bleibt gesperrt, solange es sichtbar ist', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, JIRA912);

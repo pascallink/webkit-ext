@@ -198,10 +198,13 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
-  test('vor dem Verlassen der Seite wird gefragt, solange eingefroren ist', async function () {
+  test('vor dem Verlassen wird nur bei geaendertem Feld gefragt', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
+    await page.waitForFunction(function () {
+      return window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
     var asks = function () {
       return page.evaluate(function () {
         var event = new Event('beforeunload', { cancelable: true });
@@ -209,7 +212,9 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
         return event.defaultPrevented;
       });
     };
-    assert.strictEqual(await asks(), true, 'es wurde nicht nachgefragt');
+    assert.strictEqual(await asks(), false, 'direkt nach dem Einfrieren haette noch nichts geaendert sein duerfen');
+    await page.fill('#description', 'Neuer Stand');
+    assert.strictEqual(await asks(), true, 'nach der Aenderung haette gefragt werden muessen');
     await page.click('.jmd-fieldbar__btn--lock');
     assert.strictEqual(await asks(), false, 'nach dem Oeffnen darf nichts mehr fragen');
     await page.close();
