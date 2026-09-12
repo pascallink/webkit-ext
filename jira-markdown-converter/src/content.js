@@ -1436,6 +1436,30 @@
       target = field;
       EditLock.lock(field);
     }, true);
+    // Jira fokussiert den Rahmen beim Oeffnen selbst, noch bevor dieser
+    // Wachposten haengt - der focusin ist dann laengst durch (Issue #107).
+    // Nur ein wirklich fokussierter Rahmen friert hier sofort ein; ein
+    // Dokument ohne fokussiertes Element meldet laut DOM ebenfalls
+    // activeElement === body, das ist keine Fokuspruefung. Der Fokuswechsel
+    // auf einen (noch) nicht fokussierten Rahmen kommt danach ueber
+    // lockFrameFromEvent() am Fenster.
+    if (frame.ownerDocument.activeElement === frame) {
+      target = field;
+      EditLock.lock(field);
+    }
+  }
+
+  /**
+   * Fokus-Wachposten am Fenster: faengt den Fokuswechsel ueber die
+   * iframe-Grenze ab, bevor `watchRichTextFrames()` per Debounce zum Zuge
+   * kommt (Issue #107). `Editors.fieldForFrame()` liefert nur fuer einen
+   * Rich-Text-Rahmen ein Feld, sonst null.
+   */
+  function lockFrameFromEvent(event) {
+    var field = Editors.fieldForFrame(event.target);
+    if (!field) return;
+    target = field;
+    EditLock.lock(field);
   }
 
   var scanTimer = null;
@@ -1457,6 +1481,35 @@
     }, 400);
   }
 
+  /**
+   * Reagiert sofort auf neu eingefuegte Rahmen, statt auf den 400-ms-Scan zu
+   * warten (Issue #107) - `watchRichTextFrames()` ist ueber
+   * `frame.dataset.jmdWatched` idempotent, ein zusaetzlicher Aufruf hier
+   * kostet daher nichts. Der Debounce bleibt fuer alles andere unveraendert.
+   */
+  function onMutations(records) {
+    var scanned = false;
+    for (var i = 0; i < records.length && !scanned; i++) {
+      var added = records[i].addedNodes;
+      for (var j = 0; j < added.length; j++) {
+        var node = added[j];
+        if (node.nodeType !== 1) continue;
+        var hasFrame = node.tagName === 'IFRAME'
+          || (node.querySelector && node.querySelector('iframe'));
+        if (hasFrame) {
+          try {
+            watchRichTextFrames();
+          } catch (error) {
+            /* Jira baut viel um - Fehler hier nie hochblubbern lassen */
+          }
+          scanned = true;
+          break;
+        }
+      }
+    }
+    scheduleScan();
+  }
+
   function start() {
     document.addEventListener('paste', onPaste, true);
     document.addEventListener('focusin', function (event) {
@@ -1467,14 +1520,30 @@
       EditLock.lock(field);
     }, true);
 
+    // Fokuswechsel ueber die iframe-Grenze: faengt den Rahmen ab, wenn Jira
+    // ihn beim Oeffnen selbst fokussiert (Issue #107). Am Fenster in der
+    // Erfassungsphase, damit der Fokuswechsel auch dann ankommt, wenn
+    // `editlock.js` ihn fuer ein bereits gesperrtes Feld stoppt - siehe
+    // `EditLock.watch()` unten.
+    window.addEventListener('focus', lockFrameFromEvent, true);
+    window.addEventListener('focusin', lockFrameFromEvent, true);
+
     // Solange ein Feld eingefroren ist, kommen die gestoppten Ereignisse
     // nicht mehr bis zu unseren eigenen Wachposten am Dokument. Sie bekommen
     // sie deshalb von der Sperre gereicht - sonst bliebe das Vorlagenmenue
-    // offen und die Feldauswahl taub.
+    // offen und die Feldauswahl taub. `editlock.js` laedt laut
+    // `manifest.json` vor `content.js` und ist damit am Fenster zuerst
+    // registriert - ohne diese Weiterleitung saehe der Wachposten oben den
+    // Fokuswechsel in einen bereits gesperrten Rahmen nie.
     EditLock.watch(function (event) {
-      if (event.type !== 'mousedown') return;
-      onMenuOutside(event);
-      if (pickingTarget) onPickClick(event);
+      if (event.type === 'mousedown') {
+        onMenuOutside(event);
+        if (pickingTarget) onPickClick(event);
+        return;
+      }
+      if (event.type === 'focus' || event.type === 'focusin') {
+        lockFrameFromEvent(event);
+      }
     });
 
     // Cursorposition festhalten, solange das Feld sie noch kennt. Sobald der
@@ -1491,7 +1560,7 @@
     attachFieldButtons();
     watchRichTextFrames();
 
-    var observer = new MutationObserver(scheduleScan);
+    var observer = new MutationObserver(onMutations);
     observer.observe(document.documentElement, { childList: true, subtree: true });
 
     if (chrome.runtime && chrome.runtime.onMessage) {

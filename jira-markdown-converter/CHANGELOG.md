@@ -21,6 +21,9 @@ festgehalten. Das Format orientiert sich an
   besteht (Issue #88).
 - Eingefuegter Text geht bei einem Fehler in der Umwandlung nicht mehr
   verloren.
+- Im visuellen Editor (Rich Text) ist die Beschreibung schon beim ersten
+  Oeffnen eingefroren; ein Klick daneben speichert den halb getippten Text
+  nicht mehr (Issue #107).
 
 ## [1.3.0] - 2026-09-07
 
