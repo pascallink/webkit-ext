@@ -9,6 +9,16 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/costs-update.mjs\""
+          }
+        ]
+      }
     ]
   }
 }
