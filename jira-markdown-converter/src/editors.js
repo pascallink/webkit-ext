@@ -59,7 +59,11 @@
     '[aria-label*="Suche" i]',
     '[aria-label*="search" i]',
     '[placeholder*="Suche" i]',
-    '[placeholder*="search" i]'
+    '[placeholder*="search" i]',
+    // Picker-Textareas (Labels, Versionen, Verknuepfungen ...): keine
+    // Wiki-Bearbeitung, sondern eine Auswahl mit Vorschlagsliste (#111)
+    '.jira-multi-select textarea',
+    'textarea[role="combobox"]'
   ].join(',');
 
   /* ------------------------------------------------------------------ *

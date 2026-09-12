@@ -229,9 +229,11 @@ wird. Fuer Kommentar- und Umgebungsfelder gilt dasselbe.
 
 Solange das Schloss zu ist:
 
-* Ein Klick neben das Feld schliesst es nicht mehr – und die Seite reagiert
-  daneben auch sonst nicht auf Klicks. Genau das ist das Einfrieren: der
-  Vorgang bleibt so stehen, wie er ist.
+* Ein Klick neben das Feld schliesst es nicht mehr – Jira schliesst das Feld
+  nicht mehr, Toolbar, Dialoge, Speichern, Abbrechen und Escape ausserhalb des
+  Feldes bleiben bedienbar; nur Escape im Feld selbst ist gesperrt, solange das
+  Schloss zu ist. Der Vorgang bleibt so stehen, wie er ist.
+* Kleine Auswahlfelder (Labels, Versionen, Picker) frieren nie ein.
 * `Escape` bricht das Bearbeiten nicht ab.
 * Wer die Seite verlaesst oder neu laedt, wird vom Browser gefragt, ob er das
   wirklich will.
