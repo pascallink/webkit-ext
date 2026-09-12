@@ -16,8 +16,9 @@ permissions:
 
 # Zwei schnell aufeinander folgende Merges duerfen sich nicht ins Gehege
 # kommen - der zweite wartet, statt auf veraltetem Stand zu pushen.
+# Dieselbe Gruppe nutzt cost-report.yml: beide pushen auf main.
 concurrency:
-  group: version-bump
+  group: main-push
   cancel-in-progress: false
 
 jobs:
