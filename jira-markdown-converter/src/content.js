@@ -1200,18 +1200,81 @@
       if (field.dataset[BUTTON_FLAG]) continue;
       var box = Editors.isRichTextActive(field) ? Editors.richTextFrame(field) : field;
       var rect = box.getBoundingClientRect();
-      // Nur an echte Eingabebereiche, nicht an winzige Einzeiler.
-      if (rect.height < 48) continue;
+      // Nur an echte Eingabebereiche, nicht an winzige Einzeiler. Statt das
+      // Feld einfach zu uebergehen, beobachtet watchForGrowth() es weiter -
+      // sonst blieben Faelle ohne DOM- oder Attributaenderung (z. B. ein
+      // Feld mit vh-Hoehe nach einem Fensterwechsel) fuer immer ohne Leiste.
+      if (rect.height < 48) {
+        watchForGrowth(box, field);
+        continue;
+      }
       field.dataset[BUTTON_FLAG] = '1';
       addButtonBar(field);
     }
   }
 
+  // Beobachter fuer uebersprungene Felder (Issue #101 Sub-Task 2): je Feld
+  // hoechstens ein Eintrag, ueber field.dataset.jmdGrowthWatched abgesichert.
+  // Ein Array statt einer Map genuegt - die Liste bleibt so lang wie es
+  // uebersprungene Felder gibt, also klein.
+  var growthWatchers = [];
+
+  /**
+   * Haengt einen ResizeObserver an ein zu kleines Feld, statt es beim naechsten
+   * Scan erneut zu pruefen. Faengt reine Groessenwechsel ab, die weder einen
+   * childList- noch einen Attribut-Eintrag im MutationObserver ausloesen (z. B.
+   * vh-Einheiten nach einem Fensterwechsel oder ein AJAX-Dialog, der fertig
+   * gelayoutet nachgeliefert wird). Ohne ResizeObserver im Browser bleibt das
+   * alte Verhalten (kein zweiter Versuch) unveraendert erhalten.
+   */
+  function watchForGrowth(box, field) {
+    if (typeof ResizeObserver !== 'function') return;
+    if (field.dataset.jmdGrowthWatched) return;
+    field.dataset.jmdGrowthWatched = '1';
+
+    var entry = { field: field, observer: null };
+    entry.observer = new ResizeObserver(function () {
+      try {
+        if (box.getBoundingClientRect().height < 48) return;
+        stopWatchingGrowth(entry);
+        // Nicht direkt anbauen - der Debounce bleibt die einzige Stelle,
+        // an der die Leiste entsteht.
+        scheduleScan();
+      } catch (error) {
+        /* Jira baut viel um - Fehler hier nie hochblubbern lassen */
+      }
+    });
+    entry.observer.observe(box);
+    growthWatchers.push(entry);
+  }
+
+  function stopWatchingGrowth(entry) {
+    entry.observer.disconnect();
+    delete entry.field.dataset.jmdGrowthWatched;
+    var index = growthWatchers.indexOf(entry);
+    if (index !== -1) growthWatchers.splice(index, 1);
+  }
+
+  /**
+   * Loest Beobachtungen fuer Felder, die Jira beim Umbau des DOM bereits
+   * entfernt hat - sonst haeufen sich bei jedem Neuaufbau weitere
+   * ResizeObserver an, ohne dass ihr Feld je wieder waechst.
+   */
+  function cleanupGrowthWatchers() {
+    for (var i = growthWatchers.length - 1; i >= 0; i--) {
+      if (!growthWatchers[i].field.isConnected) {
+        stopWatchingGrowth(growthWatchers[i]);
+      }
+    }
+  }
+
   /**
    * Jira Server baut beim Inline-Bearbeiten ganze Feldbloecke neu auf. Leisten,
-   * deren Feld verschwunden ist, muessen mit weg.
+   * deren Feld verschwunden ist, muessen mit weg - ebenso verwaiste
+   * Groessen-Beobachter aus watchForGrowth().
    */
   function removeOrphanBars() {
+    cleanupGrowthWatchers();
     var bars = document.querySelectorAll('.jmd-fieldbar');
     for (var i = 0; i < bars.length; i++) {
       var field = bars[i].__jmdField;

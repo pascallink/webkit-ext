@@ -92,4 +92,36 @@ describe('Leiste an spaet gewachsenen Feldern', { skip: !hasPlaywright }, functi
 
     await page.close();
   });
+
+  test('Leiste erscheint nach Fensterwechsel ohne DOM-Aenderung', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await page.waitForSelector('.jmd-fieldbar');
+
+    // Klein genug, dass 4vh sicher unter 48px bleibt.
+    await page.setViewportSize({ width: 800, height: 400 });
+
+    await page.evaluate(function () {
+      var group = document.createElement('div');
+      group.className = 'field-group';
+      var textarea = document.createElement('textarea');
+      textarea.id = 'jmd-vh';
+      textarea.setAttribute('style', 'height: 4vh');
+      group.appendChild(textarea);
+      document.body.appendChild(group);
+    });
+    await page.waitForTimeout(600);
+
+    var vorZustand = await page.evaluate(function () {
+      var field = document.getElementById('jmd-vh');
+      return !!(field && field.dataset.jmdButtonAttached);
+    });
+    assert.strictEqual(vorZustand, false, 'zu kleines Feld hat schon eine Markierung bekommen');
+
+    // Grosser Sprung, kein einziger DOM-Eintrag - nur die Fensterhoehe wechselt.
+    await page.setViewportSize({ width: 800, height: 2000 });
+    await hatLeiste(page, 'jmd-vh');
+
+    await page.close();
+  });
 });
