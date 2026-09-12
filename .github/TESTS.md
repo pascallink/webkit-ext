@@ -39,8 +39,10 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 
 `mapping` bekommt seinen Ordner erst mit dem jeweiligen Feature -
 die Zeile hier reserviert nur den Namen, damit ein neues Modul nicht zufaellig
-kollidiert. `otrs` - Quellen stehen nicht im Manifest (Verdrahtung folgt in #113),
-die Tests laden sie ueber `readSource()`; `SOURCES`/`STYLES` greifen dort nicht.
+kollidiert. `otrs` - Quellen stehen seit dem OTRS-Link-Helfer (1.4.0, Issue #17)
+wieder im Manifest, laufen aber nicht in `STANDALONE_FILES` mit (nur im echten
+Jira-Vorgang sinnvoll); die Modul-Tests laden sie unabhaengig davon weiter
+ueber `readSource()`.
 Aktuelle Testzahlen: `node test/run.js --list` (im Projektordner).
 
 ## Verzeichnisstruktur
@@ -212,6 +214,27 @@ Zwei Dinge daran sind Absicht:
   Playwright-Version also beide Stellen - und dann braucht das Environment
   einmalig **Network access: Custom** mit den beiden Download-Hosts oben, sonst
   meldet das Script genau das.
+
+## Root-Skripte
+
+Tests fuer die Skripte in der Repo-Wurzel liegen unter `scripts/test/`, ein
+`*.test.mjs` je Skript. Sie brauchen keine Dependencies - nur `node:`-Builtins -
+und laufen getrennt von den Projekt-Tests.
+
+| Ordner | Quelle | Tests | Issue |
+| --- | --- | --- | --- |
+| `scripts/test/` | `scripts/costs-update.mjs` | 17 Node | #49 |
+
+Runner: `npm test` aus der Repo-Wurzel, dahinter
+`node --test scripts/test/*.test.mjs`. Das Muster muss ausgeschrieben stehen:
+ein blosses Verzeichnisargument (`node --test scripts/test`) scheitert ab
+Node 21 mit `MODULE_NOT_FOUND`, die Shell-Expansion laeuft unter Node 20 wie
+unter Node 22.
+
+Die Struktur des Repos pruefen die Projekt-Tests, nicht diese Ebene - fuer
+`jira-markdown-converter` sitzt das in `test/modules/package/`. Ein zweiter,
+ungefilterter Satz Struktur-Tests in der Wurzel widerspricht der Regel "Nie
+global, immer gefiltert" aus der Root-`CLAUDE.md`.
 
 ## Neues Modul anlegen
 

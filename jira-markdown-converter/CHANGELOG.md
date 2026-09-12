@@ -9,10 +9,11 @@ festgehalten. Das Format orientiert sich an
 
 ### Geaendert
 
-- Die vier OTRS-Dateien (`otrslink`, `jiraui`, `otrsflow`, `otrsdialog`)
-  werden bis zu ihrer Verdrahtung nicht mehr auf jeder Jira-Seite geladen;
-  sie bleiben im Repo und fertig getestet, stehen aber nicht mehr in
-  `manifest.json` (Issue #103).
+- Die vier OTRS-Dateien (`otrslink`, `jiraui`, `otrsflow`, `otrsdialog`) waren
+  zwischenzeitlich aus `manifest.json` genommen, weil sie noch nicht
+  verdrahtet waren (Issue #103); mit dem OTRS-Link-Helfer aus 1.4.0 stehen
+  sie wieder in `manifest.json` und `CONTENT_FILES`. Abweichende Selektoren
+  gegen die echte Jira-9.12.2-Instanz bleiben als offener Befund in Issue #26.
 - Aus Azure DevOps kopierte Bildgroessen, Anhangspfade, TOC-Marker,
   GUID-Erwaehnungen und fremde HTML-Tags landen nicht mehr roh im Ticket
   (Issue #99).
@@ -78,6 +79,20 @@ festgehalten. Das Format orientiert sich an
   die Liste zu beenden (Issue #100).
 - Setext-Ueberschriften (Titel mit Strichreihe darunter) werden als
   Ueberschriften erkannt (Issue #100).
+
+## [1.4.0] - 2026-09-12
+
+### Hinzugefuegt
+
+- OTRS-Link-Helfer: nimmt einen OTRS-Verweis als Markdown-Link, HTML-Anker
+  oder Rohtext mit eingebetteter URL entgegen und pflegt ihn nach *Absenden*
+  an drei Stellen des Jira-Vorgangs ein - Label, Custom Field "Kunden
+  Referenz" und Web-Link. Erreichbar ueber einen Knopf im Panel und in der
+  Feldleiste, abschaltbar in den Einstellungen (*OTRS-Link-Helfer*), Feldname
+  der Kundenreferenz dort ebenfalls einstellbar. Zielumgebung ausschliesslich
+  Jira Server / Data Center 9.12 LTS (Issue #17).
+- War die Kundenreferenz bereits belegt, zeigt eine laenger stehende Warnung
+  den ueberschriebenen alten Wert.
 
 ## [1.3.6] - 2026-09-11
 

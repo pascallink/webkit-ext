@@ -1,0 +1,122 @@
+name: Cost Report
+
+# Verbucht die Session-Kosten eines gemergten Branches: Job Summary,
+# PR-Kommentar, Kostenblock in PR- und Issue-Beschreibung, Changelog-Zeile
+# je beruehrtem Projekt, Historie - und raeumt costs.csv/tokens.csv auf.
+# Die Logik steckt in scripts/costs-merge.mjs, nicht in diesem YAML.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  # Der Kostenblock wandert auch in die Beschreibung des per "Closes #N"
+  # verlinkten Issues - pull-requests:write deckt nur den PR ab.
+  issues: write
+
+jobs:
+  aggregate:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    # version-bump.yml pusht ebenfalls auf main - beide Workflows pushen auf
+    # denselben Branch, deshalb dieselbe Gruppe main-push. Auf Job-Ebene
+    # deklariert, damit ein durch "if" uebersprungener Job (geschlossener,
+    # nicht gemergter PR) keinen Slot der Gruppe belegt.
+    concurrency:
+      group: main-push
+      cancel-in-progress: false
+    steps:
+      # Der Ziel-Branch, nicht der Merge-Ref: die Kostenzeilen des Branches
+      # liegen nach dem Merge dort, und dorthin geht auch der Bot-Commit.
+      - name: Checkout des Ziel-Branches
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Kosten des Branches verbuchen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          MERGED_AT: ${{ github.event.pull_request.merged_at }}
+        run: node scripts/costs-merge.mjs
+
+      - name: Commit und Push
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -eo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stats
+          # Kein Pathspec fuer die Changelogs: gaebe es keinen Treffer,
+          # brechen "git add" und damit der Job ab.
+          changelogs=$(git ls-files --modified -- '*/CHANGELOG.md')
+          if [ -n "$changelogs" ]; then
+            printf '%s\n' "$changelogs" | xargs git add --
+          fi
+          if git diff --cached --quiet; then
+            echo "Nichts zu verbuchen - kein Commit."
+            exit 0
+          fi
+          bot_msg="chore(repo): kosten des gemergten branches verbuchen [skip ci]"
+          git commit -m "$bot_msg"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin "$BASE_REF"; then
+              # stats/costs.csv und stats/tokens.csv stehen in .gitattributes
+              # als merge=union - der Treiber behaelt bei jedem Rebase-
+              # Konflikt beide Seiten und stellt damit von costs-merge.mjs
+              # geloeschte Zeilen wieder her. Vor dem Push deshalb erneut
+              # pruefen, ob noch Datenzeilen des verbuchten Branches drin
+              # stehen, und diese in denselben Commit ziehen. Ohne diese
+              # Pruefung wuerde history.csv den Branch als verbucht fuehren,
+              # obwohl die Rohzeilen bestehen bleiben - historyHasEntry()
+              # in costs-merge.mjs raeumt sie dann nie wieder auf.
+              cleanup=0
+              for csv in stats/costs.csv stats/tokens.csv; do
+                if [ -f "$csv" ]; then
+                  awk -F',' -v b="$HEAD_REF" 'NR==1 || $1!=b' "$csv" > "${csv}.tmp"
+                  if ! cmp -s "$csv" "${csv}.tmp"; then
+                    mv "${csv}.tmp" "$csv"
+                    git add "$csv"
+                    cleanup=1
+                  else
+                    rm -f "${csv}.tmp"
+                  fi
+                fi
+              done
+              if [ "$cleanup" -eq 1 ]; then
+                # Nur den eigenen Commit nachbessern. Haette der Rebase ihn
+                # verworfen ("patch contents already upstream"), stuende hier
+                # ein fremder Commit - den zu amenden wuerde fremde Historie
+                # umschreiben.
+                if [ "$(git log -1 --pretty=%s)" = "$bot_msg" ]; then
+                  git commit --amend --no-edit
+                else
+                  git commit -m "$bot_msg"
+                fi
+              fi
+              if git push origin "HEAD:$BASE_REF"; then
+                echo "Push im Versuch $attempt erfolgreich."
+                exit 0
+              fi
+            fi
+            # Ein abgebrochener Rebase blockiert sonst den naechsten Versuch.
+            git rebase --abort 2>/dev/null || true
+            echo "Push-Versuch $attempt fehlgeschlagen - neuer Anlauf."
+            sleep $((attempt * 5))
+          done
+          echo "Push nach drei Versuchen fehlgeschlagen." >&2
+          exit 1

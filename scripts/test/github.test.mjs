@@ -1,0 +1,176 @@
+// Tests fuer scripts/lib/github.js. Kein Netz: globales fetch wird je Test
+// durch eine Attrappe ersetzt, die den Aufruf mitschreibt.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+
+import gh from '../lib/github.js';
+
+const { comment, get, listComments, markerPair, mergeIntoBody, patchBody } = gh;
+
+function withFetch(handler, fn) {
+  const originalFetch = globalThis.fetch;
+  const originalToken = process.env.GITHUB_TOKEN;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({ url, init });
+    return handler(url, init, calls.length);
+  };
+  process.env.GITHUB_TOKEN = 'test-token';
+  return Promise.resolve(fn(calls)).finally(() => {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = originalToken;
+  });
+}
+
+function json(body, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+  };
+}
+
+// --- mergeIntoBody --------------------------------------------------------
+
+test('markerPair baut Start und Ende aus dem Namen', () => {
+  assert.deepEqual(markerPair('cost-summary'), {
+    start: '<!-- cost-summary:start -->',
+    end: '<!-- cost-summary:end -->',
+  });
+  const explicit = { start: '<a>', end: '</a>' };
+  assert.equal(markerPair(explicit), explicit);
+});
+
+test('mergeIntoBody haengt an einen bestehenden Body an', () => {
+  const result = mergeIntoBody('Bestehender Text.\n', 'Block', 'cost-summary');
+  assert.equal(
+    result,
+    'Bestehender Text.\n\n<!-- cost-summary:start -->\nBlock\n<!-- cost-summary:end -->',
+  );
+});
+
+test('mergeIntoBody ohne Body liefert nur den Block', () => {
+  const expected = '<!-- cost-summary:start -->\nBlock\n<!-- cost-summary:end -->';
+  assert.equal(mergeIntoBody(null, 'Block', 'cost-summary'), expected);
+  assert.equal(mergeIntoBody('   \n', 'Block', 'cost-summary'), expected);
+});
+
+test('mergeIntoBody ersetzt den Block statt ihn zu doppeln', () => {
+  const once = mergeIntoBody('Text', 'A', 'cost-summary');
+  const twice = mergeIntoBody(once, 'B', 'cost-summary');
+  assert.equal((twice.match(/<!-- cost-summary:start -->/g) || []).length, 1);
+  assert.match(twice, /<!-- cost-summary:start -->\nB\n<!-- cost-summary:end -->/);
+  assert.match(twice, /^Text\n\n/);
+  // Zweiter Lauf mit identischem Inhalt aendert nichts mehr.
+  assert.equal(mergeIntoBody(twice, 'B', 'cost-summary'), twice);
+});
+
+test('mergeIntoBody laesst Text hinter dem Block stehen', () => {
+  const body = 'Kopf\n\n<!-- m:start -->\nalt\n<!-- m:end -->\n\nFuss';
+  const result = mergeIntoBody(body, 'neu', 'm');
+  assert.equal(result, 'Kopf\n\n<!-- m:start -->\nneu\n<!-- m:end -->\n\nFuss');
+});
+
+test('mergeIntoBody haengt an, wenn nur der Startmarker dasteht', () => {
+  const result = mergeIntoBody('Kopf\n<!-- m:start -->', 'neu', 'm');
+  assert.match(result, /<!-- m:start -->\nneu\n<!-- m:end -->$/);
+});
+
+test('mergeIntoBody erzeugt fuer pr-summary exakt die bisherige Form', () => {
+  // Bedingung des Sub-Tasks: pr-summary.js verhaelt sich nach der
+  // Extraktion unveraendert.
+  const summary = '## Kurz\n\n- Punkt';
+  const block = `## Zusammenfassung (automatisch generiert)\n\n${summary}`;
+  const legacy =
+    '<!-- haiku-summary:start -->\n' +
+    `## Zusammenfassung (automatisch generiert)\n\n${summary}\n` +
+    '<!-- haiku-summary:end -->';
+  assert.equal(mergeIntoBody('', block, 'haiku-summary'), legacy);
+  assert.equal(mergeIntoBody('Alter Body', block, 'haiku-summary'), `Alter Body\n\n${legacy}`);
+});
+
+// --- API-Helfer -----------------------------------------------------------
+
+test('get liest den PR ueber den pulls-Endpunkt', () =>
+  withFetch(
+    () => json({ body: 'hallo' }),
+    async (calls) => {
+      const pr = await get('o/r', 44, 'pulls');
+      assert.equal(pr.body, 'hallo');
+      assert.equal(calls[0].url, 'https://api.github.com/repos/o/r/pulls/44');
+      assert.equal(calls[0].init.headers.authorization, 'Bearer test-token');
+    },
+  ));
+
+test('patchBody trifft je nach Art pulls oder issues', () =>
+  withFetch(
+    () => json({}),
+    async (calls) => {
+      await patchBody('o/r', 44, 'neu', 'pulls');
+      await patchBody('o/r', 49, 'neu', 'issues');
+      assert.equal(calls[0].url, 'https://api.github.com/repos/o/r/pulls/44');
+      assert.equal(calls[0].init.method, 'PATCH');
+      assert.deepEqual(JSON.parse(calls[0].init.body), { body: 'neu' });
+      assert.equal(calls[1].url, 'https://api.github.com/repos/o/r/issues/49');
+    },
+  ));
+
+test('comment haengt die Attributions-Fussnote an', () =>
+  withFetch(
+    () => json({}),
+    async (calls) => {
+      await comment('o/r', 44, 'Kostenblock');
+      const body = JSON.parse(calls[0].init.body).body;
+      assert.equal(calls[0].url, 'https://api.github.com/repos/o/r/issues/44/comments');
+      assert.match(body, /^Kostenblock\n\n---\n_Generated by \[Claude Code\]\(https:\/\/claude\.ai\/code\)_$/);
+    },
+  ));
+
+test('comment doppelt eine vorhandene Fussnote nicht', () =>
+  withFetch(
+    () => json({}),
+    async (calls) => {
+      await comment('o/r', 44, `Text\n\n${gh.ATTRIBUTION}`);
+      const body = JSON.parse(calls[0].init.body).body;
+      assert.equal((body.match(/_Generated by \[Claude Code\]/g) || []).length, 1);
+    },
+  ));
+
+test('listComments blaettert bis zur unvollstaendigen Seite', () =>
+  withFetch(
+    (url, init, call) => json(call === 1 ? new Array(100).fill({ body: 'x' }) : [{ body: 'y' }]),
+    async (calls) => {
+      const all = await listComments('o/r', 44);
+      assert.equal(all.length, 101);
+      assert.equal(calls.length, 2);
+      assert.match(calls[1].url, /page=2$/);
+    },
+  ));
+
+test('api wirft mit Status und Pfad', () =>
+  withFetch(
+    () => ({ ok: false, status: 403, text: async () => 'Resource not accessible' }),
+    async () => {
+      await assert.rejects(
+        () => patchBody('o/r', 49, 'neu', 'issues'),
+        /GitHub API 403 bei \/repos\/o\/r\/issues\/49/,
+      );
+    },
+  ));
+
+test('api ohne Token wirft, bevor es das Netz beruehrt', async () => {
+  const originalToken = process.env.GITHUB_TOKEN;
+  const originalFetch = globalThis.fetch;
+  delete process.env.GITHUB_TOKEN;
+  globalThis.fetch = async () => {
+    throw new Error('fetch haette nicht laufen duerfen');
+  };
+  try {
+    await assert.rejects(() => get('o/r', 1), /Missing env var: GITHUB_TOKEN/);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken !== undefined) process.env.GITHUB_TOKEN = originalToken;
+  }
+});
