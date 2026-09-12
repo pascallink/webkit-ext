@@ -37,6 +37,12 @@ vorinstallierte Chromium zur gepinnten Playwright-Version passt
   Kaeme ein Runner dazu: `turbo run <task> --filter=<projekt>` bzw.
   `nx run <projekt>:<task>`. Keine `packages/`-Ebene.
 
+### Architekturdiagramme
+
+Archify-Skill unter `.claude/skills/archify/` (MIT, `tt-a1i/archify`). Je Projekt
+liegen Spezifikation und erzeugtes HTML unter `<projekt>/docs/architecture/` -
+Ablauf und Release-Pflege dort in der `README.md`.
+
 ## Repo-Regeln
 
 - Jedes Projekt: `manifest.json`, `package.json` mit `lint` **und** `test`,
