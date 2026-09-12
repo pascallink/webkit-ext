@@ -414,11 +414,18 @@ Alternativ (Einstellung *Vorher auf den Markup-Modus umschalten*) sucht die
 Erweiterung den Umschalter des Feldes, klickt ihn, wartet bis die Textarea da
 ist, und fuegt dann Jira-Markup ein.
 
-Den Umschalter erkennt sie an bekannten Selektoren und andernfalls an der
-Beschriftung (*Markup*, *Quelltext*, *Bearbeitungsmodus*, *Visual*, *Source*
-...), weil Jira ihn je nach Version anders benennt. Wird keiner gefunden oder
-greift der Klick nicht, faellt die Erweiterung auf das formatierte Einfuegen
-zurueck - es geht also nichts verloren.
+Den Umschalter erkennt sie zuerst am Schaltflaechen-Selektor von Jira 9.12
+(`.editor-toggle-tabs li[data-mode="source"] button`, Beschriftung *Text*),
+dann an bekannten Selektoren aelterer Versionen und andernfalls an der
+Beschriftung (*Markup*, *Quelltext*, *Bearbeitungsmodus*, *klartext*,
+*plain text*, *text-modus* ...), weil Jira ihn je nach Version anders benennt.
+Wird keiner gefunden oder greift der Klick nicht, faellt die Erweiterung auf
+das formatierte Einfuegen zurueck - es geht also nichts verloren.
+
+Ein Klick auf *Text* ist eine **Nutzereinstellung** in Jira und gilt danach
+fuer alle Felder und alle Vorgaenge, bis wieder auf *Visual* umgestellt wird.
+Die Erweiterung schaltet bewusst nicht zurueck, weil der Rueckweg den gerade
+eingefuegten Text erneut durch die Umwandlung schicken wuerde.
 
 **Einschraenkung:** landet der Text dabei am Anfang des Feldes statt an der
 Cursorposition, liegt das am Umschalten selbst - die Schreibflaeche wechselt

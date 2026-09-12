@@ -9,6 +9,9 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- *Vorher auf den Markup-Modus umschalten* findet den Umschalter von Jira 9.12
+  jetzt und schaltet wirklich um, statt still auf formatiertes Einfuegen
+  zurueckzufallen (Issue #110).
 - Strg+Z nach der Einfuege-Automatik loescht nicht mehr das ganze Feld (Issue #96).
 - Nach dem Code-Dialog steht der Cursor hinter dem Codeblock; das naechste
   Panel oder die naechste Vorlage landet dort und nicht mehr davor (Issue #95).
