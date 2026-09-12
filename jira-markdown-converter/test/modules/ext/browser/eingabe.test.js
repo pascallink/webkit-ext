@@ -51,27 +51,51 @@ function watchForUnexpectedDialogs(page) {
 }
 
 /**
- * Probiert reload() in kurzen Schritten, bis er ohne beforeunload-Dialog
- * durchlaeuft - der Zielzustand (Sperre abgegeben) laesst sich hier nicht
- * ueber das DOM ablesen: das Feld reisst seine eigene Feldleiste beim
- * Abbrechen synchron mit sich aus dem DOM, lange bevor EditLock.cleanup()
- * die Sperre tatsaechlich freigibt. Ein kurzer Reload-Versuch prueft darum
- * direkt den echten Vorgang. Loest ein Versuch einen Dialog aus, war die
- * Sperre noch aktiv - der Eintrag dafuer im `dialogs`-Log zaehlt nicht als
- * Fehlschlag der Pruefung und wird wieder entfernt, der naechste Versuch
- * startet. Erst ein durchlaufender Reload gilt, dessen Ergebnis der
- * Aufrufer per `dialogs`-Assertion prueft.
+ * Probiert reload() in kurzen Schritten (300 ms), solange ein Versuch an
+ * einem beforeunload-Dialog scheitert - der Zielzustand (Sperre abgegeben)
+ * laesst sich hier nicht ueber das DOM ablesen: das Feld reisst seine eigene
+ * Feldleiste beim Abbrechen synchron mit sich aus dem DOM, lange bevor
+ * EditLock.cleanup() die Sperre tatsaechlich freigibt. Ein kurzer
+ * Reload-Versuch prueft darum direkt den echten Vorgang: loest er einen
+ * beforeunload-Dialog aus, war die Sperre noch aktiv, nur dieser Eintrag
+ * wird aus dem `dialogs`-Log entfernt (andere Dialoge bleiben fuer die
+ * Assertion des Aufrufers stehen) und der naechste Versuch startet.
+ * Scheitert ein Versuch dagegen ohne neuen Dialog, war er vermutlich nur
+ * langsam - auf einem belasteten Runner der Normalfall, nicht der Fehler.
+ * Ein letzter Versuch mit grosszuegigem Budget (WAIT_TIMEOUT) entscheidet
+ * dann, sein Ergebnis (auch ein Fehlschlag) gilt unveraendert. Laeuft
+ * stattdessen die Gesamtfrist ab, waehrend weiter beforeunload-Dialoge
+ * auftreten, scheitert die Funktion mit einer eigenen Fehlermeldung statt
+ * dem rohen Playwright-Timeout des letzten Kurzversuchs.
  */
 async function reloadWhenUnlocked(page, dialogs, timeoutMs) {
   var deadline = Date.now() + timeoutMs;
+  var attempts = 0;
   for (;;) {
     var before = dialogs.length;
+    attempts += 1;
     try {
       await page.reload({ timeout: 300 });
       return;
     } catch (error) {
-      if (dialogs.length === before || Date.now() >= deadline) throw error;
+      if (dialogs.length === before) {
+        // Kein neuer Dialog: der Versuch war nur langsam, die Sperre war
+        // vermutlich schon abgegeben. Ein letzter Versuch mit grosszuegigem
+        // Budget entscheidet - sein Ergebnis gilt unveraendert, auch ein
+        // Timeout dieses Versuchs darf weiterhin scheitern.
+        return await page.reload({ timeout: WAIT_TIMEOUT });
+      }
+      // Nur den beforeunload-Eintrag zuruecksetzen: alles ab `before`, was
+      // nicht mit 'beforeunload' beginnt (alert/confirm), bleibt stehen.
+      var keptDialogs = dialogs.slice(before).filter(function (entry) {
+        return entry.indexOf('beforeunload') !== 0;
+      });
       dialogs.length = before;
+      Array.prototype.push.apply(dialogs, keptDialogs);
+      if (Date.now() >= deadline) {
+        throw new Error('Sperre wurde innerhalb von ' + timeoutMs +
+          ' ms nicht abgegeben (' + attempts + ' Versuch(e) mit beforeunload-Dialog)');
+      }
     }
   }
 }
@@ -187,10 +211,9 @@ describe('Echte Eingabe: Zwischenablage, Tastatur, Dialoge', function () {
     // zeigt darum nur, dass Jira aufgeraeumt hat, nicht dass die Sperre weg
     // ist - kein DOM-Signal bleibt stehen, an dem sich der richtige
     // Zeitpunkt ablesen liesse. Gewartet wird darum auf den eigentlichen
-    // Zielzustand direkt: ein
-    // Reload versucht es in kurzen Schritten, bis er ohne beforeunload-Dialog
-    // durchlaeuft (Sperre wirklich abgegeben) - der Watcher unten sieht nur
-    // den letzten, tatsaechlich sauberen Versuch.
+    // Zielzustand direkt: ein Reload versucht es in kurzen Schritten, bis er
+    // ohne beforeunload-Dialog durchlaeuft (Sperre wirklich abgegeben) - der
+    // Watcher unten sieht nur den letzten, tatsaechlich sauberen Versuch.
     await reloadWhenUnlocked(fixturePage, dialogs, LOCK_TIMEOUT);
     await fixturePage.waitForSelector('.jmd-fab', { timeout: WAIT_TIMEOUT });
 
