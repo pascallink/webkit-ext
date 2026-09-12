@@ -146,6 +146,15 @@ describe('Rohes HTML aus Azure DevOps', function () {
     var actual = jira.convert('<div><span style="color:red">rot</span></div>', { convertHtml: false });
     assert.strictEqual(actual, '<div><span style="color:red">rot</span></div>');
   });
+  test('Getippter Text in spitzen Klammern bleibt erhalten (Issue #99)', function () {
+    eq('Setze <Name> ein und ersetze <TICKET> durch die Nummer.',
+      'Setze <Name> ein und ersetze <TICKET> durch die Nummer.');
+    eq('Der Typ ist List<String>.', 'Der Typ ist List<String>.');
+  });
+  test('Markdown im Farb-Span wird weiter aufgeloest', function () {
+    eq('<span style="color:red">**fett**</span>', '{color:red}*fett*{color}');
+    eq('<span style="color:red">a [L](http://x) b</span>', '{color:red}a [L|http://x] b{color}');
+  });
 });
 
 describe('Beide Formate auf einmal', function () {

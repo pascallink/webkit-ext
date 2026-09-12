@@ -688,20 +688,28 @@
         // <span style="color:X">...</span> -> Jira-Farbmakro. Nur ein
         // Farbwort oder #rrggbb/#rgb aus dem style-Attribut wird
         // uebernommen - alles andere im Attribut wird stillschweigend
-        // verworfen, ein eigener CSS-Parser lohnt hier nicht.
+        // verworfen, ein eigener CSS-Parser lohnt hier nicht. Nur die beiden
+        // Farbmarker gehen in einen Platzhalter, der Innentext bleibt roher
+        // Text im Fluss und laeuft dadurch noch durch die Schritte 4 bis 10
+        // (Links, Textauszeichnungen, escapeText).
         text = text.replace(/<span\b([^>]*)>([\s\S]*?)<\/span>/gi, function (match, attrs, inner) {
           var style = attrValue(attrs, 'style');
           var color = /color\s*:\s*(#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?|[a-zA-Z]+)/.exec(style);
           if (!color) return match;
-          return ph.add('{color:' + color[1] + '}' + inner + '{color}');
+          return ph.add('{color:' + color[1] + '}') + inner + ph.add('{color}');
         });
 
-        // Alles andere an Tags entfernen, Inhalt behalten - Jira kennt kein
-        // <div>, <details> & Co. Ein schliessendes Tag wird zu einem
-        // Leerzeichen, sonst liefen getrennte Elemente wie
-        // '<summary>Mehr</summary>Inhalt' zu einem Wort zusammen.
-        text = text.replace(/<\/[a-zA-Z][\w-]*\s*>/g, ' ');
-        text = text.replace(/<[a-zA-Z][\w-]*(?:\s[^<>]*)?\/?>/g, '');
+        // Alles andere an Tags entfernen, Inhalt behalten - aber nur die
+        // Tags, die Azure DevOps beim Kopieren tatsaechlich liefert. Eine
+        // generische '<wort>'-Regel wuerde auch von Nutzern getippten Text
+        // wie '<Name>' oder 'List<String>' verschlucken (Issue #99), darum
+        // eine Positivliste statt eines allgemeinen Tag-Musters. Ein
+        // schliessendes Tag wird zu einem Leerzeichen, sonst liefen
+        // getrennte Elemente wie '<summary>Mehr</summary>Inhalt' zu einem
+        // Wort zusammen.
+        var adoTags = 'div|span|p|details|summary|table|thead|tbody|tr|th|td|ul|ol|li|font|img|a';
+        text = text.replace(new RegExp('<\\/(?:' + adoTags + ')\\s*>', 'gi'), ' ');
+        text = text.replace(new RegExp('<(?:' + adoTags + ')(?:\\s[^<>]*)?\\/?>', 'gi'), '');
       }
     }
 
