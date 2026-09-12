@@ -32,28 +32,52 @@ var STANDALONE_FILES = CONTENT_FILES.filter(function (file) {
 
 var TOGGLE_MENU_ID = 'toggle-convert-on-paste';
 
+// Gleiche Werte wie content_scripts[0].matches im Manifest - hier als
+// Konstante nachgezogen statt zur Laufzeit aus dem Manifest gelesen, weil
+// chrome.runtime.getManifest() in Node-Tests einen weiteren Stub braeuchte.
+var DEFAULT_MATCHES = ['https://*.atlassian.net/*'];
+
+/**
+ * Baut die Kontextmenue-Eintraege neu auf und begrenzt convert-selection und
+ * open-panel per documentUrlPatterns auf die freigegebenen Hosts (Standard
+ * plus vom Nutzer eingetragene Extra-Hosts) - auf fremden Seiten sollen sie
+ * gar nicht erst im Menue auftauchen. Der Umschalter am Symbol
+ * (TOGGLE_MENU_ID, Kontext action) bleibt ohne Muster, er soll unabhaengig
+ * von der aktuellen Seite erreichbar sein.
+ */
 function createMenus() {
-  chrome.contextMenus.removeAll(function () {
-    chrome.contextMenus.create({
-      id: 'convert-selection',
-      title: 'Markdown in Jira-Markup umwandeln',
-      contexts: ['selection', 'editable']
-    });
-    chrome.contextMenus.create({
-      id: 'open-panel',
-      title: 'Markdown-Konverter oeffnen',
-      contexts: ['editable', 'page']
-    });
-    // Direkt am Symbol der Erweiterung erreichbar (Rechtsklick darauf).
-    chrome.contextMenus.create({
-      id: TOGGLE_MENU_ID,
-      title: 'Beim Einfuegen automatisch umwandeln',
-      type: 'checkbox',
-      checked: true,
-      contexts: ['action', 'editable', 'page']
-    }, function () {
-      void chrome.runtime.lastError;
-      refreshIndicators();
+  return Settings.load().then(function (settings) {
+    var patterns = DEFAULT_MATCHES.concat(
+      (settings.extraHosts || [])
+        .map(Settings.normalizeHost)
+        .filter(Boolean)
+        .map(Settings.hostPattern)
+    );
+
+    chrome.contextMenus.removeAll(function () {
+      chrome.contextMenus.create({
+        id: 'convert-selection',
+        title: 'Markdown in Jira-Markup umwandeln',
+        contexts: ['selection', 'editable'],
+        documentUrlPatterns: patterns
+      });
+      chrome.contextMenus.create({
+        id: 'open-panel',
+        title: 'Markdown-Konverter oeffnen',
+        contexts: ['editable', 'page'],
+        documentUrlPatterns: patterns
+      });
+      // Direkt am Symbol der Erweiterung erreichbar (Rechtsklick darauf).
+      chrome.contextMenus.create({
+        id: TOGGLE_MENU_ID,
+        title: 'Beim Einfuegen automatisch umwandeln',
+        type: 'checkbox',
+        checked: true,
+        contexts: ['action', 'editable', 'page']
+      }, function () {
+        void chrome.runtime.lastError;
+        refreshIndicators();
+      });
     });
   });
 }
@@ -291,7 +315,10 @@ function syncExtraHosts() {
 chrome.storage.onChanged.addListener(function (changes, area) {
   if (area !== 'sync') return;
   if (changes.extraHosts) {
+    // Ein neu freigegebener Host soll sofort im Menue stehen, nicht erst
+    // nach einem Neustart des Service-Workers.
     syncExtraHosts();
+    createMenus();
   }
   if (changes.convertOnPaste) {
     refreshIndicators();

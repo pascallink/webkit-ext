@@ -92,19 +92,33 @@ function storageStub(syncStore, localStore) {
  * sendMessage-Callback heraus) - echtes Chrome liefert Callbacks stets async
  * und damit nie mit fremdem lastError im Gepaeck, der synchrone Stub muss
  * das also selbst nachbilden.
+ * chrome.contextMenus.create() protokolliert seine Argumente zusaetzlich in
+ * stub.menus (createMenus() haengt an Settings.load(), also braucht ein Test
+ * nach onInstalled/onStartup/onChanged.trigger() einen Tick zum Abwarten).
+ * chrome.scripting.getRegisteredContentScripts/registerContentScripts/
+ * updateContentScripts/unregisterContentScripts sowie chrome.permissions
+ * sind das Mindeste, damit syncExtraHosts() - das an denselben Ereignissen
+ * haengt wie createMenus() - dabei nicht auf fehlende Stubs laeuft.
  */
 function backgroundStub(syncStore, localStore) {
   var stub = storageStub(syncStore, localStore);
   stub.runtime.onMessage = listenerStub();
   stub.runtime.onInstalled = listenerStub();
   stub.runtime.onStartup = listenerStub();
+  stub.menus = [];
   stub.contextMenus = {
     removeAll: function (cb) { if (cb) cb(); },
-    create: function (props, cb) { if (cb) cb(); },
+    create: function (props, cb) { stub.menus.push(props); if (cb) cb(); },
     update: function (id, props, cb) { if (cb) cb(); },
     onClicked: listenerStub()
   };
   stub.commands = { onCommand: listenerStub() };
+  stub.registeredContentScripts = [];
+  stub.permissions = {
+    contains: function (options, cb) { cb(true); },
+    onAdded: listenerStub(),
+    onRemoved: listenerStub()
+  };
 
   stub.calls = [];
   stub.probeResult = false;
@@ -147,6 +161,22 @@ function backgroundStub(syncStore, localStore) {
     insertCSS: function (options, cb) {
       stub.calls.push({ api: 'scripting.insertCSS', options: options });
       stub.runtime.lastError = null;
+      if (cb) cb();
+    },
+    getRegisteredContentScripts: function (options, cb) {
+      stub.calls.push({ api: 'scripting.getRegisteredContentScripts', options: options });
+      if (cb) cb(stub.registeredContentScripts);
+    },
+    registerContentScripts: function (scripts, cb) {
+      stub.calls.push({ api: 'scripting.registerContentScripts', scripts: scripts });
+      if (cb) cb();
+    },
+    updateContentScripts: function (scripts, cb) {
+      stub.calls.push({ api: 'scripting.updateContentScripts', scripts: scripts });
+      if (cb) cb();
+    },
+    unregisterContentScripts: function (options, cb) {
+      stub.calls.push({ api: 'scripting.unregisterContentScripts', options: options });
       if (cb) cb();
     }
   };

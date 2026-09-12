@@ -182,3 +182,80 @@ describe('Injektion nach Seitenart', function () {
     assert.strictEqual(injected, false, 'es haette nichts injiziert werden duerfen');
   });
 });
+
+/**
+ * createMenus() haengt an Settings.load() (Promise), darum wartet jeder Test
+ * hier einen Tick (setTimeout 0) nach dem Ausloeser ab, bevor er stub.menus
+ * liest. Ausloeser ist durchgehend chrome.runtime.onInstalled, weil das
+ * denselben Pfad nimmt wie beim echten Start des Service-Workers.
+ */
+describe('Kontextmenue', function () {
+  var TOGGLE_MENU_ID = 'toggle-convert-on-paste';
+
+  function tick() {
+    return new Promise(function (resolve) { setTimeout(resolve, 0); });
+  }
+
+  function menuById(stub, id) {
+    return stub.menus.filter(function (entry) { return entry.id === id; })[0];
+  }
+
+  test('Menueeintraege tragen documentUrlPatterns der freigegebenen Hosts', async function () {
+    var stub = backgroundStub({ extraHosts: ['jira.firma.de'] }, {});
+    loadBackground(stub);
+    stub.runtime.onInstalled.trigger();
+    await tick();
+
+    var selection = menuById(stub, 'convert-selection');
+    var panel = menuById(stub, 'open-panel');
+    assert.ok(selection, 'convert-selection fehlt im Menue');
+    assert.ok(panel, 'open-panel fehlt im Menue');
+    assert.notStrictEqual(selection.documentUrlPatterns.indexOf('https://*.atlassian.net/*'), -1,
+      'Standard-Host fehlt bei convert-selection');
+    assert.notStrictEqual(selection.documentUrlPatterns.indexOf('*://jira.firma.de/*'), -1,
+      'Extra-Host fehlt bei convert-selection');
+    assert.notStrictEqual(panel.documentUrlPatterns.indexOf('*://jira.firma.de/*'), -1,
+      'Extra-Host fehlt bei open-panel');
+  });
+
+  test('Standardfall ohne Extra-Hosts enthaelt nur den freigegebenen Standard-Host', async function () {
+    var stub = backgroundStub({}, {});
+    loadBackground(stub);
+    stub.runtime.onInstalled.trigger();
+    await tick();
+
+    var selection = menuById(stub, 'convert-selection');
+    assert.ok(selection, 'convert-selection fehlt im Menue');
+    assert.deepStrictEqual(selection.documentUrlPatterns, ['https://*.atlassian.net/*']);
+  });
+
+  test('Umschalter am Symbol traegt keine documentUrlPatterns', async function () {
+    var stub = backgroundStub({ extraHosts: ['jira.firma.de'] }, {});
+    loadBackground(stub);
+    stub.runtime.onInstalled.trigger();
+    await tick();
+
+    var toggle = menuById(stub, TOGGLE_MENU_ID);
+    assert.ok(toggle, 'Umschalter fehlt im Menue');
+    assert.strictEqual(toggle.documentUrlPatterns, undefined,
+      'Umschalter haette ueberall erreichbar bleiben sollen');
+  });
+
+  test('ein neu freigegebener Host landet sofort im Menue', async function () {
+    var syncStore = {};
+    var stub = backgroundStub(syncStore, {});
+    loadBackground(stub);
+    stub.runtime.onInstalled.trigger();
+    await tick();
+    stub.menus = [];
+
+    syncStore.extraHosts = ['jira.firma.de'];
+    stub.storage.onChanged.trigger({ extraHosts: { newValue: syncStore.extraHosts } }, 'sync');
+    await tick();
+
+    var selection = menuById(stub, 'convert-selection');
+    assert.ok(selection, 'convert-selection fehlt nach der Aktualisierung');
+    assert.notStrictEqual(selection.documentUrlPatterns.indexOf('*://jira.firma.de/*'), -1,
+      'neu freigegebener Host fehlt im Muster');
+  });
+});
