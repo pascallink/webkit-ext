@@ -23,23 +23,25 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 
 | Modul | Quellen | Tests | Issues |
 | --- | --- | --- | --- |
-| `converter` | `src/converter.js` | 108 Node | - |
+| `converter` | `src/converter.js` | 152 Node | - |
 | `settings` | `src/settings.js` | 64 Node + 10 Browser | #31, #32 |
-| `editors` | `src/editors.js` | 18 Browser | #31, #32 |
-| `content` | `src/content.js`, `src/content.css` | 38 Browser | #31, #32 |
-| `dialogs` | `src/codedialog.js`, `src/templatedialog.js`, `src/codedialog.css` | 44 Browser | #31 |
-| `editlock` | `src/editlock.js` | 24 Browser | #63, #90, #111, #112 |
+| `editors` | `src/editors.js` | 24 Browser | #31, #32 |
+| `content` | `src/content.js`, `src/content.css` | 65 Browser | #31, #32 |
+| `dialogs` | `src/codedialog.js`, `src/templatedialog.js`, `src/codedialog.css` | 50 Browser | #31 |
+| `editlock` | `src/editlock.js` | 28 Browser | #63, #90, #111, #112 |
 | `options` | `options/` | 8 Browser | #31, #32 |
 | `popup` | `popup/` | 5 Browser | - |
-| `background` | `src/background.js` | 7 Node | #32 |
-| `package` | `manifest.json`, `docs/store/` | 31 Node + Guard | alle |
+| `background` | `src/background.js` | 16 Node | #32 |
+| `package` | `manifest.json`, `docs/store/` | 32 Node | alle |
 | `mapping` *(reserviert)* | `src/mapping.js` *(geplant)* | - | **#32** |
 | `ext` | Erweiterung als Ganzes | 8 Browser | #104 |
-| `otrs` | `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | 16 Node + 28 Browser | #17 |
+| `otrs` | `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | 16 Node + 27 Browser | #17, #103 |
 
 `mapping` bekommt seinen Ordner erst mit dem jeweiligen Feature -
 die Zeile hier reserviert nur den Namen, damit ein neues Modul nicht zufaellig
-kollidiert. Aktuelle Testzahlen: `node test/run.js --list` (im Projektordner).
+kollidiert. `otrs` - Quellen stehen nicht im Manifest (Verdrahtung folgt in #113),
+die Tests laden sie ueber `readSource()`; `SOURCES`/`STYLES` greifen dort nicht.
+Aktuelle Testzahlen: `node test/run.js --list` (im Projektordner).
 
 ## Verzeichnisstruktur
 
@@ -56,7 +58,7 @@ jira-markdown-converter/test/
     extension.js               launchExtension, extensionCopy, serveFixtures
     fixtures.js                 CLOUD, SERVER, RTE, INLINE, ISSUE, OTRS,
                                 JIRA912 - Pfade
-  fixtures/                    die 7 HTML-Mocks, unveraendert und schreibgeschuetzt
+  fixtures/                    die 10 HTML-Mocks, unveraendert und schreibgeschuetzt
   modules/
     converter/    converter.test.js  blocks.test.js  html.test.js
     settings/     settings.test.js   storage.test.js   browser/toggle.test.js
