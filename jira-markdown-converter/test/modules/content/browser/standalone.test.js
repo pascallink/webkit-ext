@@ -12,6 +12,7 @@ var describe = nodeTest.describe;
 var test = nodeTest.test;
 var browserLib = require('../../../lib/browser');
 var fixtures = require('../../../lib/fixtures');
+var pasteInto = require('../../../lib/dom').pasteInto;
 
 var hasPlaywright = browserLib.hasPlaywright();
 var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
@@ -50,6 +51,23 @@ describe('Standalone-Modus', { skip: !hasPlaywright }, function () {
     });
     assert.ok(await page.locator('.jmd-panel--open').count());
     assert.strictEqual(await page.inputValue('#jmd-output'), 'h1. Titel');
+
+    await page.close();
+  });
+
+  // Issue #97: der paste-Wachposten haengt jetzt hinter der Standalone-
+  // Pruefung - auf einer fremden Seite darf eingefuegtes Markdown nicht
+  // mehr still in Jira-Markup umgeschrieben werden.
+  test('Einfuegen auf der Fremdseite laesst Markdown unveraendert', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.standalonePage(browser, { convertOnPaste: true }, fixtures.FOREIGN);
+
+    await pasteInto(page, '#notiz', '# Titel');
+    // Kein Wachposten mehr vorhanden - das synthetische Einfuegen loest
+    // ohne Erweiterung keine native Texteinfuegung aus, das Feld bleibt
+    // unangetastet statt in Jira-Markup ('h1. Titel') umgeschrieben zu werden.
+    assert.strictEqual(await page.inputValue('#notiz'), '', 'die Erweiterung haette sich nicht einmischen duerfen');
+    assert.strictEqual(await page.locator('.jmd-toast').count(), 0, 'kein Toast der Erweiterung erwartet');
 
     await page.close();
   });
