@@ -70,7 +70,10 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
 
 5. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
    eingefuegt, der nach Markdown aussieht, wandelt die Erweiterung ihn direkt
-   beim Einfuegen um. `Strg+Z` macht das rueckgaengig.
+   beim Einfuegen um. `Strg+Z` macht das rueckgaengig. Erkennt die Erweiterung
+   bereits vorhandenes Jira-Markup in der Zwischenablage, laesst sie den Text
+   stehen und meldet das. Der Button *Umwandeln* konvertiert weiterhin und
+   weist darauf hin.
 
 Eingefuegt wird immer an der Cursorposition im Jira-Feld, auch wenn der Text
 vorher im Panel getippt wurde. Ist im Feld ein Rich-Text-Editor aktiv, kommt
