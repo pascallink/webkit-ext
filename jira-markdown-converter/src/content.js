@@ -63,8 +63,15 @@
     // Promise beim Aufrufer anzukommen - der weiss dann nicht, dass nichts
     // eingefuegt wurde. Issue #88.
     try {
+      // Einmal berechnen und wiederverwenden: die Blockhaftigkeit stammt
+      // immer aus dem Jira-Markup, auch wenn am Ende Markdown eingefuegt
+      // wird. Nur 'insert' wird ueber die Heuristik verfeinert - 'replace'
+      // und jeder andere Wert bleiben unveraendert.
+      var markup = convert(markdown);
+      var where = mode === 'insert' ? insertModeFor(markup) : mode;
+
       if (isPlainField(field)) {
-        return Promise.resolve(Editors.insert(field, convert(markdown), mode) ? 'markup' : '');
+        return Promise.resolve(Editors.insert(field, markup, where) ? 'markup' : '');
       }
 
       var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
@@ -73,17 +80,17 @@
 
       return switching.then(function (switched) {
         if (switched) {
-          return Editors.insert(field, convert(markdown), mode) ? 'switched' : '';
+          return Editors.insert(field, markup, where) ? 'switched' : '';
         }
         if (settings.richEditorFormat === 'markdown') {
-          return Editors.insert(field, markdown, mode) ? 'markdown' : '';
+          return Editors.insert(field, markdown, where) ? 'markdown' : '';
         }
         if (settings.richEditorFormat === 'jira') {
-          return Editors.insert(field, convert(markdown), mode) ? 'markup' : '';
+          return Editors.insert(field, markup, where) ? 'markup' : '';
         }
         // Standard: formatiert einfuegen, damit der Editor kein Markup anzeigt.
         var both = Converter.convertBoth(markdown, Settings.converterOptions(settings));
-        return Editors.insertFormatted(field, both.jira, both.html, mode) ? 'formatted' : '';
+        return Editors.insertFormatted(field, both.jira, both.html, where) ? 'formatted' : '';
       });
     } catch (error) {
       return Promise.reject(error);
@@ -219,7 +226,9 @@
       // preventDefault() oben gaebe es dann weder Toast noch Rohtext, der
       // Zwischenablageninhalt waere kommentarlos weg. Issue #88.
       try {
-        insertion = Promise.resolve(Editors.insert(field, plainOutput, 'insert') ? 'markup' : '');
+        insertion = Promise.resolve(
+          Editors.insert(field, plainOutput, insertModeFor(plainOutput)) ? 'markup' : ''
+        );
       } catch (error) {
         insertion = Promise.reject(error);
       }
@@ -1063,6 +1072,8 @@
    * Blockhaftigkeit ist eine Eigenschaft der ganzen Vorlage, nicht nur ihres
    * ersten Zeichens - eine mehrzeilige Vorlage ohne dieses erste Zeichen
    * wuerde sonst ihre Randumbrueche verlieren.
+   * Die Heuristik gilt inzwischen nicht nur fuer eigene Vorlagen, sondern
+   * auch fuer konvertiertes Markdown - siehe deliver() und onPaste().
    */
   function insertModeFor(markup) {
     if (/\n/.test(markup)) return 'block';
