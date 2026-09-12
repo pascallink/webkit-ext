@@ -186,6 +186,14 @@ describe('Tabellen', function () {
     // Strich innerhalb von Inline-Code trennt trotzdem die Tabellenzelle.
     eq('| A | B |\n| --- | --- |\n| `y|z` |', '||A||B||\n|`y|z`|');
   });
+  test('Link-Label mit maskiertem Strich', function () {
+    eq('| A | B |\n| --- | --- |\n| x | [a\\|b](http://e.com) |',
+      '||A||B||\n|x|[a\\|b|http://e.com]|');
+  });
+  test('Link in der Zelle bleibt unveraendert', function () {
+    eq('| A | B |\n| --- | --- |\n| x | [Doku](http://e.com) |',
+      '||A||B||\n|x|[Doku|http://e.com]|');
+  });
 });
 
 describe('Sonderfaelle', function () {

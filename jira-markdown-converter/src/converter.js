@@ -239,7 +239,10 @@
     },
     link: function (label, url) {
       if (!label || label === url) return '[' + url + ']';
-      return '[' + label.replace(/\|/g, '\\|') + '|' + url + ']';
+      // Ein schon maskierter Strich (Tabellenzelle, cellPipe) bleibt
+      // einfach maskiert; nur ein roher Strich wird neu maskiert. Der
+      // Trenner zwischen Label und Ziel bleibt davon unberuehrt.
+      return '[' + label.replace(/\\?\|/g, '\\|') + '|' + url + ']';
     },
     image: function (url) {
       return '!' + url + '!';
