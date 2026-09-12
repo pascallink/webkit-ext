@@ -9,6 +9,8 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Sonderzeichen im Fliesstext werden maskiert, damit Jira sie nicht als
+  Markup liest (Issue #93).
 - Auf `http://`-Instanzen kopieren Panel, Feldleiste und Code-Dialog wieder;
   Einfuegen verweist dort jetzt auf Strg+V statt eine leere Zwischenablage zu
   melden (Issue #106).
