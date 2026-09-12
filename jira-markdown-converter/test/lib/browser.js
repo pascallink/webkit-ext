@@ -74,7 +74,12 @@ function withBrowser() {
   return ready;
 }
 
-async function newPage(browser, settings, fixture) {
+/**
+ * Gemeinsamer Rumpf fuer newPage() und pageOhneFab(): identischer Aufbau
+ * (Stub, Settings, SOURCES), nur die Wartebedingung unterscheidet sich -
+ * `warten` laeuft als page.waitForFunction() im Seitenkontext.
+ */
+async function loadPage(browser, settings, fixture, warten) {
   var context = await browser.newContext();
   var page = await context.newPage();
   await page.goto('file://' + path.join(root, 'test', 'fixtures', fixture || fixtures.CLOUD));
@@ -93,10 +98,27 @@ async function newPage(browser, settings, fixture) {
     await page.addScriptTag({ content: readSource(SOURCES[i]) });
   }
   // Das Content-Script startet asynchron (Settings werden geladen).
-  await page.waitForFunction(function () {
-    return !!document.querySelector('.jmd-fab');
-  }, null, { timeout: 5000 });
+  await page.waitForFunction(warten, null, { timeout: 5000 });
   return page;
+}
+
+async function newPage(browser, settings, fixture) {
+  return loadPage(browser, settings, fixture, function () {
+    return !!document.querySelector('.jmd-fab');
+  });
+}
+
+/**
+ * Wie newPage(), aber fuer Seiten ohne Ziel (Dashboard, Issue #102): ohne
+ * Feld und ohne Vorgangsseite baut createFab() keinen Button ein, darum
+ * wartet diese Fabrik stattdessen auf den registrierten
+ * chrome.runtime.onMessage-Listener aus content.js - dasselbe Signal wie in
+ * standalonePage().
+ */
+async function pageOhneFab(browser, settings, fixture) {
+  return loadPage(browser, settings, fixture, function () {
+    return typeof window.__onMessage === 'function';
+  });
 }
 
 /**
@@ -187,6 +209,7 @@ module.exports = {
   readSource: readSource,
   withBrowser: withBrowser,
   newPage: newPage,
+  pageOhneFab: pageOhneFab,
   standalonePage: standalonePage,
   optionsPage: optionsPage,
   popupPage: popupPage,

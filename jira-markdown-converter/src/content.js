@@ -270,8 +270,31 @@
    * Oberflaeche: schwebender Button
    * ------------------------------------------------------------------ */
 
+  // Vorgangsseite: #issue-content traegt das Editier-Formular, das
+  // ajs-issue-key-Meta steht schon vor dem vollen DOM-Aufbau fest - beides
+  // zusammen erkennt die Seite auch, solange das Feld noch fehlt. Issue #102.
+  var ISSUE_PAGE_SELECTOR = '#issue-content, meta[name="ajs-issue-key"]';
+
+  function isIssuePage() {
+    try {
+      return !!document.querySelector(ISSUE_PAGE_SELECTOR);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Der schwebende Button erscheint nur, wo es ein Ziel gibt: auf einer
+   * Vorgangsseite (das Feld kommt dort oft erst nach dem Scan) oder sobald
+   * ein Editor-Ziel im DOM steht. So bleibt das Dashboard und jede andere
+   * feldlose Jira-Seite ohne Button. Issue #102.
+   */
+  function fabWanted() {
+    return settings.showFloatingButton && (isIssuePage() || Editors.findAllTargets().length > 0);
+  }
+
   function createFab() {
-    if (fab || !settings.showFloatingButton) return;
+    if (fab || !fabWanted()) return;
     // In iframes (Jira Server bettet Editoren ein) wuerde sonst pro Rahmen
     // ein weiterer Button erscheinen.
     if (!isTopFrame()) return;
@@ -1651,6 +1674,12 @@
       scanTimer = null;
       try {
         attachFieldButtons();
+        // Holt den Button nach, sobald ein Feld oder #issue-content auftaucht
+        // (spaet ladende Vorgangsseiten, Issue #102) - createFab() ist ueber
+        // "if (fab) return" idempotent. Bewusst kein removeFab() hier: einmal
+        // gezeigt bleibt der Button stehen, auch wenn das Feld wieder
+        // verschwindet (Dialog zu) - sonst wuerde er bei jedem Scan flackern.
+        createFab();
         watchRichTextFrames();
         EditLock.cleanup();
         if (panel && panel.classList.contains('jmd-panel--open')) {
