@@ -353,6 +353,8 @@ das Lesen der Zwischenablage funktioniert dort nicht - bitte Strg+V benutzen.
 | eingerueckter Codeblock | `{noformat} … {noformat}` |
 | `[Text](url)` | `[Text\|url]` |
 | `![alt](url)` | `!url!` |
+| `![a](url =300x)` | `!url!` |
+| `[[_TOC_]]` | entfaellt |
 | `<https://…>` | `[https://…]` |
 | `- a` / `1. a` (auch verschachtelt) | `* a` / `# a`, `**`, `*#` … |
 | `- [x] erledigt` / `- [ ] offen` | `* (/) erledigt` / `* (x) offen` |
@@ -361,6 +363,7 @@ das Lesen der Zwischenablage funktioniert dort nicht - bitte Strg+V benutzen.
 | `> [!NOTE]` … | `{panel:title=Hinweis} … {panel}` |
 | `---` | `----` |
 | `<br>`, `<b>`, `<i>`, `<code>` | `\\`, `*`, `_`, `{{…}}` |
+| `<div>`, `<span style>`, `<table>` | aufgeloest statt woertlich |
 
 Sprachnamen werden auf die von Jira unterstuetzten abgebildet (`js` →
 `javascript`, `yml` → `yaml`); unbekannte Sprachen fallen auf `{code}` zurueck.

@@ -7,6 +7,12 @@ festgehalten. Das Format orientiert sich an
 
 ## [Unreleased]
 
+### Geaendert
+
+- Aus Azure DevOps kopierte Bildgroessen, Anhaengspfade, TOC-Marker,
+  GUID-Erwahnungen und fremde HTML-Tags landen nicht mehr roh im Ticket
+  (Issue #99).
+
 ### Behoben
 
 - Erweiterung nistet sich nicht mehr auf fremden Seiten ein.
