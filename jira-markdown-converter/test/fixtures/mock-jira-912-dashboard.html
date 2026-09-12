@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>System Dashboard - inxire JIRA (Nachbau)</title>
+  <meta name="ajs-version-number" content="9.12.2">
+  <meta name="ajs-build-number" content="9120002">
+  <style>
+    /* Reduzierte AUI-Optik, wie in mock-jira-912-issue-view.html. */
+    body { margin: 0; font: 14px/1.4 -apple-system, "Segoe UI", Arial, sans-serif; color: #172b4d; background: #fff; }
+    #header .aui-header { background: #0747a6; color: #fff; padding: 8px 20px; display: flex; gap: 16px; align-items: center; }
+    #header a { color: #fff; text-decoration: none; }
+    #header input { padding: 4px 8px; border-radius: 3px; border: 0; }
+    .aui-page-panel { padding: 20px; }
+    .dashboard-columns { display: flex; gap: 20px; }
+    .dashboard-column { flex: 1 1 50%; }
+    .dashboard-item-frame { border: 1px solid #dfe1e6; border-radius: 3px; margin-bottom: 16px; }
+    .dashboard-item-header { background: #f4f5f7; padding: 8px 12px; font-weight: 600; border-bottom: 1px solid #dfe1e6; }
+    .dashboard-item-content { padding: 12px; }
+  </style>
+</head>
+<body class="aui-layout aui-theme-default aui-page-sidebar page-type-split">
+
+<!--
+  Nachbau des Jira-Dashboards (Server / Data Center 9.12.2) ohne Vorgangs-
+  seite: nur Kopfleiste und Schnellsuche wie in mock-jira-912-issue-view.html,
+  aber bewusst OHNE wiki-textfield, OHNE #issue-content und OHNE
+  meta[name="ajs-issue-key"] - fuer Sub-Task 1 aus Issue #102 (schwebender
+  Button nur dort, wo es ein Ziel gibt). Die Portlets sind reine Platzhalter
+  ohne Eingabefeld.
+-->
+
+<header id="header" role="banner">
+  <nav class="aui-header" role="navigation">
+    <strong>Jira</strong>
+    <a href="#">Dashboards</a> <a href="#">Projects</a> <a href="#">Issues</a>
+    <!-- [belegt] Schnellsuche im Kopf, identisch zu mock-jira-912-issue-view.html -->
+    <form id="quicksearch" class="aui-quicksearch dont-default-focus ajs-dirty-warning-exempt" method="get" action="#">
+      <input id="quickSearchInput" class="search" type="text" placeholder="Search" name="searchString" autocomplete="off" role="searchbox">
+    </form>
+  </nav>
+</header>
+
+<div id="page">
+<section id="content" role="main">
+<div class="aui-page-panel"><div class="aui-page-panel-inner"><section class="aui-page-panel-content">
+
+<div id="dashboard-content">
+  <h1>System Dashboard</h1>
+  <div class="dashboard-columns">
+    <div class="dashboard-column">
+      <div class="dashboard-item-frame">
+        <div class="dashboard-item-header">Assigned to Me</div>
+        <div class="dashboard-item-content">Keine Vorgaenge.</div>
+      </div>
+    </div>
+    <div class="dashboard-column">
+      <div class="dashboard-item-frame">
+        <div class="dashboard-item-header">Activity Stream</div>
+        <div class="dashboard-item-content">Keine Aktivitaet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</section></div></div>
+</section>
+</div>
+
+</body>
+</html>
