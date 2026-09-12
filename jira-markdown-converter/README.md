@@ -3,8 +3,7 @@
 Browser-Erweiterung (Manifest V3, Chrome/Edge), die die Jira-Ticket-Bearbeitung
 um Markdown-Support, Formatierungsvorlagen und Code-Bloecke erweitert -
 darunter die Umwandlung von aus Azure DevOps kopiertem Markdown in
-Jira-Wiki-Markup, direkt im Jira-Ticket. Smart-Link-Parsing ist fuer eine
-kommende Version geplant.
+Jira-Wiki-Markup, direkt im Jira-Ticket.
 
 Aus `# Titel` wird `h1. Titel`, aus `**fett**` wird `*fett*`, aus einer
 Markdown-Tabelle wird eine Jira-Tabelle.
@@ -35,6 +34,9 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    * *Einfuegen* – holt das Markdown aus der Zwischenablage, konvertiert es
      und fuegt es an der Cursorposition ein.
    * *Code* – oeffnet den Dialog fuer einen Codeblock.
+   * *OTRS* – oeffnet den Dialog fuer einen OTRS-Verweis, traegt ihn nach
+     Absenden in Label, Kunden Referenz und Web-Link ein. Laesst sich in
+     den Einstellungen abschalten.
    * *Panel* – stellt vier farbige Panels zur Auswahl und fuegt das gewaehlte
      an der Cursorposition ein.
    * *Vorlagen* – stellt die eigenen, in den Einstellungen angelegten
@@ -52,7 +54,7 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    *Ins Ticket einfuegen*, *Feld ersetzen*, *Markup kopieren* oder
    *Formatiert kopieren* (fuer den Rich-Text-Editor). Ueber
    *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Code
-   einfuegen* und *Panel aus Vorlage* gibt es auch hier.
+   einfuegen*, *OTRS-Link* und *Panel aus Vorlage* gibt es auch hier.
 3. **Dialog "Code einfuegen"** – Sprache aus der Liste der von Jira
    unterstuetzten Sprachen waehlen, Code eintippen, fertigen Codeblock an der
    Cursorposition einsetzen. Zu erreichen ueber die Buttonleiste am Feld und
@@ -210,6 +212,35 @@ Zwei Einschraenkungen gehoeren dazu:
 * **Im Rich-Text-Editor kommt das Markup unformatiert an**, solange nicht auf
   den Markup-Modus umgeschaltet wird - anders als bei formatiert eingefuegtem
   Markdown gibt es zu einer freien Vorlage kein aequivalentes HTML.
+
+## OTRS-Link einpflegen
+
+Der Dialog *OTRS-Link einpflegen* laesst sich oeffnen ueber die Knoepfe
+*OTRS-Link* im Panel und *OTRS* in der Buttonleiste am Feld. Verstanden
+werden drei Eingabeformen: ein Markdown-Link (`[Titel](URL)`), ein HTML-Anker
+(`<a href="URL">Titel</a>`) oder blosser Text mit eingebetteter
+`http(s)://`-URL. Eine Live-Vorschau zeigt schon beim Tippen, was daraus wird.
+
+Nach *Absenden* traegt die Erweiterung den Verweis an drei Stellen des
+Jira-Vorgangs ein:
+
+| Feld | Wert |
+| --- | --- |
+| Label | die erkannte Ticketnummer |
+| Kunden Referenz | der erkannte Titel |
+| Web-Link | URL und Titel als Linktext |
+
+War die "Kunden Referenz" bereits belegt, bleibt eine laenger stehende
+Warnung mit dem ueberschriebenen alten Wert sichtbar, bis sie von Hand
+geschlossen wird.
+
+Der Helfer laesst sich an- und abschalten: in den Einstellungen unter
+*OTRS-Link-Helfer anbieten* und im Popup unter *OTRS-Link-Helfer*. In den
+Einstellungen steht auch der Feldname der Kundenreferenz, falls die eigene
+Jira-Instanz ihn anders nennt. Wie die uebrige Automation setzt der Helfer
+ausschliesslich auf **Jira Server / Data Center 9.12 LTS** auf -
+er bedient die Formularfelder im AUI-Dialog der Instanz, nicht die
+ProseMirror-Oberflaeche von Jira Cloud.
 
 ## Bearbeitung einfrieren
 
@@ -459,6 +490,7 @@ Erreichbar ueber das Popup („Einstellungen") oder
 * Konvertierung: Codesprache uebernehmen, Hinweisbloecke als Panel, einfaches
   HTML uebersetzen, geschweifte Klammern maskieren
 * Eigene Jira-Adressen (Jira Server / Data Center)
+* OTRS-Link-Helfer an- und abschalten, Feldname der Kundenreferenz
 * Eigene Vorlagen anlegen, bearbeiten und loeschen (Titel, Markup,
   bis zu 5 Platzhalter)
 * Ein Probierfeld mit Sofortvorschau
@@ -492,11 +524,16 @@ jira-markdown-converter/
 │   ├── codedialog.js        Dialog "Code einfuegen"
 │   ├── templatedialog.js  Dialog fuer Platzhalterwerte eigener Vorlagen
 │   ├── editlock.js          Bearbeitungsmodus einfrieren (Schloss)
+│   ├── otrslink.js          OTRS-Verweis zerlegen (ohne DOM)
+│   ├── jiraui.js            DOM-Helfer fuer die AUI-Dialoge
+│   ├── otrsflow.js          Label, Kunden Referenz, Web-Link nacheinander setzen
+│   ├── otrsdialog.js        Dialog "OTRS-Link einpflegen"
 │   ├── content.js           Bedienelemente, Einfuege-Automatik
 │   ├── settings.js          gemeinsame Einstellungen
 │   ├── background.js        Tastenkuerzel, Kontextmenue, eigene Hosts
 │   ├── content.css
-│   └── codedialog.css
+│   ├── codedialog.css
+│   └── otrsdialog.css
 ├── popup/             Konverter in der Symbolleiste
 ├── options/           Einstellungsseite
 ├── icons/
@@ -516,8 +553,8 @@ npm run lint
 ```
 
 Module: `converter`, `settings`, `editors`, `content`, `dialogs`, `editlock`,
-`options`, `popup`, `background`, `package` - Modul-Landkarte und Testzahlen
-in [`.github/TESTS.md`](../.github/TESTS.md).
+`options`, `popup`, `background`, `otrs`, `package` - Modul-Landkarte und
+Testzahlen in [`.github/TESTS.md`](../.github/TESTS.md).
 
 Die Browser-Module brauchen Playwright. Ist es global installiert, hilft
 `NODE_PATH=$(npm root -g) npm test`; fehlt es, werden diese Testdateien
