@@ -186,9 +186,20 @@
     // Die Position steht noch - der Nutzer hat gerade in das Feld getippt.
     Editors.rememberCaret(field);
 
-    var insertion = isPlainField(field)
-      ? Promise.resolve(Editors.insert(field, plainOutput, 'insert') ? 'markup' : '')
-      : deliver(field, text, 'insert');
+    var insertion;
+    if (isPlainField(field)) {
+      // Ab hier faengt try/catch einen werfenden Editors.insert() ab: ohne
+      // das wuerde ein Fehler synchron aus onPaste() fliegen - nach dem
+      // preventDefault() oben gaebe es dann weder Toast noch Rohtext, der
+      // Zwischenablageninhalt waere kommentarlos weg. Issue #88.
+      try {
+        insertion = Promise.resolve(Editors.insert(field, plainOutput, 'insert') ? 'markup' : '');
+      } catch (error) {
+        insertion = Promise.reject(error);
+      }
+    } else {
+      insertion = deliver(field, text, 'insert');
+    }
 
     insertion.then(function (how) {
       if (how) toast(insertMessage(how));
