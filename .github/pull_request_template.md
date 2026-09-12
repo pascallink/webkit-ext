@@ -8,7 +8,3 @@
 
 **What:**
 - [Datei/Komponente]: [Änderung]
-
-
-Wichtige Anweisung an dich (Opus): 
-Setze dies direkt um. Gib mir keine Erklärungen zurück, sondern bestätige nur in maximal einem kurzen Satz die erfolgreiche Dateierstellung.
