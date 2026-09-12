@@ -1642,6 +1642,14 @@
         target = field;
         // Sobald im Feld gearbeitet wird, friert der Bearbeitungsmodus ein.
         EditLock.lock(field);
+        // Deckt den Fall ab, dass der Nutzer in ein beim letzten Scan noch
+        // zu kleines oder verdecktes Feld klickt (Issue #101) - der Scan
+        // ist idempotent, ein zusaetzlicher Aufruf kostet nichts.
+        try {
+          scheduleScan();
+        } catch (error) {
+          /* Jira baut viel um - Fehler hier nie hochblubbern lassen */
+        }
       }, true);
 
       // Fokuswechsel ueber die iframe-Grenze: faengt den Rahmen ab, wenn Jira
@@ -1687,7 +1695,18 @@
       watchRichTextFrames();
 
       var observer = new MutationObserver(onMutations);
-      observer.observe(document.documentElement, { childList: true, subtree: true });
+      // attributes bleibt eng gefiltert (Issue #101): reine Attribut- oder
+      // Groessenaenderungen (rows/cols, style, class, hidden, aria-hidden)
+      // erzeugen sonst keinen childList-Eintrag und die Leiste bliebe an
+      // spaet gewachsenen Feldern aus. data-jmd-button-attached steht
+      // bewusst nicht im Filter, sonst loest die eigene Markierung selbst
+      // wieder einen Scan aus.
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class', 'hidden', 'rows', 'cols', 'aria-hidden']
+      });
     }
 
     if (chrome.runtime && chrome.runtime.onMessage) {
