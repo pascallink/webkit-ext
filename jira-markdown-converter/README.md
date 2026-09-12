@@ -431,10 +431,11 @@ sie waehrend des Tippens laufend mitgeschrieben (`selectionchange`, `mouseup`,
 `keyup`, `focusout`) und vor dem Einfuegen wiederhergestellt. Eine markierte
 Passage wird dabei ersetzt.
 
-Blockmakros wie `{code}` und `{panel}` deutet Jira nur am Zeilenanfang. Steht
-der Cursor mitten in einer Zeile, ruecken sie darum auf eine eigene Zeile, und
-der Text dahinter beginnt ebenfalls neu. Fliesstext wird weiterhin genau an der
-Cursorposition eingesetzt.
+Jira-Markup wie Ueberschriften, Listen, Tabellen, Blockzitate und Trennlinien
+deutet Jira nur am Zeilenanfang. Dasselbe gilt fuer Blockmakros wie `{code}`
+und `{panel}`. Steht der Cursor mitten in einer Zeile, ruecken sie darum auf
+eine eigene Zeile, und der Text dahinter beginnt ebenfalls neu. Einzeiliger
+Fliesstext wird weiterhin genau an der Cursorposition eingesetzt.
 
 Im Rich-Text-Editor gilt dasselbe, nur eine Ebene hoeher: dort braucht der
 Codeblock einen eigenen Block statt einer eigenen Zeile. Steht die Schreibmarke
