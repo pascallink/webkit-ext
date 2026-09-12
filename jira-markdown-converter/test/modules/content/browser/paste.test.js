@@ -13,6 +13,7 @@ var describe = nodeTest.describe;
 var test = nodeTest.test;
 var browserLib = require('../../../lib/browser');
 var pasteInto = require('../../../lib/dom').pasteInto;
+var RTE = require('../../../lib/fixtures').RTE;
 
 var hasPlaywright = browserLib.hasPlaywright();
 var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
@@ -208,19 +209,55 @@ describe('Umwandeln an Ort und Stelle', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
+  test('Nachricht insert-text fuegt im Rich-Text-Editor formatiert ein', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, RTE);
+    var response = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        window.__onMessage({ type: 'insert-text', markdown: '# Titel', mode: 'insert' }, {}, resolve);
+      });
+    });
+    assert.strictEqual(response.ok, true, 'erhalten: ' + JSON.stringify(response));
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.ok(/<h1[^>]*>Titel<\/h1>/.test(paste.html), 'Editor-Inhalt: ' + paste.html);
+    await page.close();
+  });
+
+  // Antwort kommt jetzt asynchron ueber deliver() (Issue #105) - der
+  // sendResponse-Callback loest darum ein Promise auf, statt das Ergebnis
+  // synchron zurueckzugeben.
   test('Nachricht insert-text fuegt Text ein', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser);
     await page.focus('#description');
     var response = await page.evaluate(function () {
-      var result = null;
-      window.__onMessage({ type: 'insert-text', text: 'h1. Von aussen', mode: 'replace' }, {}, function (value) {
-        result = value;
+      return new Promise(function (resolve) {
+        window.__onMessage({ type: 'insert-text', text: 'h1. Von aussen', mode: 'replace' }, {}, resolve);
       });
-      return result;
     });
-    assert.deepStrictEqual(response, { ok: true });
+    assert.strictEqual(response.ok, true, 'erhalten: ' + JSON.stringify(response));
     assert.strictEqual(await page.inputValue('#description'), 'h1. Von aussen');
+    await page.close();
+  });
+
+  test('Nachricht insert-text mit fertigem Markup schaltet nur um, ohne erneut zu wandeln', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, { switchToMarkup: true }, RTE);
+    var response = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        window.__onMessage({ type: 'insert-text', text: 'h1. Von aussen', mode: 'replace' }, {}, resolve);
+      });
+    });
+    assert.strictEqual(response.ok, true, 'erhalten: ' + JSON.stringify(response));
+    await page.waitForFunction(function () {
+      return window.__mode === 'markup';
+    }, null, { timeout: 4000 });
+    assert.strictEqual(await page.inputValue('#description'), 'h1. Von aussen');
+    var pastes = await page.evaluate(function () { return window.__pastes; });
+    assert.deepStrictEqual(pastes, [], 'es haette nichts im Rich-Text-Editor landen duerfen');
     await page.close();
   });
 
