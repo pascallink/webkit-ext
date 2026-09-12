@@ -8,6 +8,8 @@
  * die Checkbox mit 1x1 px und opacity: 0 versteckt - der Klick auf das
  * sichtbare Gleis ist der Nutzerpfad, waehrend ein Klick auf die versteckte
  * Checkbox von Playwrights Sichtbarkeitspruefung abhaengig waere und damit fragil.
+ * Seit dem OTRS-Schalter gibt es zwei .switch__track im Popup - der Klick
+ * scopet darum auf #toggleCard bzw. #otrsToggleCard.
  */
 'use strict';
 
@@ -50,7 +52,7 @@ describe('Popup', { skip: !hasPlaywright }, function () {
   test('Umschalten schreibt convertOnPaste in den Storage', async function () {
     var browser = await browserPromise;
     var page = await browserLib.popupPage(browser);
-    await page.click('.switch__track');
+    await page.click('#toggleCard .switch__track');
     await page.waitForFunction(function () { return window.__settings.convertOnPaste === false; });
     assert.strictEqual(await page.isChecked('#convertOnPaste'), false);
     var label = await page.locator('#toggleLabel').innerText();
@@ -61,9 +63,26 @@ describe('Popup', { skip: !hasPlaywright }, function () {
   test('erneutes Umschalten setzt convertOnPaste wieder auf an', async function () {
     var browser = await browserPromise;
     var page = await browserLib.popupPage(browser, { convertOnPaste: false });
-    await page.click('.switch__track');
+    await page.click('#toggleCard .switch__track');
     await page.waitForFunction(function () { return window.__settings.convertOnPaste === true; });
     assert.strictEqual(await page.isChecked('#convertOnPaste'), true);
+    await page.close();
+  });
+
+  test('Schalter otrsHelper startet mit dem gespeicherten Zustand', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.popupPage(browser, { otrsHelper: false });
+    assert.strictEqual(await page.isChecked('#otrsHelper'), false);
+    await page.close();
+  });
+
+  test('Umschalten schreibt otrsHelper in den Storage', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.popupPage(browser);
+    assert.strictEqual(await page.isChecked('#otrsHelper'), true);
+    await page.click('#otrsToggleCard .switch__track');
+    await page.waitForFunction(function () { return window.__settings.otrsHelper === false; });
+    assert.strictEqual(await page.isChecked('#otrsHelper'), false);
     await page.close();
   });
 });

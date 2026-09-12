@@ -10,6 +10,7 @@
     'showFloatingButton',
     'showToast',
     'freezeEditMode',
+    'otrsHelper',
     'keepCodeLanguage',
     'convertAlerts',
     'convertHtml',
@@ -46,6 +47,7 @@
   var status = document.getElementById('status');
   var hostStatus = document.getElementById('hostStatus');
   var hostsField = document.getElementById('extraHosts');
+  var otrsFieldNameField = document.getElementById('otrsFieldName');
   var tryInput = document.getElementById('tryInput');
   var tryOutput = document.getElementById('tryOutput');
   var saveTimer = null;
@@ -76,6 +78,7 @@
     var format = document.querySelector('input[name="richEditorFormat"]:checked');
     next.richEditorFormat = format ? format.value : 'html';
     next.extraHosts = parseHosts(hostsField.value);
+    next.otrsFieldName = otrsFieldNameField.value.trim();
     next.customTemplates = templates;
     return Settings.withDefaults(next);
   }
@@ -243,6 +246,7 @@
     var radio = document.querySelector('input[name="richEditorFormat"][value="' + settings.richEditorFormat + '"]');
     if (radio) radio.checked = true;
     hostsField.value = (settings.extraHosts || []).join('\n');
+    otrsFieldNameField.value = settings.otrsFieldName;
     templates = settings.customTemplates.slice();
     renderTemplates();
     refreshPreview();
@@ -314,6 +318,7 @@
   });
 
   hostsField.addEventListener('input', scheduleSave);
+  otrsFieldNameField.addEventListener('input', scheduleSave);
   tryInput.addEventListener('input', refreshPreview);
 
   document.getElementById('tplSave').addEventListener('click', function () {

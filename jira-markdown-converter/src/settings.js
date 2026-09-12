@@ -33,6 +33,11 @@
     // Bearbeitetes Jira-Feld offen halten, statt es von Jira beim Klick
     // daneben schliessen zu lassen (Schloss in der Buttonleiste).
     freezeEditMode: true,
+    // OTRS-Link-Helfer anbieten: Ticketverweis in Label, Kunden Referenz und
+    // Web-Link uebernehmen (Issue #17).
+    otrsHelper: true,
+    // Name des Custom Fields, ueber das der Shifter das Feld findet.
+    otrsFieldName: 'Kunden Referenz',
     // Konverter-Optionen
     escapeBraces: true,
     keepCodeLanguage: true,
@@ -224,6 +229,9 @@
     }
     if (['html', 'jira', 'markdown'].indexOf(result.richEditorFormat) === -1) {
       result.richEditorFormat = 'html';
+    }
+    if (typeof result.otrsFieldName !== 'string' || !result.otrsFieldName.trim()) {
+      result.otrsFieldName = DEFAULTS.otrsFieldName;
     }
     result.customTemplates = normalizeTemplates(result.customTemplates);
     return result;
