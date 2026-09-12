@@ -9,6 +9,9 @@ festgehalten. Das Format orientiert sich an
 
 ### Geaendert
 
+- Die Sperre faellt weg, sobald das Feld nicht mehr bedienbar ist (versteckt,
+  entfernt, Modus umgeschaltet).
+- Nachfrage beim Verlassen nur noch bei sichtbarem, geaendertem Feld (Issue #89).
 - Die vier OTRS-Dateien (`otrslink`, `jiraui`, `otrsflow`, `otrsdialog`)
   werden bis zu ihrer Verdrahtung nicht mehr auf jeder Jira-Seite geladen;
   sie bleiben im Repo und fertig getestet, stehen aber nicht mehr in
