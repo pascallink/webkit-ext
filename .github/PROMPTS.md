@@ -38,7 +38,7 @@ Block je Sub-Task, damit eine orchestrierende Sitzung ihn unveraendert an den
 ```
 task: implement_subtask
 branch: <branch des sub-tasks, z. B. feature/issue-17-part-5-otrs>
-base_sha: <head-sha des base-branches, auf dem der sub-task aufsetzt>
+base_branch: <branch, auf dem der sub-task aufsetzt, z. B. main oder feature/issue-17-part-4-otrs>
 projekt: <projektordner, z. B. jira-markdown-converter>
 modul: <testmodul, z. B. otrs>
 
@@ -57,8 +57,9 @@ Definition of Done:
 - [ ] Neue und bestehende Tests laufen gruen.
 
 Constraints:
-- Vor der ersten Aenderung `git fetch origin <branch>` und
-  `git checkout <branch>`. Existiert der Branch noch nicht, von <base-branch>
+- Vor der ersten Aenderung `git fetch origin <branch> <base_branch>` und
+  `git checkout <branch>`. Existiert der Branch noch nicht, mit
+  `git checkout -b <branch> origin/<base_branch>` von dessen aktuellem Stand
   anlegen. Kein anderer Branch, Push nur mit `git push -u origin <branch>`.
 - Deutsch ohne Umlaute in Kommentaren und UI-Texten.
 - Waehrend der Arbeit nur `npm run test:module <modul> --prefix <projekt>`.
@@ -72,9 +73,14 @@ Constraints:
   Sub-Task in einem Stapel sitzt (PR 2 auf PR 1, PR 3 auf PR 2). Fehlt der
   Branch im Block, nimmt eine Cloud-Sitzung ihren `claude/...`-Branch auf
   `main`: die Arbeit landet neben dem PR, auf einem Stand ohne die Vorstufe.
-- **`base_sha` ist der Anker, nicht der Branchname.** Der Base-Branch bewegt
-  sich, waehrend der Stapel laeuft - der SHA sagt, worauf der Plan gerechnet
-  hat.
+- **Stufe 0 nimmt den Branch, Stufe 2 den SHA - und das ist kein Versehen.**
+  Eine Korrektur muss auf exakt den reviewten Stand, deshalb dort `base_sha`.
+  Ein Sub-Task muss auf den *aktuellen* Stand seiner Vorstufe, denn die hat
+  zwischen Plan und Start ihre eigene Korrekturrunde hinter sich. Ein SHA aus
+  dem Plan wuerde genau diese Fixes abschneiden - und fuer jeden Sub-Task
+  ausser dem ersten steht er zum Planungszeitpunkt ohnehin nicht fest.
+  Deshalb loest der `umsetzer` den Base beim Auschecken selbst auf: der Plan
+  bleibt vollstaendig, niemand traegt vor dem Start etwas nach.
 - **Der Block steht fuer sich.** Der `umsetzer` startet kalt und sieht nur
   diesen Text, nicht den uebrigen Plan. Was nicht drinsteht, existiert fuer ihn
   nicht.
@@ -176,9 +182,9 @@ das Frontmatter setzt Modell und Werkzeuge, der Rumpf die Rolle.
   `Edit`, die Korrektur-Agenten kein `Glob` - was ein Agent nicht hat, kann er
   auch nicht an Kontext verbrennen.
 - **Ein Agent startet kalt.** Er kennt die rufende Sitzung nicht, der Auftrag
-  muss vollstaendig sein. Deshalb stehen `branch` und `base_sha` im Stufe-0-
-  wie im Stufe-2-Block: ohne diesen Anker arbeitet der Agent auf irgendeinem
-  Stand.
+  muss vollstaendig sein. Deshalb steht der Anker in jedem Block: `branch`
+  plus `base_branch` bei Stufe 0, `branch` plus `base_sha` bei Stufe 2. Ohne
+  ihn arbeitet der Agent auf irgendeinem Stand.
 - **Parallel nur getrennt.** Zwei Agenten gleichzeitig auf demselben Branch
   kollidieren im Arbeitsbaum - entweder nacheinander oder je in einem eigenen
   Worktree.

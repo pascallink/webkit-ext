@@ -25,7 +25,7 @@ Erstelle einen detaillierten Ausführungsplan für Issue #[ISSUE_NUMBER]. Jeder 
   * [ ] Code ist syntaxfrei und entspricht den Projekt-Standards.
   * [ ] Neue und bestehende Tests laufen grün durch.
   * [ ] Git Commit & Push auf den Branch ausgeführt.
-* **Umsetzungsauftrag (Stufe 0):** *(Nach der Stufe-0-Vorlage in [`.github/PROMPTS.md`](PROMPTS.md) - reiner Text in einem eigenen Codeblock, drei Backticks, ohne Sprache. `branch` und `base_sha` gehören in den Block selbst: der `umsetzer` startet kalt und sieht nur diesen Text, nicht den übrigen Plan.)*
+* **Umsetzungsauftrag (Stufe 0):** *(Nach der Stufe-0-Vorlage in [`.github/PROMPTS.md`](PROMPTS.md) - reiner Text in einem eigenen Codeblock, drei Backticks, ohne Sprache. `branch` und `base_branch` gehören in den Block selbst: der `umsetzer` startet kalt und sieht nur diesen Text, nicht den übrigen Plan.)*
 
 **Format des PR-Review-Ergebnisses (Opus)**
 
