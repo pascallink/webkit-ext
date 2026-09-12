@@ -19,6 +19,9 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- *In Jira einfuegen* aus dem Popup beachtet jetzt *Vorher auf den
+  Markup-Modus umschalten* und *Im Rich-Text-Editor*; bisher landete bei
+  aktivem Rich-Text-Editor Rohtext (Issue #105).
 - Die Buttonleiste erscheint jetzt auch an Feldern, die beim ersten Scan noch zu
   klein oder verdeckt waren (Dialog *Vorgang bearbeiten*, Reiter *Vorschau*,
   eingeklapptes Kommentarfeld) - Issue #101.

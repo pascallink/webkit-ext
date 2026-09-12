@@ -410,7 +410,9 @@ Ist in Jira Server / Data Center der Rich-Text-Editor eingeschaltet
 (`jira.rte.enabled`), blendet Jira die Textarea aus und legt einen
 TinyMCE-Editor darueber. Ein solcher Editor wuerde `h1. Titel` woertlich
 anzeigen, statt es als Ueberschrift zu setzen. Dasselbe gilt fuer den Editor
-von Jira Cloud. Dafuer gibt es zwei Wege, die sich kombinieren lassen:
+von Jira Cloud. Dafuer gibt es zwei Wege, die sich kombinieren lassen. Dieselben
+Einstellungen gelten auch fuer *In Jira einfuegen* aus dem
+Symbolleisten-Popup:
 
 ### Formatiert einfuegen (Voreinstellung)
 
