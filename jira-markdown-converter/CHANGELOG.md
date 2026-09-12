@@ -31,6 +31,8 @@ festgehalten. Das Format orientiert sich an
 - Im visuellen Editor (Rich Text) ist die Beschreibung schon beim ersten
   Oeffnen eingefroren; ein Klick daneben speichert den halb getippten Text
   nicht mehr (Issue #107).
+- Ueberschrift, Liste und Tabelle kleben beim Einfuegen mitten in einer Zeile
+  nicht mehr am Text, sondern ruecken auf eigene Zeilen (Issue #91).
 
 ## [1.3.0] - 2026-09-07
 
