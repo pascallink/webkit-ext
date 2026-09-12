@@ -581,7 +581,11 @@
     var end = element.selectionEnd;
 
     if (mode === 'replace' || start === null || start === undefined) {
-      if (!insertViaCommand(element, text, text, mode)) {
+      // Dieser Zweig ersetzt immer den ganzen Inhalt, auch wenn der Aufrufer
+      // insert oder block wollte - darum fest 'replace' statt des
+      // durchgereichten mode, damit insertViaCommand() ueber element.select()
+      // geht statt ueber setSelectionRange() mit einem fehlenden Caret.
+      if (!insertViaCommand(element, text, text, 'replace')) {
         setTextareaValue(element, text);
       }
       element.setSelectionRange(text.length, text.length);
