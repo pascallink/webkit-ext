@@ -104,7 +104,16 @@ async function loadPage(browser, settings, fixture, warten) {
 
 async function newPage(browser, settings, fixture) {
   return loadPage(browser, settings, fixture, function () {
-    return !!document.querySelector('.jmd-fab');
+    // Der schwebende Button ist das schnellste Signal, dass das
+    // Content-Script fertig geladen hat, baut sich aber seit Issue #102 nur
+    // noch bei einem Ziel (Feld oder Vorgangsseite) ein. Manche aeltere
+    // Fixtures (editlock, description/inline) bauen ihr Feld erst nach einem
+    // Klick auf - ohne Ziel beim Laden blieb der Button aus und diese
+    // Wartebedingung liefe ins Leere. Der registrierte
+    // chrome.runtime.onMessage-Listener steht in derselben start()-Reihenfolge
+    // erst NACH dem Fab-Aufbau, ist also ein gleichwertiges, aber
+    // zuverlaessigeres "fertig geladen"-Signal.
+    return !!document.querySelector('.jmd-fab') || typeof window.__onMessage === 'function';
   });
 }
 

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Log in - inxire JIRA (Nachbau)</title>
+  <meta name="ajs-version-number" content="9.12.2">
+  <meta name="ajs-build-number" content="9120002">
+  <style>
+    body { margin: 0; font: 14px/1.4 -apple-system, "Segoe UI", Arial, sans-serif; color: #172b4d; background: #f4f5f7; }
+    .login-panel { max-width: 320px; margin: 60px auto; padding: 24px; background: #fff; border: 1px solid #dfe1e6; border-radius: 3px; }
+    .field-group { margin-bottom: 12px; }
+    .field-group label { display: block; font-size: 12px; color: #6b778c; margin-bottom: 4px; }
+    input.text { width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid #c1c7d0; border-radius: 3px; font: inherit; }
+    .aui-button-primary { background: #0052cc; color: #fff; border: 0; padding: 6px 14px; border-radius: 3px; font: inherit; cursor: pointer; }
+    /* Koeder: eine gewoehnliche Textarea, ueber 48 px hoch - ohne die
+       Loginregel wuerde Editors.findAllTargets() sie als Ziel zaehlen und
+       das Gate aus Sub-Task 1 liesse den Button trotzdem zu. */
+    textarea#notiz { width: 100%; box-sizing: border-box; height: 100px; }
+  </style>
+</head>
+<body>
+
+<!--
+  Nachbau der Jira-Loginseite (Server / Data Center 9.12.2): eigenes
+  Formular mit #login-form-username, #login-form-password und
+  #login-form-submit, dazu eine gewoehnliche Textarea als Koeder fuer
+  Sub-Task 2 aus Issue #102 (Loginseite bleibt unberuehrt). window.__submits
+  zaehlt, ob ein Klick auf den Submit-Knopf bei der Seite ankommt - friert
+  content.js das Feld ein, bliebe der Zaehler bei 0.
+-->
+
+<div class="login-panel">
+  <h1>Log in</h1>
+  <form id="login-form" action="#" method="post">
+    <div class="field-group">
+      <label for="login-form-username">Username</label>
+      <input class="text" type="text" id="login-form-username" name="os_username" autocomplete="off">
+    </div>
+    <div class="field-group">
+      <label for="login-form-password">Password</label>
+      <input class="text" type="password" id="login-form-password" name="os_password" autocomplete="off">
+    </div>
+    <button class="aui-button-primary" type="button" id="login-form-submit">Log In</button>
+  </form>
+
+  <textarea id="notiz" rows="6"></textarea>
+</div>
+
+<script>
+  window.__submits = 0;
+  document.getElementById('login-form-submit').addEventListener('click', function () {
+    window.__submits += 1;
+  });
+</script>
+
+</body>
+</html>

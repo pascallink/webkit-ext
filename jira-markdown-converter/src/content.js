@@ -1720,13 +1720,35 @@
     scheduleScan();
   }
 
+  // Loginseite: eigenes Formular ohne Vorgangsbearbeitung - Feldleisten,
+  // schwebender Button und Einfrieren sollen dort so wenig einbauen wie im
+  // Standalone-Modus, auch wenn ein Eingabefeld im DOM steht. Issue #102.
+  function isLoginPage() {
+    try {
+      return !!document.querySelector('#login-form-username');
+    } catch (error) {
+      return false;
+    }
+  }
+
   function start() {
+    // Standalone (fremde Seite) und die Loginseite bauen beide nichts ein,
+    // ausser dem Panel - zusammengefasst als "passive". standalone bleibt
+    // daneben bestehen, weil es zusaetzlich die No-Op-Huelle fuer
+    // editlock.js steuert (siehe oben). Issue #102.
+    var passive = standalone || isLoginPage();
+
+    // Der Aufruf in Settings.load().then() lief vor document.body und kannte
+    // die Loginseite darum noch nicht - hier steht sie fest.
+    EditLock.configure({ enabled: !passive && settings.freezeEditMode });
+
     // Feldleisten, schwebender Button, Einfrieren und die Einfuege-Automatik
-    // gehoeren nur zu Jira - auf einer fremden Seite bleibt nur das Panel
-    // uebrig (onMessage, Settings.onChange laufen unveraendert weiter). Das
-    // automatische Umschreiben beim Einfuegen ist Jira-Verhalten und darf
-    // auf einer fremden Seite nicht still mitlaufen. Issue #97.
-    if (!standalone) {
+    // gehoeren nur zu einer Jira-Vorgangsseite - auf einer fremden Seite oder
+    // der Loginseite bleibt nur das Panel uebrig (onMessage, Settings.onChange
+    // laufen unveraendert weiter). Das automatische Umschreiben beim
+    // Einfuegen ist Jira-Verhalten und darf dort nicht still mitlaufen.
+    // Issue #97, #102.
+    if (!passive) {
       document.addEventListener('paste', onPaste, true);
 
       document.addEventListener('focusin', function (event) {
@@ -1782,7 +1804,7 @@
       if (field) Editors.rememberCaret(field);
     }, true);
 
-    if (!standalone) {
+    if (!passive) {
       createFab();
       attachFieldButtons();
       watchRichTextFrames();
@@ -1808,9 +1830,10 @@
 
     Settings.onChange(function (next) {
       settings = next;
-      // Standalone friert nie ein, egal was settings.freezeEditMode sagt.
-      EditLock.configure({ enabled: !standalone && settings.freezeEditMode });
-      if (!standalone) {
+      // Standalone und Loginseite frieren nie ein, egal was
+      // settings.freezeEditMode sagt.
+      EditLock.configure({ enabled: !passive && settings.freezeEditMode });
+      if (!passive) {
         if (settings.showFloatingButton) {
           createFab();
         } else {

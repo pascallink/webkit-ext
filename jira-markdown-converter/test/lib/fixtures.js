@@ -14,5 +14,6 @@ module.exports = {
   OTRS: 'mock-jira-otrs.html',
   JIRA912: 'mock-jira-912-issue-view.html',
   DASHBOARD: 'mock-jira-912-dashboard.html',
+  LOGIN: 'mock-jira-912-login.html',
   FOREIGN: 'mock-fremde-seite.html'
 };
