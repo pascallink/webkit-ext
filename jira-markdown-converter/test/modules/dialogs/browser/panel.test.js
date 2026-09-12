@@ -160,9 +160,10 @@ describe('Panel aus einer Vorlage', { skip: !hasPlaywright }, function () {
     await page.click('.jmd-panelmenu__item[data-template="info"]');
     var pastes = await page.evaluate(function () { return window.__pastes; });
     assert.strictEqual(pastes.length, 1, 'kein Einfuegen im Editor angekommen');
-    assert.ok(/border-left: 4px solid #0052cc/.test(pastes[0].html), 'Rahmenfarbe fehlt: ' + pastes[0].html);
+    assert.ok(/class="plain panel"/.test(pastes[0].html), 'Panel-Klasse fehlt: ' + pastes[0].html);
+    assert.ok(/border-color: #0052cc/.test(pastes[0].html), 'Rahmenfarbe fehlt: ' + pastes[0].html);
     assert.ok(/background-color: #deebff/.test(pastes[0].html), 'Fuellfarbe fehlt: ' + pastes[0].html);
-    assert.ok(/<strong>Info<\/strong>/.test(pastes[0].html), 'Titel fehlt: ' + pastes[0].html);
+    assert.ok(/<panel-title[^>]*>Info<\/panel-title>/.test(pastes[0].html), 'Titel fehlt: ' + pastes[0].html);
     // Als Rueckfalltext liegt weiterhin das Wiki-Markup bereit.
     assert.ok(/^\{panel:title=Info\|borderColor=#0052cc\|bgColor=#deebff\}/.test(pastes[0].text),
       'Markup fehlt: ' + pastes[0].text);

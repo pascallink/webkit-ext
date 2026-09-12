@@ -257,12 +257,14 @@ describe('Panel aus einer Vorlage', function () {
     });
   });
 
-  test('HTML-Zweig faerbt Akzentleiste und Fuellung nach Vorlage', function () {
+  test('HTML-Zweig liefert Jiras Panel-Form', function () {
     Settings.PANEL_TEMPLATES.forEach(function (entry) {
       var panelHtml = jira.panelHtml(entry);
-      assert.ok(panelHtml.indexOf('border-left: 4px solid ' + entry.borderColor) !== -1, entry.id + ': ' + panelHtml);
+      assert.ok(panelHtml.indexOf('class="plain panel"') !== -1, entry.id + ': ' + panelHtml);
       assert.ok(panelHtml.indexOf('background-color: ' + entry.bgColor) !== -1, entry.id + ': ' + panelHtml);
-      assert.ok(panelHtml.indexOf('<strong>' + entry.title + '</strong>') !== -1, entry.id + ': ' + panelHtml);
+      assert.ok(panelHtml.indexOf('border-color: ' + entry.borderColor) !== -1, entry.id + ': ' + panelHtml);
+      assert.ok(panelHtml.indexOf('<panel-title') !== -1, entry.id + ': ' + panelHtml);
+      assert.ok(panelHtml.indexOf('>' + entry.title + '</panel-title>') !== -1, entry.id + ': ' + panelHtml);
       assert.ok(panelHtml.indexOf('<p>' + entry.body + '</p>') !== -1, entry.id + ': ' + panelHtml);
     });
   });
