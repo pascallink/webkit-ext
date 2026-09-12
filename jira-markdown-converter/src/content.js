@@ -124,21 +124,30 @@
    * ueber die Nachricht insert-text, Feld text statt markdown - Issue #105).
    * Das Markup geht nie durch convert() und nie als HTML in den Rich-Text-
    * Editor: nur einfuegen, davor bei Bedarf auf den Markup-Modus umschalten.
+   * Fehlerklammer wie in deliver() (Issue #157): ein synchroner Wurf aus
+   * isPlainField(), Editors.isRichTextActive() oder Editors.insert() kommt
+   * so als abgelehntes Promise beim Aufrufer an, damit onMessage() mit
+   * { ok: false, reason: 'error' } antworten kann, statt den Kanal ohne
+   * Antwort zu schliessen.
    */
   function deliverMarkup(field, markup, mode) {
-    var where = mode === 'insert' ? insertModeFor(markup) : mode;
+    try {
+      var where = mode === 'insert' ? insertModeFor(markup) : mode;
 
-    if (isPlainField(field)) {
-      return Promise.resolve(Editors.insert(field, markup, where) ? 'markup' : '');
+      if (isPlainField(field)) {
+        return Promise.resolve(Editors.insert(field, markup, where) ? 'markup' : '');
+      }
+
+      var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
+        ? Editors.switchToMarkup(field)
+        : Promise.resolve(false);
+
+      return switching.then(function (switched) {
+        return Editors.insert(field, markup, where) ? (switched ? 'switched' : 'markup') : '';
+      });
+    } catch (error) {
+      return Promise.reject(error);
     }
-
-    var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
-      ? Editors.switchToMarkup(field)
-      : Promise.resolve(false);
-
-    return switching.then(function (switched) {
-      return Editors.insert(field, markup, where) ? (switched ? 'switched' : 'markup') : '';
-    });
   }
 
   /** Rueckmeldung passend zu dem Weg, den deliver() genommen hat. */
