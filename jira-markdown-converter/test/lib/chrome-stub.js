@@ -73,10 +73,25 @@ function storageStub(syncStore, localStore) {
 /**
  * Stub fuer background.js: storageStub plus das Mindeste, was der
  * Service-Worker beim Laden unbedingt aufruft (refreshIndicators() laeuft
- * synchron mit) und die Listener, gegen die Tests Nachrichten und Klicks
- * simulieren. chrome.tabs/scripting/permissions/action fehlen bewusst -
- * die Nachrichtenbehandlung fuer 'convert' und 'toggle-convert-on-paste'
- * braucht sie nicht.
+ * synchron mit), die Listener, gegen die Tests Nachrichten und Klicks
+ * simulieren, sowie chrome.tabs/chrome.scripting fuer die Jira-Sondierung
+ * in sendToTab(). Jeder tabs.sendMessage/tabs.query/scripting.executeScript/
+ * scripting.insertCSS-Aufruf landet protokolliert in stub.calls, damit ein
+ * Test nachvollziehen kann, welche Dateien injiziert wurden.
+ * stub.failNextSendMessage() laesst genau den naechsten tabs.sendMessage-
+ * Aufruf mit chrome.runtime.lastError scheitern (wie bei einem Tab ohne
+ * Content-Script) und raeumt lastError danach sofort wieder weg - echtes
+ * Chrome-Verhalten haelt lastError auch nur waehrend des Callbacks.
+ * scripting.executeScript liefert bei einem Aufruf mit `func` (die
+ * Jira-Sondierung selbst) `[{ result: stub.probeResult }]`, bei einem
+ * Aufruf mit `files` (Injektion) nur ein leeres Ergebnis.
+ * Jede Methode setzt chrome.runtime.lastError unmittelbar vor ihrem eigenen
+ * Callback (auch auf null im Erfolgsfall) statt sich auf den Ruhezustand zu
+ * verlassen: sendToTab() ruft aus einem Callback mit gesetztem lastError
+ * synchron die naechste API auf (z. B. probeJira() aus dem gescheiterten
+ * sendMessage-Callback heraus) - echtes Chrome liefert Callbacks stets async
+ * und damit nie mit fremdem lastError im Gepaeck, der synchrone Stub muss
+ * das also selbst nachbilden.
  */
 function backgroundStub(syncStore, localStore) {
   var stub = storageStub(syncStore, localStore);
@@ -90,6 +105,52 @@ function backgroundStub(syncStore, localStore) {
     onClicked: listenerStub()
   };
   stub.commands = { onCommand: listenerStub() };
+
+  stub.calls = [];
+  stub.probeResult = false;
+  stub._failNextSendMessage = false;
+  stub.failNextSendMessage = function () {
+    stub._failNextSendMessage = true;
+  };
+
+  stub.tabs = {
+    sendMessage: function (tabId, message, cb) {
+      stub.calls.push({ api: 'tabs.sendMessage', tabId: tabId, message: message });
+      if (stub._failNextSendMessage) {
+        stub._failNextSendMessage = false;
+        stub.runtime.lastError = { message: 'Could not establish connection.' };
+        if (cb) cb();
+        stub.runtime.lastError = null;
+        return;
+      }
+      stub.runtime.lastError = null;
+      if (cb) cb();
+    },
+    query: function (queryInfo, cb) {
+      stub.calls.push({ api: 'tabs.query', queryInfo: queryInfo });
+      stub.runtime.lastError = null;
+      cb(stub.tabsList || []);
+    }
+  };
+
+  stub.scripting = {
+    executeScript: function (options, cb) {
+      stub.calls.push({ api: 'scripting.executeScript', options: options });
+      stub.runtime.lastError = null;
+      if (!cb) return;
+      if (options.func) {
+        cb([{ result: stub.probeResult }]);
+      } else {
+        cb([]);
+      }
+    },
+    insertCSS: function (options, cb) {
+      stub.calls.push({ api: 'scripting.insertCSS', options: options });
+      stub.runtime.lastError = null;
+      if (cb) cb();
+    }
+  };
+
   return stub;
 }
 

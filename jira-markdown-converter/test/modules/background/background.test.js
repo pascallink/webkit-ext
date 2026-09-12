@@ -100,3 +100,85 @@ describe('Nachrichtenbehandlung', function () {
     });
   });
 });
+
+/**
+ * sendToTab() greift nur bei einem fehlgeschlagenen ersten tabs.sendMessage
+ * (kein Content-Script im Tab) ueberhaupt zur Injektion - antwortet der Tab,
+ * bleibt alles wie es ist. Ausloeser durchgehend ein Kontextmenue-Klick auf
+ * 'open-panel', weil das den vollen Pfad durch sendToTab() nimmt.
+ */
+describe('Injektion nach Seitenart', function () {
+  function filesOf(stub, api) {
+    var call = stub.calls.filter(function (entry) {
+      return entry.api === api && entry.options.files;
+    })[0];
+    return call ? call.options.files : null;
+  }
+
+  test('Nicht-Jira-Seite bekommt editlock.js nicht eingespielt', function () {
+    var stub = backgroundStub({}, {});
+    loadBackground(stub);
+    stub.probeResult = false;
+    stub.failNextSendMessage();
+    stub.contextMenus.onClicked.trigger({ menuItemId: 'open-panel' }, { id: 7 });
+
+    var files = filesOf(stub, 'scripting.executeScript');
+    assert.ok(files, 'keine Datei-Injektion protokolliert');
+    assert.strictEqual(files.indexOf('src/editlock.js'), -1, 'editlock.js haette nicht injiziert werden duerfen');
+    ['src/otrslink.js', 'src/jiraui.js', 'src/otrsflow.js', 'src/otrsdialog.js'].forEach(function (file) {
+      assert.strictEqual(files.indexOf(file), -1, file + ' haette nicht injiziert werden duerfen');
+    });
+    assert.notStrictEqual(files.indexOf('src/content.js'), -1, 'content.js fehlt in der Standalone-Liste');
+    assert.notStrictEqual(files.indexOf('src/converter.js'), -1, 'converter.js fehlt in der Standalone-Liste');
+  });
+
+  test('Jira-Seite bekommt CONTENT_FILES vollstaendig eingespielt', function () {
+    var stub = backgroundStub({}, {});
+    loadBackground(stub);
+    stub.probeResult = true;
+    stub.failNextSendMessage();
+    stub.contextMenus.onClicked.trigger({ menuItemId: 'open-panel' }, { id: 7 });
+
+    var files = filesOf(stub, 'scripting.executeScript');
+    assert.ok(files, 'keine Datei-Injektion protokolliert');
+    assert.notStrictEqual(files.indexOf('src/editlock.js'), -1, 'editlock.js fehlt auf der Jira-Seite');
+    assert.notStrictEqual(files.indexOf('src/otrsdialog.js'), -1, 'otrsdialog.js fehlt auf der Jira-Seite');
+  });
+
+  test('CONTENT_CSS wird in beiden Faellen eingespielt', function () {
+    var stub = backgroundStub({}, {});
+    loadBackground(stub);
+    stub.probeResult = false;
+    stub.failNextSendMessage();
+    stub.contextMenus.onClicked.trigger({ menuItemId: 'open-panel' }, { id: 7 });
+
+    var css = filesOf(stub, 'scripting.insertCSS');
+    assert.ok(css, 'kein CSS eingespielt');
+    assert.notStrictEqual(css.indexOf('src/content.css'), -1);
+  });
+
+  test('die Sondierung laeuft nur im Hauptrahmen', function () {
+    var stub = backgroundStub({}, {});
+    loadBackground(stub);
+    stub.probeResult = false;
+    stub.failNextSendMessage();
+    stub.contextMenus.onClicked.trigger({ menuItemId: 'open-panel' }, { id: 7 });
+
+    var probe = stub.calls.filter(function (entry) {
+      return entry.api === 'scripting.executeScript' && entry.options.func;
+    })[0];
+    assert.ok(probe, 'keine Sondierung protokolliert');
+    assert.ok(!probe.options.target.allFrames, 'Sondierung lief in allen Frames statt nur im Hauptrahmen');
+  });
+
+  test('antwortet das Content-Script, wird nicht injiziert', function () {
+    var stub = backgroundStub({}, {});
+    loadBackground(stub);
+    stub.contextMenus.onClicked.trigger({ menuItemId: 'open-panel' }, { id: 7 });
+
+    var injected = stub.calls.some(function (entry) {
+      return entry.api === 'scripting.executeScript' || entry.api === 'scripting.insertCSS';
+    });
+    assert.strictEqual(injected, false, 'es haette nichts injiziert werden duerfen');
+  });
+});
