@@ -113,7 +113,7 @@ Der Code wird dabei nie durch den Markdown-Parser geschickt: `# Titel` oder
 | Feldtyp | Was ankommt |
 | --- | --- |
 | Textfeld (Wiki Style Renderer) | `{code:java} … {code}` |
-| Rich-Text-Editor | `<pre><code class="language-java"> … </code></pre>` |
+| Rich-Text-Editor | `<pre class="code panel" data-language="code-java"> … </pre>` |
 
 Derselbe Codeblock, einmal im Textfeld von Jira Server 9.12 und einmal im
 Rich-Text-Editor – eingesetzt an der Stelle, an der der Cursor stand:
@@ -440,8 +440,7 @@ mitten in einem Absatz, teilt die Erweiterung den Block an der Schreibmarke auf
 und setzt den Codeblock zwischen die beiden Teile - das verhindert, dass der
 Editor den eingefuegten Block in den laufenden Absatz hineinzieht. Misslang das
 Aufteilen, faellt die Erweiterung auf leere Absaetze davor und dahinter zurueck.
-Steht die Marke schon am Anfang oder am Ende ihres Absatzes, entfaellt der
-Trenner auf dieser Seite; im leeren Absatz kommt gar keiner dazu.
+Steht die Marke am Anfang oder am Ende ihres Absatzes, rueckt die Erweiterung die Schreibmarke nur vor bzw. hinter den Absatz und setzt gar keinen Trenner; im leeren Absatz greift die Rueckfallebene, dort kommt ebenfalls keiner dazu.
 
 Liegt der Fokus noch im Feld, gilt immer die aktuelle Auswahl - die gemerkte
 Position kommt nur zum Zug, wenn der Fokus das Feld verlassen hat. Im
