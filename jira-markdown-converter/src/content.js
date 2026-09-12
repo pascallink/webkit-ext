@@ -122,6 +122,11 @@
       return false;
     }
 
+    // Der Klick ist eine bewusste Aktion - anders als beim automatischen
+    // Einfuegen (Issue #92) wird hier nicht abgebrochen, nur die Rueckmeldung
+    // weist darauf hin, dass der Text schon wie Jira-Markup aussah.
+    var sawJiraMarkup = Converter.looksLikeJiraMarkup(source);
+
     if (isPlainField(field)) {
       var output = convert(source);
       if (output === source) {
@@ -134,12 +139,25 @@
         output = /^\s*/.exec(source)[0] + output + /\s*$/.exec(source)[0];
       }
       var done = Editors.insert(field, output, selected ? 'insert' : 'replace');
-      toast(done ? 'In Jira-Markup umgewandelt.' : 'Einfuegen nicht moeglich.', !done);
+      var plainMessage = !done
+        ? 'Einfuegen nicht moeglich.'
+        : sawJiraMarkup
+          ? 'Sah schon nach Jira-Markup aus - trotzdem umgewandelt.'
+          : 'In Jira-Markup umgewandelt.';
+      toast(plainMessage, !done || sawJiraMarkup);
       return done;
     }
 
     deliver(field, source, selected ? 'insert' : 'replace').then(function (how) {
-      toast(how ? insertMessage(how) : 'Einfuegen nicht moeglich.', !how);
+      if (!how) {
+        toast('Einfuegen nicht moeglich.', true);
+        return;
+      }
+      if (sawJiraMarkup) {
+        toast('Sah schon nach Jira-Markup aus - trotzdem umgewandelt.', true);
+        return;
+      }
+      toast(insertMessage(how));
     });
     return true;
   }

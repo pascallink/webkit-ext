@@ -191,4 +191,15 @@ describe('Umwandeln an Ort und Stelle', { skip: !hasPlaywright }, function () {
     assert.strictEqual(await page.inputValue('#description'), 'h1. Von aussen');
     await page.close();
   });
+
+  test('Umwandeln zeigt bei vorhandenem Jira-Markup einen Hinweis', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    var repro = 'h2. Titel\n* punkt\n{code:java}\nint x = 1;\n{code}';
+    await page.fill('#description', repro);
+    await page.locator('.jmd-fieldbar').first().getByText('Umwandeln').click();
+    var toastText = await page.textContent('.jmd-toast');
+    assert.ok(/schon nach Jira-Markup aus/.test(toastText), 'Hinweis auf vorhandenes Jira-Markup fehlt: ' + toastText);
+    await page.close();
+  });
 });
