@@ -117,8 +117,14 @@ describe('Service-Worker mit echten chrome-APIs', function () {
     // ab (background.js:189) - ein Test-lokaler Stub dieser einen Abfrage
     // (nur innerhalb dieses worker.evaluate(), background.js bleibt
     // unberuehrt) reicht, um den echten chrome.scripting-Aufruf dahinter zu
-    // pruefen.
+    // pruefen. Hinter dem Sync-Listener liegt keine feste Verzoegerung,
+    // sondern eine Kette aus chrome.storage.sync.set, dem Listener in
+    // background.js:216, Settings.load() (zwei Lesevorgaenge),
+    // getRegisteredContentScripts, permissions.contains und
+    // registerContentScripts - darum wird hier wie bei waitForBadge() auf
+    // den Zielzustand gepollt statt eine feste Zeit abzuwarten.
     var result = await worker.evaluate(function () {
+      var SETTLE_TIMEOUT = 5000;
       var originalContains = chrome.permissions.contains;
       chrome.permissions.contains = function (permissions, callback) { callback(true); };
 
@@ -130,18 +136,24 @@ describe('Service-Worker mit echten chrome-APIs', function () {
       function setSync(values) {
         return new Promise(function (resolve) { chrome.storage.sync.set(values, resolve); });
       }
-      function wait(ms) {
-        return new Promise(function (resolve) { setTimeout(resolve, ms); });
+      function pollRegistered(expectedCount) {
+        var deadline = Date.now() + SETTLE_TIMEOUT;
+        function attempt() {
+          return registered().then(function (list) {
+            if (list.length === expectedCount) return list;
+            if (Date.now() > deadline) return list;
+            return new Promise(function (resolve) { setTimeout(resolve, 100); }).then(attempt);
+          });
+        }
+        return attempt();
       }
 
       return registered().then(function (before) {
         return setSync({ extraHosts: ['beispiel.invalid'] })
-          .then(function () { return wait(150); })
-          .then(registered)
+          .then(function () { return pollRegistered(1); })
           .then(function (afterRegister) {
             return setSync({ extraHosts: [] })
-              .then(function () { return wait(150); })
-              .then(registered)
+              .then(function () { return pollRegistered(0); })
               .then(function (afterRemove) {
                 return { before: before, afterRegister: afterRegister, afterRemove: afterRemove };
               });
