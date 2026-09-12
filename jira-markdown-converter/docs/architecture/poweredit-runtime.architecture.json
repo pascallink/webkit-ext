@@ -4,7 +4,7 @@
   "meta": {
     "title": "PowerEdit for Jira - Laufzeitarchitektur",
     "subtitle": "MV3-Erweiterung gegen Jira Server / Data Center 9.12 LTS",
-    "output": "docs/architecture/poweredit-runtime.html",
+    "output": "jira-markdown-converter/docs/architecture/poweredit-runtime.html",
     "visual_preset": "blueprint",
     "quality_profile": "showcase",
     "viewBox": [
@@ -34,6 +34,7 @@
         "label": "Einstellungen und Rechte",
         "focus": [
           "popup",
+          "background",
           "content",
           "settings",
           "storage"
@@ -271,16 +272,16 @@
       ],
       "sources": [
         {
-          "path": "jira-markdown-converter/src/otrsflow.js",
-          "label": "drei Schritte"
+          "path": "jira-markdown-converter/src/otrsdialog.js",
+          "label": "Eingabedialog"
         },
         {
           "path": "jira-markdown-converter/src/otrslink.js",
           "label": "Verweis zerlegen"
         },
         {
-          "path": "jira-markdown-converter/src/jiraui.js",
-          "label": "AUI-Helfer"
+          "path": "jira-markdown-converter/src/otrsflow.js",
+          "label": "drei Schritte"
         }
       ]
     },
@@ -313,7 +314,7 @@
     },
     {
       "kind": "region",
-      "label": "Isolierte Welt - Content-Scripts, document_start, all_frames",
+      "label": "Isolierte Welt - converter.js/settings.js zusaetzlich in Service-Worker und Erweiterungsseiten",
       "wraps": [
         "converter",
         "content",
@@ -376,6 +377,64 @@
       "to": "content",
       "label": "insert-text, ping",
       "variant": "dashed"
+    },
+    {
+      "from": "popup",
+      "to": "converter",
+      "label": "Converter.convert()",
+      "variant": "dashed",
+      "route": "straight",
+      "labelAt": [
+        200,
+        148
+      ]
+    },
+    {
+      "from": "popup",
+      "to": "settings",
+      "label": "Settings laden/speichern",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "bottom",
+      "via": [
+        [
+          10,
+          102
+        ],
+        [
+          10,
+          495
+        ],
+        [
+          400,
+          495
+        ]
+      ],
+      "labelAt": [
+        150,
+        495
+      ]
+    },
+    {
+      "from": "popup",
+      "to": "background",
+      "label": "permissions.request -> onAdded",
+      "variant": "security",
+      "route": "straight",
+      "labelAt": [
+        140,
+        170
+      ]
+    },
+    {
+      "from": "background",
+      "to": "content",
+      "label": "registerContentScripts (Hosts)",
+      "variant": "security",
+      "labelAt": [
+        270,
+        340
+      ]
     },
     {
       "from": "content",
@@ -445,9 +504,10 @@
       "dot": "rose",
       "title": "Vertrauensgrenzen",
       "items": [
-        "host_permissions nur https://*.atlassian.net/*, weitere Hosts kommen als optional_host_permissions dazu",
-        "Kein fetch und kein XMLHttpRequest - gearbeitet wird ausschliesslich auf dem DOM der offenen Seite",
-        "Leere catch-Bloecke sind Absicht, Jira baut das DOM zur Laufzeit staendig um"
+        "host_permissions nur https://*.atlassian.net/*, weitere Hosts per optional_host_permissions",
+        "scripting erlaubt programmatische Injektion der elf Content-Scripts in freigegebene Hosts",
+        "Kein fetch, kein XMLHttpRequest - nur das DOM der offenen Seite",
+        "Leere catch-Bloecke sind Absicht - Jira aendert das DOM staendig"
       ]
     },
     {
