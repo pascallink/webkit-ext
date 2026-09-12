@@ -58,28 +58,36 @@
   function deliver(field, markdown, mode) {
     if (!field) return Promise.resolve('');
 
-    if (isPlainField(field)) {
-      return Promise.resolve(Editors.insert(field, convert(markdown), mode) ? 'markup' : '');
+    // Ab hier faengt try/catch einen werfenden Konverter ab: ohne das wuerde
+    // ein Fehler synchron aus deliver() fliegen, statt als abgelehntes
+    // Promise beim Aufrufer anzukommen - der weiss dann nicht, dass nichts
+    // eingefuegt wurde. Issue #88.
+    try {
+      if (isPlainField(field)) {
+        return Promise.resolve(Editors.insert(field, convert(markdown), mode) ? 'markup' : '');
+      }
+
+      var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
+        ? Editors.switchToMarkup(field)
+        : Promise.resolve(false);
+
+      return switching.then(function (switched) {
+        if (switched) {
+          return Editors.insert(field, convert(markdown), mode) ? 'switched' : '';
+        }
+        if (settings.richEditorFormat === 'markdown') {
+          return Editors.insert(field, markdown, mode) ? 'markdown' : '';
+        }
+        if (settings.richEditorFormat === 'jira') {
+          return Editors.insert(field, convert(markdown), mode) ? 'markup' : '';
+        }
+        // Standard: formatiert einfuegen, damit der Editor kein Markup anzeigt.
+        var both = Converter.convertBoth(markdown, Settings.converterOptions(settings));
+        return Editors.insertFormatted(field, both.jira, both.html, mode) ? 'formatted' : '';
+      });
+    } catch (error) {
+      return Promise.reject(error);
     }
-
-    var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
-      ? Editors.switchToMarkup(field)
-      : Promise.resolve(false);
-
-    return switching.then(function (switched) {
-      if (switched) {
-        return Editors.insert(field, convert(markdown), mode) ? 'switched' : '';
-      }
-      if (settings.richEditorFormat === 'markdown') {
-        return Editors.insert(field, markdown, mode) ? 'markdown' : '';
-      }
-      if (settings.richEditorFormat === 'jira') {
-        return Editors.insert(field, convert(markdown), mode) ? 'markup' : '';
-      }
-      // Standard: formatiert einfuegen, damit der Editor kein Markup anzeigt.
-      var both = Converter.convertBoth(markdown, Settings.converterOptions(settings));
-      return Editors.insertFormatted(field, both.jira, both.html, mode) ? 'formatted' : '';
-    });
   }
 
   /** Rueckmeldung passend zu dem Weg, den deliver() genommen hat. */
@@ -157,15 +165,38 @@
         !settings.switchToMarkup) {
       return;
     }
-    if (isPlainField(field) && convert(text) === text) return;
+
+    // Reines Textfeld: die Umwandlung genau einmal versuchen, bevor der
+    // Browser sein eigenes Einfuegen verwirft (event.preventDefault()).
+    // Schlaegt sie fehl, bleibt der Rohtext-Weg offen - kein unbehandelter
+    // Fehler, kein verlorener Text. Issue #88.
+    var plainOutput = null;
+    if (isPlainField(field)) {
+      try {
+        plainOutput = convert(text);
+      } catch (error) {
+        return;
+      }
+      if (plainOutput === text) return;
+    }
 
     event.preventDefault();
     event.stopPropagation();
     target = field;
     // Die Position steht noch - der Nutzer hat gerade in das Feld getippt.
     Editors.rememberCaret(field);
-    deliver(field, text, 'insert').then(function (how) {
+
+    var insertion = isPlainField(field)
+      ? Promise.resolve(Editors.insert(field, plainOutput, 'insert') ? 'markup' : '')
+      : deliver(field, text, 'insert');
+
+    insertion.then(function (how) {
       if (how) toast(insertMessage(how));
+    }, function () {
+      // preventDefault() ist schon gefallen - der Browser fuegt nichts mehr
+      // ein. Wenigstens Bescheid sagen, statt den Text kommentarlos zu
+      // verlieren (Rich-Text-Pfad ueber deliver()). Issue #88.
+      toast('Einfuegen nicht moeglich - die Umwandlung ist fehlgeschlagen.', true);
     });
   }
 

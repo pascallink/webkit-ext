@@ -86,6 +86,35 @@ describe('Automatik beim Einfuegen', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
+  test('Fehler im Konverter laesst das Einfuegen durch', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    var pageErrors = [];
+    page.on('pageerror', function (error) { pageErrors.push(error.message); });
+
+    var result = await page.evaluate(function () {
+      // Das Content-Script haelt dieselbe Objektreferenz (src/content.js:11) -
+      // der Stub wirkt sofort auf den laufenden Code.
+      window.JiraMarkdown.convert = function () {
+        throw new Error('kaputt');
+      };
+      var element = document.querySelector('#description');
+      element.focus();
+      var data = new DataTransfer();
+      data.setData('text/plain', '# Titel');
+      var event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+      return element.dispatchEvent(event);
+    });
+    // Ein nicht abgefangener Fehler wuerde erst mit Verzoegerung als
+    // pageerror ankommen - kurz abwarten, bevor pageErrors geprueft wird.
+    await page.waitForTimeout(200);
+
+    assert.strictEqual(result, true, 'defaultPrevented haette nicht gesetzt sein duerfen');
+    assert.deepStrictEqual(pageErrors, [], 'der Konverterfehler haette abgefangen werden muessen');
+    assert.strictEqual(await page.inputValue('#description'), '', 'das Feld haette unveraendert bleiben muessen');
+    await page.close();
+  });
+
   test('Automatik laesst sich abschalten', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, { convertOnPaste: false });
