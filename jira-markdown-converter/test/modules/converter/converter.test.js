@@ -215,6 +215,13 @@ describe('Jira-Sonderzeichen maskieren', function () {
     eq('[INFO] gestartet', '\\[INFO\\] gestartet');
     eq('Liste [a] und [b]', 'Liste \\[a\\] und \\[b\\]');
   });
+  test('Jira-eigene Klammerformen bleiben unveraendert', function () {
+    eq('Hallo [~pascal], bitte pruefen', 'Hallo [~pascal], bitte pruefen');
+    eq('Danke an [~jdoe] und [~asmith]!', 'Danke an [~jdoe] und [~asmith]!');
+    eq('Anhang [^bericht.pdf] beachten', 'Anhang [^bericht.pdf] beachten');
+    eq('Siehe [#anker] unten', 'Siehe [#anker] unten');
+    eq('[INFO] fuer [~pascal]', '\\[INFO\\] fuer [~pascal]');
+  });
   test('paarige Auszeichnungszeichen', function () {
     eq('Kosten -oder- mehr', 'Kosten \\-oder\\- mehr');
     eq('Dauer ~30 ms~', 'Dauer \\~30 ms\\~');
