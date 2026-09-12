@@ -176,6 +176,16 @@ describe('Listen', function () {
     eq('- erster Punkt\n\n  Fortsetzung.\n\n- zweiter',
       '* erster Punkt\\\\Fortsetzung.\n* zweiter');
   });
+  test('eingerueckte Tabelle nach Leerzeile bleibt eigener Block', function () {
+    eq('- a\n\n  |X|Y|\n  |---|---|\n  |1|2|',
+      '* a\n\n||X||Y||\n|1|2|');
+  });
+  test('eingerueckte Ueberschrift nach Leerzeile bleibt eigener Block', function () {
+    eq('- a\n\n  ## Titel', '* a\n\nh2. Titel');
+  });
+  test('eingeruecktes Zitat nach Leerzeile bleibt eigener Block', function () {
+    eq('- a\n\n  > zitat', '* a\n\nbq. zitat');
+  });
 });
 
 describe('Tabellen', function () {

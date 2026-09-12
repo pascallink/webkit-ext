@@ -767,7 +767,9 @@
       return ph.add(d.link('', url));
     });
     text = text.replace(/<([^@<>\s]+@[^@<>\s]+\.[^@<>\s]+)>/g, function (match, mail) {
-      return ph.add(d.link(mail, 'mailto:' + mail));
+      // Adresse vor dem Einsetzen als Label maskieren - sonst geht sie im
+      // HTML-Dialekt roh in HTML_DIALECT.link (label || escapeHtml(url)).
+      return ph.add(d.link(d.escapeText(mail, ctx.options), 'mailto:' + mail));
     });
 
     // 9. Textauszeichnungen. Die erzeugten Jira-Zeichen werden als Platzhalter
@@ -1207,10 +1209,16 @@
         // sonst greift protectIndentedCode()) ist eine Fortsetzung des letzten
         // Eintrags - Codeblock-Platzhalter zaehlen ausdruecklich nicht dazu,
         // die spalten die Liste weiterhin (siehe Punkt 7, Dokumentation folgt).
+        // Eroeffnet die Zeile dagegen selbst einen Block (Ueberschrift,
+        // Zitat, Tabellenzeile, Trenner), zaehlt sie nicht als Fortsetzung -
+        // sonst haengt der Block als literaler Text am Eintrag, statt dass
+        // convertBlocks() ihn als eigenen Block erkennt.
         var next = lines[lookahead];
         var paragraph = /^(\s+)(\S[\s\S]*)$/.exec(next);
+        var opensBlock = /^\s*#{1,6}[ \t]/.test(next) || /^\s*>/.test(next) ||
+          /^\s*\|/.test(next) || isHorizontalRule(next);
         if (items.length && paragraph && indentWidth(paragraph[1]) < 4 &&
-          !PLACEHOLDER_LINE_RE.test(next)) {
+          !PLACEHOLDER_LINE_RE.test(next) && !opensBlock) {
           items[items.length - 1].content +=
             ctx.dialect.itemBreak + convertInline(paragraph[2], ctx);
           i = lookahead + 1;
