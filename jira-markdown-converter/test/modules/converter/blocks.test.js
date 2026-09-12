@@ -67,6 +67,14 @@ describe('Code', function () {
     // besser eine bekannt kaputte Ausgabe als ein zweites kaputtes Muster.
     eq('`{noformat}`', '{{{noformat}}}');
   });
+  test('Inline-Code mit maskierten Klammern wird noformat (Issue #155)', function () {
+    eq('Text `\\{x\\}` Ende', 'Text {noformat}{x}{noformat} Ende');
+    eq('`\\{a\\} und {b}`', '{noformat}{a} und {b}{noformat}');
+    // Aufgeloest enthaelt der Rumpf selbst '{noformat}' - Selbstenthaltung
+    // greift auch bei maskierten Klammern, bleibt also bei der alten Form.
+    eq('`\\{noformat\\}`', '{{\\{noformat\\}}}');
+    eq('<code>\\{x\\}</code>', '{noformat}{x}{noformat}');
+  });
   test('noformat-Ausgabe bleibt als Jira-Markup erkennbar (Issue #92)', function () {
     // convert() selbst ist nicht idempotent - reiner Text mit rohen {}
     // wuerde beim zweiten Durchlauf maskiert. Die eigentliche Absicherung
