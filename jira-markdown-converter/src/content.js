@@ -160,6 +160,14 @@
     var text = clipboard.getData('text/plain');
     if (!text || !Converter.looksLikeMarkdown(text)) return;
 
+    // Fertiges Jira-Markup nicht anfassen - eine erneute Umwandlung wuerde
+    // Makros wie {code} zerstoeren. Vor preventDefault(), damit der Browser
+    // den Text ganz normal einfuegt. Issue #92.
+    if (Converter.looksLikeJiraMarkup(text)) {
+      toast('Sieht schon nach Jira-Markup aus - nicht umgewandelt.', true);
+      return;
+    }
+
     // Markdown durchreichen heisst: nichts tun, der Editor macht den Rest.
     if (!isPlainField(field) && settings.richEditorFormat === 'markdown' &&
         !settings.switchToMarkup) {

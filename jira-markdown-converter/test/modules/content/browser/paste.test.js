@@ -43,6 +43,26 @@ describe('Automatik beim Einfuegen', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
+  test('Vorhandenes Jira-Markup wird beim Einfuegen nicht umgewandelt', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    var repro = 'h2. Titel\n* punkt\n{code:java}\nint x = 1;\n{code}';
+    var handled = await page.evaluate(function (text) {
+      var element = document.querySelector('#description');
+      element.focus();
+      var data = new DataTransfer();
+      data.setData('text/plain', text);
+      var event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    }, repro);
+    assert.strictEqual(handled, false, 'das Einfuegen haette nicht abgefangen werden duerfen');
+    assert.strictEqual(await page.inputValue('#description'), '');
+    var toastText = await page.textContent('.jmd-toast');
+    assert.ok(/Jira-Markup/.test(toastText), 'Hinweis auf vorhandenes Jira-Markup fehlt: ' + toastText);
+    await page.close();
+  });
+
   test('Einfuegen an der Cursorposition erhaelt den Rest', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser);
