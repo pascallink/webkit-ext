@@ -241,11 +241,11 @@ function removeAlreadyBookedRows(costsRows, tokensRows, historyRows) {
     const ts = Date.parse(updatedAt);
     if (!Number.isFinite(ts) || ts > threshold) return true;
     alreadyBookedSet.add(branch);
-    droppedSessionKeys.add(`${branch} ${sessionId}`);
+    droppedSessionKeys.add(`${branch}\u0000${sessionId}`);
     return false;
   });
   const keptTokensRows = tokensRows.filter(
-    (row) => !droppedSessionKeys.has(`${row[0]} ${row[1]}`),
+    (row) => !droppedSessionKeys.has(`${row[0]}\u0000${row[1]}`),
   );
   return {
     costsRows: keptCostsRows,
@@ -413,10 +413,10 @@ export function bookedBranches(historyRows, historyModelRows) {
  * bei. Eine erfundene Zahl waere schlimmer als eine fehlende.
  */
 export function modelSessionCounts(costsRows, tokensRows) {
-  const validSessions = new Set(costsRows.map((row) => `${row[0]} ${row[1]}`));
+  const validSessions = new Set(costsRows.map((row) => `${row[0]}\u0000${row[1]}`));
   const perModel = new Map();
   for (const row of tokensRows) {
-    const sessionKey = `${row[0]} ${row[1]}`;
+    const sessionKey = `${row[0]}\u0000${row[1]}`;
     if (!validSessions.has(sessionKey)) continue;
     const model = row[2];
     if (!perModel.has(model)) perModel.set(model, new Set());
