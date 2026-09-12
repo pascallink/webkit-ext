@@ -1,10 +1,11 @@
-<!-- AGENT INSTRUCTION: Fülle extrem kurz aus. Nur Stichpunkte. Max 5 Wörter pro Punkt. Kein Fluff. Trage bei 'Agent' dein konkretes Modell ein (z.B. Claude 3.5 Sonnet, Claude 3 Opus, etc.). -->
+<!-- AGENT INSTRUCTION: Fuelle extrem kurz aus. Nur Stichpunkte, keine Saetze. Max 5 Woerter pro Punkt. Kein Fluff, keine Einleitung. Felder ohne Inhalt loeschen, nicht leer lassen. -->
 
 **Issue / Subtask:** [Issue-ID oder None] / [Subtask-ID oder None]
-**Agent:** [Name des ausführenden KI-Modells]
+**Stufe:** [umsetzer | reviewer | korrektur-logik | korrektur-style]
+**Base:** [main oder Vorgaenger-Branch]
 
-**Why:** 
-- [Grund der Änderung]
+**Why:**
+- [Grund der Aenderung]
 
 **What:**
-- [Datei/Komponente]: [Änderung]
+- [Datei/Komponente]: [Aenderung]
