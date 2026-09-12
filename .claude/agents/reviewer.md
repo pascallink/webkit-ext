@@ -22,6 +22,11 @@ in der Root-`CLAUDE.md` und sind bindend.
 
 - Was der Diff nicht belegt, wird nicht behauptet. Lieber weglassen als raten.
 - Ein Befund ohne Datei- und Zeilenangabe ist kein Befund.
+- **Ohne Befund kein Satz.** Was in Ordnung ist, bleibt unerwaehnt - kein Absatz
+  darueber, was du geprueft und fuer sauber befunden hast, keine Messwerte, die
+  keinen Befund tragen. Dass du hingeschaut hast, belegen die Befunde.
+- Kein Anhang, keine Randnotiz, nichts "bewusst nicht als Befund gefuehrt".
+  Entweder es ist ein Befund und steht im Fliesstext, oder es faellt weg.
 - Vorhandene Schwaechen ausserhalb des Diffs gehoeren nicht ins Review.
 - Tests ausfuehren nur, wenn ein Befund davon abhaengt, und dann als
   `npm run test:module <modul> --prefix <projekt>`.

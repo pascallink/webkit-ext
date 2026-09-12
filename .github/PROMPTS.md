@@ -16,6 +16,11 @@ am Ende.
 - **Struktur strikt:** nur die definierten Abschnitte, Enums exakt wie notiert,
   kein Zusatzabschnitt. Was der Diff nicht belegt, wird nicht behauptet - lieber
   weglassen als raten.
+- **Ohne Befund kein Satz:** was in Ordnung ist, bleibt unerwaehnt. Kein Absatz
+  ueber Geprueftes und fuer sauber Befundenes, keine Messwerte ohne Befund,
+  keine Randnotiz und nichts "bewusst nicht als Befund gefuehrt". Entweder es
+  ist ein Befund und steht im Fliesstext, oder es faellt weg. Dass hingeschaut
+  wurde, belegen die Befunde.
 - **Kontext beschneiden:** vor der Uebergabe Kommentare, Leerzeilen und
   unveraenderte Bloecke entfernen. Weiter geht der Ausschnitt, nie die ganze
   Datei.
@@ -31,9 +36,10 @@ Ausgabe: Markdown-Fliesstext, kein JSON-Bericht.
 ```
 ## Review PR #<nummer> (<branch> @ <head-sha>) - <APPROVED | CHANGES_REQUESTED>
 
-<Zwei bis drei Absaetze: was bricht, warum, und was daraus folgt. Datei- und
+<Ein Absatz je Befund: was bricht, warum, und was daraus folgt. Datei- und
 Zeilenangaben inline als `datei.yml:18`. Keine Tabelle, keine Befundliste,
-kein Wiederholen des Diffs.>
+kein Wiederholen des Diffs. Keine Befunde, kein Absatz - dann folgt direkt
+die Empfehlung.>
 
 **Empfehlung:** <ein Satz zur Richtung der Korrektur.>
 ```
