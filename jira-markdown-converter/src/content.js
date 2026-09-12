@@ -2,6 +2,7 @@
  * Content-Script: baut die Bedienelemente in Jira ein und uebernimmt das
  * Konvertieren und Einfuegen.
  */
+/* global ResizeObserver */
 (function () {
   'use strict';
 
