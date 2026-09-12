@@ -70,6 +70,10 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   test('gemischte Verschachtelung', function () {
     html('- a\n  1. b\n- c', '<ul><li>a<ol><li>b</li></ol></li><li>c</li></ul>');
   });
+  test('Fortsetzungsabsatz bricht die Liste nicht', function () {
+    html('- erster Punkt\n\n  Fortsetzung.\n\n- zweiter',
+      '<ul><li>erster Punkt<br>Fortsetzung.</li><li>zweiter</li></ul>');
+  });
   test('Aufgabenliste', function () {
     html('- [x] fertig\n- [ ] offen',
       '<ul><li>&#9745; fertig</li><li>&#9744; offen</li></ul>');
@@ -87,6 +91,10 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   });
   test('Zitat', function () {
     html('> Zitat', '<blockquote>\n<p>Zitat</p>\n</blockquote>');
+  });
+  test('verschachteltes Zitat bleibt eine Huelle', function () {
+    html('> a\n>> b\n>>> c',
+      '<blockquote>\n<p>a<br>\nb<br>\nc</p>\n</blockquote>');
   });
   test('Hinweisblock wird Zitat mit Ueberschrift', function () {
     html('> [!WARNING]\n> Vorsicht',
@@ -121,6 +129,12 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   });
   test('weiche Zeilenumbrueche werden zu <br>', function () {
     html('Zeile eins\nZeile zwei', '<p>Zeile eins<br>\nZeile zwei</p>');
+  });
+  test('Backslash-Umbruch liefert <br> ohne Backslash', function () {
+    html('Zeile eins\\\nZeile zwei', '<p>Zeile eins<br>\nZeile zwei</p>');
+  });
+  test('E-Mail-Autolink behaelt die Adresse als sichtbaren Text', function () {
+    html('<max@x.de>', '<p><a href="mailto:max@x.de">max@x.de</a></p>');
   });
   test('leere Eingabe', function () {
     html('', '');

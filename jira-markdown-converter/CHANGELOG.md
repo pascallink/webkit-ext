@@ -54,6 +54,18 @@ festgehalten. Das Format orientiert sich an
   nicht mehr (Issue #107).
 - Ueberschrift, Liste und Tabelle kleben beim Einfuegen mitten in einer Zeile
   nicht mehr am Text, sondern ruecken auf eigene Zeilen (Issue #91).
+- Verschachtelte Zitate landen in einer Huelse statt als verschachtelte
+  `{quote}`-Bloecke (Issue #100).
+- E-Mail-Adressen ohne Schema (`<max@x.de>`) werden zu `mailto:`-Links verlinkt
+  (Issue #100).
+- Senkrechte Striche in URLs werden kodiert, damit sie nicht als Tabellentrenner
+  wirken (Issue #100).
+- Backslash am Zeilenende erzeugt einen harten Umbruch statt roh durchgereicht
+  zu werden (Issue #100).
+- Eingerueckte Abschnitte nach einer Leerzeile in Listen werden angehaengt statt
+  die Liste zu beenden (Issue #100).
+- Setext-Ueberschriften (Titel mit Strichreihe darunter) werden als
+  Ueberschriften erkannt (Issue #100).
 
 ## [1.3.0] - 2026-09-07
 

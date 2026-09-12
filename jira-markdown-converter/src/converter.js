@@ -234,6 +234,9 @@
     },
     hardBreak: '\\\\',
     htmlBreak: '\\\\',
+    // Fortsetzungsabsatz in einer Liste (Leerzeile, dann eingerueckter Text
+    // ohne Marker) haengt mit dem gleichen harten Umbruch wie '\\' am Zeilenende an.
+    itemBreak: '\\\\',
     // '{{...}}' ist Jira-Monospace, aber Jira parst dessen Inhalt weiter:
     // stecken darin geschweifte Klammern, entstehen verschachtelte oder
     // unbalancierte Klammern (aus '{{key}}' wird '{{{{key}}}}'). Maskieren
@@ -250,11 +253,15 @@
       return '{{' + text + '}}';
     },
     link: function (label, url) {
-      if (!label || label === url) return '[' + url + ']';
+      // Ein roher Strich in der URL wuerde als Attribut-/Label-Trenner
+      // gedeutet - nur die URL wird kodiert, die bestehende Strich-
+      // Maskierung im Label (siehe unten) bleibt unberuehrt.
+      var target = url.replace(/\|/g, '%7C');
+      if (!label || label === url) return '[' + target + ']';
       // Ein schon maskierter Strich (Tabellenzelle, cellPipe) bleibt
       // einfach maskiert; nur ein roher Strich wird neu maskiert. Der
       // Trenner zwischen Label und Ziel bleibt davon unberuehrt.
-      return '[' + label.replace(/\\?\|/g, '\\|') + '|' + url + ']';
+      return '[' + label.replace(/\\?\|/g, '\\|') + '|' + target + ']';
     },
     // Azure DevOps legt Anhaenge unter einem relativen Pfad ab
     // ('/.attachments/<guid>' bzw. './...') - der Host ist nur in ADO
@@ -350,6 +357,8 @@
     // <br> wuerde eine Leerzeile erzeugen.
     hardBreak: '',
     htmlBreak: '<br>',
+    // Fortsetzungsabsatz in einer Liste bleibt im selben <li>, getrennt durch <br>.
+    itemBreak: '<br>',
     code: function (text) {
       return '<code>' + escapeHtml(text) + '</code>';
     },
@@ -758,7 +767,9 @@
       return ph.add(d.link('', url));
     });
     text = text.replace(/<([^@<>\s]+@[^@<>\s]+\.[^@<>\s]+)>/g, function (match, mail) {
-      return ph.add(d.link('', 'mailto:' + mail));
+      // Adresse vor dem Einsetzen als Label maskieren - sonst geht sie im
+      // HTML-Dialekt roh in HTML_DIALECT.link (label || escapeHtml(url)).
+      return ph.add(d.link(d.escapeText(mail, ctx.options), 'mailto:' + mail));
     });
 
     // 9. Textauszeichnungen. Die erzeugten Jira-Zeichen werden als Platzhalter
@@ -795,10 +806,13 @@
     //     erzeugtes Markup steckt in Platzhaltern und bleibt unberuehrt.
     text = d.escapeText(text, ctx.options);
 
-    // 11. Harter Umbruch: zwei Leerzeichen am Zeilenende.
-    if (d.hardBreak) {
-      text = text.replace(/[ \t]{2,}$/, function () { return ph.add(d.hardBreak); });
-    }
+    // 11. Harter Umbruch: zwei Leerzeichen oder ein Backslash am Zeilenende.
+    //     escapeText() (Schritt 10) fasst einen einzelnen Backslash nicht an
+    //     (kein Jira-Escape-Zeichen), darum darf die Ersetzung hier stehen
+    //     bleiben. Im HTML-Dialekt ist hardBreak leer - der Platzhalter loest
+    //     sich dann in nichts auf, der Backslash faellt weg, <br> kommt schon
+    //     aus paragraph().
+    text = text.replace(/(?:[ \t]{2,}|\\)$/, function () { return ph.add(d.hardBreak); });
 
     return ph.restore(text);
   }
@@ -809,7 +823,10 @@
     if (!hasScheme && /^www\./i.test(target)) target = 'http://' + target;
     if (!hasScheme && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(target)) target = 'mailto:' + target;
     var text = String(label == null ? '' : label).trim();
-    if (!text || text === url.trim()) {
+    // Nur kollabieren, wenn das Label dem tatsaechlichen Ziel entspricht -
+    // wurde erst hier ein Schema ergaenzt (mailto:, http:// bei www.), bleibt
+    // das Label sichtbar, sonst zeigte der Link nur noch die rohe URL an.
+    if (!text || text === target) {
       return ctx.dialect.link('', target);
     }
     // Das Label kann selbst Markup enthalten (z. B. **fett**).
@@ -1137,7 +1154,14 @@
     var body = [];
     var i = start;
     while (i < lines.length && /^ {0,3}>/.test(lines[i])) {
-      body.push(lines[i].replace(/^ {0,3}>[ \t]?/, ''));
+      // Verschachtelte Marker ('>>', '>>>' ...) komplett abstreifen, nicht nur
+      // eine Ebene - sonst sieht convertWith() weiter unten noch ein '>' und
+      // baut eine zweite Huelle um das Zitat (Issue #100).
+      var stripped = lines[i];
+      while (/^ {0,3}>/.test(stripped)) {
+        stripped = stripped.replace(/^ {0,3}>[ \t]?/, '');
+      }
+      body.push(stripped);
       i++;
     }
     // Lazy continuation: Folgezeilen ohne '>' gehoeren noch zum Zitat.
@@ -1177,9 +1201,30 @@
         var lookahead = i + 1;
         while (lookahead < lines.length && isBlank(lines[lookahead])) lookahead++;
         if (lookahead >= lines.length) break;
-        if (!isListStart(lines[lookahead])) break;
-        i = lookahead;
-        continue;
+        if (isListStart(lines[lookahead])) {
+          i = lookahead;
+          continue;
+        }
+        // Ein eingerueckter Absatz ohne Marker (weniger als vier Leerzeichen,
+        // sonst greift protectIndentedCode()) ist eine Fortsetzung des letzten
+        // Eintrags - Codeblock-Platzhalter zaehlen ausdruecklich nicht dazu,
+        // die spalten die Liste weiterhin (siehe Punkt 7, Dokumentation folgt).
+        // Eroeffnet die Zeile dagegen selbst einen Block (Ueberschrift,
+        // Zitat, Tabellenzeile, Trenner), zaehlt sie nicht als Fortsetzung -
+        // sonst haengt der Block als literaler Text am Eintrag, statt dass
+        // convertBlocks() ihn als eigenen Block erkennt.
+        var next = lines[lookahead];
+        var paragraph = /^(\s+)(\S[\s\S]*)$/.exec(next);
+        var opensBlock = /^\s*#{1,6}[ \t]/.test(next) || /^\s*>/.test(next) ||
+          /^\s*\|/.test(next) || isHorizontalRule(next);
+        if (items.length && paragraph && indentWidth(paragraph[1]) < 4 &&
+          !PLACEHOLDER_LINE_RE.test(next) && !opensBlock) {
+          items[items.length - 1].content +=
+            ctx.dialect.itemBreak + convertInline(paragraph[2], ctx);
+          i = lookahead + 1;
+          continue;
+        }
+        break;
       }
 
       var item = /^(\s*)([-*+]|\d+[.)])(?:[ \t]+(.*))?$/.exec(line);
@@ -1332,7 +1377,12 @@
       /`[^`\n]+`/,
       /^ {0,3}>[ \t]?\S/m,
       /^\s*\|.*\|\s*$/m,
-      /~~[^~\n]+~~/
+      /~~[^~\n]+~~/,
+      // Setext-Ueberschrift: Textzeile direkt gefolgt von einer Unterstreichung
+      // aus '=' oder '-'. Das \S auf der Textzeile stellt sicher, dass ein
+      // '----'-Trenner nach einer Leerzeile nicht anschlaegt - eine Leerzeile
+      // hat kein \S, die Zeile davor ist dann nicht die direkte Vorgaengerin.
+      /^.*\S.*\n {0,3}(?:={2,}|-{2,})[ \t]*$/m
     ];
     for (var i = 0; i < patterns.length; i++) {
       if (patterns[i].test(text)) return true;

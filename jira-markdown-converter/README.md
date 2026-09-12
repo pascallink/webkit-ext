@@ -344,6 +344,8 @@ das Lesen der Zwischenablage funktioniert dort nicht - bitte Strg+V benutzen.
 | Markdown (Azure DevOps) | Jira-Markup |
 | --- | --- |
 | `# H1` … `###### H6` | `h1.` … `h6.` |
+| `Titel`<br>`=====` | `h1. Titel` |
+| `Titel`<br>`-----` | `h2. Titel` |
 | `**fett**`, `__fett__` | `*fett*` |
 | `*kursiv*`, `_kursiv_` | `_kursiv_` |
 | `***beides***` | `*_beides_*` |
@@ -356,6 +358,7 @@ das Lesen der Zwischenablage funktioniert dort nicht - bitte Strg+V benutzen.
 | `![a](url =300x)` | `!url!` |
 | `[[_TOC_]]` | entfaellt |
 | `<https://…>` | `[https://…]` |
+| `<mail@x.de>` | `[mail@x.de\|mailto:mail@x.de]` |
 | `- a` / `1. a` (auch verschachtelt) | `* a` / `# a`, `**`, `*#` … |
 | `- [x] erledigt` / `- [ ] offen` | `* (/) erledigt` / `* (x) offen` |
 | Tabelle | `\|\|Kopf\|\|` und `\|Zelle\|` |
@@ -372,6 +375,11 @@ werden maskiert (geschweifte Klammern, eckige Klammern und paarige
 Auszeichnungszeichen), damit Jira sie nicht als Markup liest. `\|` in einer
 Tabellenzelle kommt als literaler Strich an; ein roher Strich in
 Inline-Code trennt die Zelle wie in GitHub-Markdown.
+
+Senkrechte Striche in URLs werden kodiert (`%7C`), damit sie nicht die
+Tabellenspalten teilen. Zwei Leerzeichen oder ein Backslash am Zeilenende
+(`  ` oder `\\`) erzeugen einen harten Umbruch. Ein Codeblock innerhalb einer Liste landet hinter der
+Liste; `#`-Listen zaehlen danach neu.
 
 ## Jira Server / Data Center im Detail
 
