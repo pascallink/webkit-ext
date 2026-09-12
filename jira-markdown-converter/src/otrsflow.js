@@ -50,22 +50,6 @@
     return error;
   }
 
-  /**
-   * Ruft die interne, instabile JIRA.trace-API auf, sofern vorhanden - reine
-   * Kuer, keine Abhaengigkeit. Leerer catch-Block ist hier Absicht: ein
-   * Fehler in einer fremden, undokumentierten API darf den Ablauf nicht
-   * stoppen.
-   */
-  function pingJiraTrace() {
-    try {
-      if (typeof window !== 'undefined' && window.JIRA && typeof window.JIRA.trace === 'function') {
-        window.JIRA.trace();
-      }
-    } catch (error) {
-      // Absicht - siehe Kommentar oben.
-    }
-  }
-
   /* ---------------------------------------------------------------- *
    * Schritt 1: Label
    * ---------------------------------------------------------------- */
@@ -301,9 +285,12 @@
       return Promise.reject(stepError('init', 'JiraUi nicht verfuegbar'));
     }
 
+    // Kein Warten auf Jiras internes Trace-Signal (JIRA.trace): das
+    // Content-Script laeuft in der isolierten Welt und sieht window.JIRA nie
+    // (Issue #113, Ursache Issue 16) - die Schritte verlassen sich allein auf
+    // JiraUi.delay als Pause zwischen den Dialogen.
     return addLabel(parsed.label, doc, timeout)
       .then(function () {
-        pingJiraTrace();
         return ui.delay(STEP_DELAY);
       })
       .then(function () {
@@ -311,14 +298,12 @@
       })
       .then(function (previous) {
         previousReference = previous;
-        pingJiraTrace();
         return ui.delay(STEP_DELAY);
       })
       .then(function () {
         return addWebLink(parsed.linkText, parsed.url, doc, timeout);
       })
       .then(function () {
-        pingJiraTrace();
         return {
           ok: true,
           steps: ['label', 'reference', 'link'],
