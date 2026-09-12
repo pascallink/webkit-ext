@@ -465,13 +465,21 @@
      oder Event-Attribute liefert der Renderer also nie - der Filter hier ist
      reine Verteidigungstiefe und arbeitet rein stringbasiert, ohne den
      Zwischenschritt ueber einen DOM-Parse (kein innerHTML auf ungefiltertem
-     Text). */
+     Text). Die Entfernung laeuft bis zum Fixpunkt, damit verschachtelte
+     Reste (z. B. "<scr<script>ipt>") nicht durch einen einzelnen Durchlauf
+     wieder zusammenfinden. */
   function sanitizeHtml(html) {
-    return String(html)
-      .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
-      .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
-      .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
-      .replace(/\son\w+\s*=\s*[^\s"'>]+/gi, '')
+    var s = String(html);
+    var prev;
+    do {
+      prev = s;
+      s = s
+        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+        .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+        .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+        .replace(/\son\w+\s*=\s*[^\s"'>]+/gi, '');
+    } while (s !== prev);
+    return s
       .replace(/((?:href|src)\s*=\s*)"javascript:[^"]*"/gi, '$1"#"')
       .replace(/((?:href|src)\s*=\s*)'javascript:[^']*'/gi, '$1\'#\'');
   }
