@@ -70,6 +70,10 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   test('gemischte Verschachtelung', function () {
     html('- a\n  1. b\n- c', '<ul><li>a<ol><li>b</li></ol></li><li>c</li></ul>');
   });
+  test('Fortsetzungsabsatz bricht die Liste nicht', function () {
+    html('- erster Punkt\n\n  Fortsetzung.\n\n- zweiter',
+      '<ul><li>erster Punkt<br>Fortsetzung.</li><li>zweiter</li></ul>');
+  });
   test('Aufgabenliste', function () {
     html('- [x] fertig\n- [ ] offen',
       '<ul><li>&#9745; fertig</li><li>&#9744; offen</li></ul>');

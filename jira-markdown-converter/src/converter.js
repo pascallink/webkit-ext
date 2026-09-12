@@ -234,6 +234,9 @@
     },
     hardBreak: '\\\\',
     htmlBreak: '\\\\',
+    // Fortsetzungsabsatz in einer Liste (Leerzeile, dann eingerueckter Text
+    // ohne Marker) haengt mit dem gleichen harten Umbruch wie '\\' am Zeilenende an.
+    itemBreak: '\\\\',
     // '{{...}}' ist Jira-Monospace, aber Jira parst dessen Inhalt weiter:
     // stecken darin geschweifte Klammern, entstehen verschachtelte oder
     // unbalancierte Klammern (aus '{{key}}' wird '{{{{key}}}}'). Maskieren
@@ -354,6 +357,8 @@
     // <br> wuerde eine Leerzeile erzeugen.
     hardBreak: '',
     htmlBreak: '<br>',
+    // Fortsetzungsabsatz in einer Liste bleibt im selben <li>, getrennt durch <br>.
+    itemBreak: '<br>',
     code: function (text) {
       return '<code>' + escapeHtml(text) + '</code>';
     },
@@ -1194,9 +1199,24 @@
         var lookahead = i + 1;
         while (lookahead < lines.length && isBlank(lines[lookahead])) lookahead++;
         if (lookahead >= lines.length) break;
-        if (!isListStart(lines[lookahead])) break;
-        i = lookahead;
-        continue;
+        if (isListStart(lines[lookahead])) {
+          i = lookahead;
+          continue;
+        }
+        // Ein eingerueckter Absatz ohne Marker (weniger als vier Leerzeichen,
+        // sonst greift protectIndentedCode()) ist eine Fortsetzung des letzten
+        // Eintrags - Codeblock-Platzhalter zaehlen ausdruecklich nicht dazu,
+        // die spalten die Liste weiterhin (siehe Punkt 7, Dokumentation folgt).
+        var next = lines[lookahead];
+        var paragraph = /^(\s+)(\S[\s\S]*)$/.exec(next);
+        if (items.length && paragraph && indentWidth(paragraph[1]) < 4 &&
+          !PLACEHOLDER_LINE_RE.test(next)) {
+          items[items.length - 1].content +=
+            ctx.dialect.itemBreak + convertInline(paragraph[2], ctx);
+          i = lookahead + 1;
+          continue;
+        }
+        break;
       }
 
       var item = /^(\s*)([-*+]|\d+[.)])(?:[ \t]+(.*))?$/.exec(line);

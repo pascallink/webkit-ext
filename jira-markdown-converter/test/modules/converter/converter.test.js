@@ -172,6 +172,10 @@ describe('Listen', function () {
   test('vierstellig eingerueckte Unterliste', function () {
     eq('- a\n    - b', '* a\n** b');
   });
+  test('Fortsetzungsabsatz bricht die Liste nicht', function () {
+    eq('- erster Punkt\n\n  Fortsetzung.\n\n- zweiter',
+      '* erster Punkt\\\\Fortsetzung.\n* zweiter');
+  });
 });
 
 describe('Tabellen', function () {
