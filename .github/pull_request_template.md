@@ -1,9 +1,14 @@
-<!-- AGENT INSTRUCTION: Fuelle dies extrem kurz aus. Nur Stichpunkte, keine ganzen Saetze. Max 5 Woerter pro Punkt. Kein Fluff, keine Einleitung. -->
+<!-- AGENT INSTRUCTION: Fülle extrem kurz aus. Nur Stichpunkte. Max 5 Wörter pro Punkt. Kein Fluff. Trage bei 'Agent' dein konkretes Modell ein (z.B. Claude 3.5 Sonnet, Claude 3 Opus, etc.). -->
 
-**Ticket:** [ID / None]
+**Issue / Subtask:** [Issue-ID oder None] / [Subtask-ID oder None]
+**Agent:** [Name des ausführenden KI-Modells]
 
 **Why:** 
-- [Grund der Aenderung]
+- [Grund der Änderung]
 
 **What:**
-- [Datei/Komponente]: [Aenderung]
+- [Datei/Komponente]: [Änderung]
+
+
+Wichtige Anweisung an dich (Opus): 
+Setze dies direkt um. Gib mir keine Erklärungen zurück, sondern bestätige nur in maximal einem kurzen Satz die erfolgreiche Dateierstellung.
