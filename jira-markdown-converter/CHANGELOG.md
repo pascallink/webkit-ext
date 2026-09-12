@@ -9,6 +9,8 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Nach dem Code-Dialog steht der Cursor hinter dem Codeblock; das naechste
+  Panel oder die naechste Vorlage landet dort und nicht mehr davor (Issue #95).
 - Ein mit `\|` maskierter senkrechter Strich bleibt in der
   Tabellenzelle stehen, statt die Spalten zu verschieben (Issue #94).
 - Sonderzeichen im Fliesstext werden maskiert, damit Jira sie nicht als
