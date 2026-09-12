@@ -16,6 +16,12 @@
  * Altersregel und eine Warnung geht auf stderr - ein fehlendes Netz darf nie
  * lebende Zeilen loeschen.
  *
+ * Doppelte Verbuchung (z. B. nach einem Union-Merge-Rebase, der alte
+ * costs.csv-/tokens.csv-Zeilen zurueckholt) wird verhindert, indem der Prune
+ * bereits verbuchte Rohzeilen vor der Abandoned-Auswahl entfernt - nicht
+ * indem der ganze Prune-Schritt fuer den Branch aussetzt. Details dazu bei
+ * pruneAbandoned().
+ *
  * Ohne Dependencies, Node >= 18, ESM.
  */
 
@@ -179,8 +185,12 @@ export function hasAbandonedEntry(historyRows, branch) {
  * remoteBranches ist ein Set der Remote-Branchnamen oder null, wenn der
  * Abgleich nicht moeglich war (kein Netz/Remote/leere Antwort) - dann greift
  * nur die Altersregel. Bereits als abandoned verbuchte Branches werden nicht
- * erneut ausgewaehlt (Idempotenz), auch wenn ihre Zeilen aus irgendeinem
- * Grund wieder in costs.csv stehen (z. B. Union-Merge-Nachbehandlung).
+ * erneut ausgewaehlt (Idempotenz): hasAbandonedEntry() blockt sie hier. Ein
+ * vollstaendig verbuchter Branch fliegt schon vorher aus costsRows, weil
+ * pruneAbandoned() seine Restzeilen entfernt, bevor diese Funktion laeuft
+ * (siehe dort). Stehen hier trotzdem noch Zeilen mit updated_at nach dem
+ * juengsten merged_at, ist das echte neue Arbeit auf einem wiederbelebten
+ * Branch - die wird hier bewusst nicht erneut als abandoned verbucht.
  */
 export function selectAbandoned(costsRows, historyRows, remoteBranches, now) {
   const branches = [...new Set(costsRows.map((row) => row[0]))];
@@ -194,22 +204,79 @@ export function selectAbandoned(costsRows, historyRows, remoteBranches, now) {
   return result;
 }
 
+/** Juengstes parsbares merged_at je Branch aus historyRows, ueber alle reason-Werte. */
+function newestBookedAt(historyRows) {
+  const newest = new Map();
+  for (const row of historyRows) {
+    const branch = row[0];
+    const ts = Date.parse(row[2]);
+    if (!Number.isFinite(ts)) continue;
+    const previous = newest.get(branch);
+    if (previous === undefined || ts > previous) newest.set(branch, ts);
+  }
+  return newest;
+}
+
 /**
- * Verwaiste Branches aus costs.csv/tokens.csv loesen und mit reason=abandoned
- * nach history.csv/history-models.csv verschieben. Reine Funktion - keine
- * Dateizugriffe, damit sie ohne Git-Repo und ohne temporaere Dateien testbar
- * ist. merged_at der neuen history.csv-Zeile ist der Erzeugungszeitpunkt
- * dieses Laufs (now), nicht der letzte Session-Zeitstempel.
+ * Entfernt bereits verbuchte Restzeilen aus costs.csv/tokens.csv, bevor die
+ * Abandoned-Auswahl laeuft - das verhindert die doppelte Verbuchung nach
+ * einem Union-Merge-Rebase, der alte Rohzeilen eines schon in historyRows
+ * stehenden Branches zurueckholt (gleich welcher reason). Verworfen wird
+ * eine costs.csv-Zeile nur, wenn ihr updated_at parsbar ist UND <= dem
+ * juengsten merged_at dieses Branches liegt; die zugehoerigen
+ * tokens.csv-Zeilen (gleiches branch + session_id) fallen mit heraus. Ein
+ * Branch ohne parsbares merged_at zaehlt als "nicht verbucht" - dann wird
+ * nichts geloescht. Ein nicht parsbares updated_at wird nie geloescht.
+ * Zeilen mit updated_at nach dem juengsten merged_at sind neue Arbeit auf
+ * einem wiederbelebten Branch und bleiben stehen.
+ */
+function removeAlreadyBookedRows(costsRows, tokensRows, historyRows) {
+  const bookedAt = newestBookedAt(historyRows);
+  const alreadyBookedSet = new Set();
+  const droppedSessionKeys = new Set();
+  const keptCostsRows = costsRows.filter((row) => {
+    const [branch, sessionId, updatedAt] = row;
+    const threshold = bookedAt.get(branch);
+    if (threshold === undefined) return true;
+    const ts = Date.parse(updatedAt);
+    if (!Number.isFinite(ts) || ts > threshold) return true;
+    alreadyBookedSet.add(branch);
+    droppedSessionKeys.add(`${branch} ${sessionId}`);
+    return false;
+  });
+  const keptTokensRows = tokensRows.filter(
+    (row) => !droppedSessionKeys.has(`${row[0]} ${row[1]}`),
+  );
+  return {
+    costsRows: keptCostsRows,
+    tokensRows: keptTokensRows,
+    alreadyBooked: [...alreadyBookedSet],
+  };
+}
+
+/**
+ * Zwei Schritte: zuerst faellen bereits verbuchte Restzeilen aus
+ * costs.csv/tokens.csv heraus (siehe removeAlreadyBookedRows()) - fuer sie
+ * entsteht keine neue history.csv-/history-models.csv-Zeile, sie sind schon
+ * verbucht. Danach laufen Auswahl und Verbuchung der verwaisten Branches wie
+ * zuvor auf den verbleibenden Zeilen: Branches aus costs.csv/tokens.csv
+ * loesen und mit reason=abandoned nach history.csv/history-models.csv
+ * verschieben. Reine Funktion - keine Dateizugriffe, damit sie ohne
+ * Git-Repo und ohne temporaere Dateien testbar ist. merged_at der neuen
+ * history.csv-Zeile ist der Erzeugungszeitpunkt dieses Laufs (now), nicht
+ * der letzte Session-Zeitstempel.
  */
 export function pruneAbandoned(costsRows, tokensRows, historyRows, historyModelRows, remoteBranches, now) {
-  const abandoned = selectAbandoned(costsRows, historyRows, remoteBranches, now);
+  const cleaned = removeAlreadyBookedRows(costsRows, tokensRows, historyRows);
+
+  const abandoned = selectAbandoned(cleaned.costsRows, historyRows, remoteBranches, now);
   const abandonedSet = new Set(abandoned);
   const nowIso = isoSeconds(now);
 
   const newHistoryRows = [...historyRows];
   const newHistoryModelRows = [...historyModelRows];
   for (const branch of abandoned) {
-    const agg = aggregate(costsRows, tokensRows, branch);
+    const agg = aggregate(cleaned.costsRows, cleaned.tokensRows, branch);
     newHistoryRows.push([
       branch,
       '',
@@ -234,8 +301,9 @@ export function pruneAbandoned(costsRows, tokensRows, historyRows, historyModelR
 
   return {
     abandoned,
-    costsRows: costsRows.filter((row) => !abandonedSet.has(row[0])),
-    tokensRows: tokensRows.filter((row) => !abandonedSet.has(row[0])),
+    alreadyBooked: cleaned.alreadyBooked,
+    costsRows: cleaned.costsRows.filter((row) => !abandonedSet.has(row[0])),
+    tokensRows: cleaned.tokensRows.filter((row) => !abandonedSet.has(row[0])),
     historyRows: newHistoryRows,
     historyModelRows: newHistoryModelRows,
   };
@@ -285,6 +353,11 @@ function runPrune(root, now) {
   writeCsvAtomic(historyFile, HISTORY_HEADER, result.historyRows);
   writeCsvAtomic(historyModelsFile, HISTORY_MODELS_HEADER, result.historyModelRows);
 
+  if (result.alreadyBooked.length > 0) {
+    log(
+      `${result.alreadyBooked.length} Branch(es) bereits verbucht, Restzeilen entfernt: ${result.alreadyBooked.join(', ')}.`,
+    );
+  }
   if (result.abandoned.length > 0) {
     log(`${result.abandoned.length} verwaiste Branch(es) aufgeraeumt: ${result.abandoned.join(', ')}.`);
   }
@@ -441,7 +514,10 @@ export function buildReportData(costsRows, tokensRows, historyRows, historyModel
       output: bucket.output,
       cacheRead: bucket.cache_read,
       cacheWrite: bucket.cache_write,
-      sessions: sessionCounts.get(model) || 0,
+      // null statt 0: keine offene Session ist etwas anderes als "0
+      // Sessions" - eine erfundene Zahl waere schlimmer als ein fehlender
+      // Wert, renderModelTable() zeigt dafuer "-".
+      sessions: sessionCounts.has(model) ? sessionCounts.get(model) : null,
       costUsd: bucket.costUsd,
       pct: totalUsd === 0 ? 0 : (bucket.costUsd / totalUsd) * 100,
     };
@@ -456,7 +532,7 @@ export function buildReportData(costsRows, tokensRows, historyRows, historyModel
       output: 0,
       cacheRead: 0,
       cacheWrite: 0,
-      sessions: 0,
+      sessions: null,
       costUsd: remainder,
       pct: totalUsd === 0 ? 0 : (remainder / totalUsd) * 100,
     });
@@ -546,7 +622,7 @@ function renderModelTable(modelRows) {
 <td class="num">${formatInt(row.output)}</td>
 <td class="num">${formatInt(row.cacheRead)}</td>
 <td class="num">${formatInt(row.cacheWrite)}</td>
-<td class="num">${formatInt(row.sessions)}</td>
+<td class="num">${row.sessions === null ? '-' : formatInt(row.sessions)}</td>
 <td class="num">${formatUsd(row.costUsd)}</td>
 <td class="num">${formatPct(row.pct)}</td>
 </tr>`,
