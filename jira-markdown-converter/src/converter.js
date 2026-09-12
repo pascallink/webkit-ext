@@ -259,12 +259,15 @@
     paragraph: function (lines) {
       return '<p>' + lines.join('<br>\n') + '</p>';
     },
+    // TinyMCE in 9.12 packt fremde <pre> aus, darum die Panel-Klassen -
+    // so uebernimmt der Editor den Codeblock unveraendert (siehe JIRA912-Fixture).
     codeBlock: function (language, body) {
-      var open = language ? '<pre><code class="language-' + escapeAttribute(language) + '">' : '<pre><code>';
-      return open + escapeHtml(body) + '</code></pre>';
+      var lang = language ? ' data-language="code-' + escapeAttribute(language) + '"' : '';
+      return '<pre class="code panel" style="border-width: 1px;"' + lang + '>' +
+        escapeHtml(body) + '\n</pre>';
     },
     preBlock: function (body) {
-      return '<pre>' + escapeHtml(body) + '</pre>';
+      return '<pre class="noformat panel" style="border-width: 1px;">' + escapeHtml(body) + '\n</pre>';
     },
     quote: function (inner, title) {
       var head = title ? '<p><strong>' + escapeHtml(title) + '</strong></p>\n' : '';

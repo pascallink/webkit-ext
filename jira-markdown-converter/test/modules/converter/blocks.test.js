@@ -84,6 +84,21 @@ describe('Codeblock aus dem Dialog', function () {
   });
   test('HTML-Codeblock maskiert den Inhalt', function () {
     var html = jira.dialects.html.codeBlock('html', '<b>&</b>');
-    assert.strictEqual(html, '<pre><code class="language-html">&lt;b&gt;&amp;&lt;/b&gt;</code></pre>');
+    assert.strictEqual(html,
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-html">' +
+      '&lt;b&gt;&amp;&lt;/b&gt;\n</pre>');
+  });
+  test('HTML-Codeblock kommt in Jiras Editor-Form', function () {
+    // TinyMCE in 9.12 packt fremdes <pre> aus (siehe JIRA912-Fixture) - der
+    // Codeblock muss darum schon in Jiras panel-Form vorliegen.
+    var withLang = jira.dialects.html.codeBlock('java', 'int a = 1;');
+    assert.strictEqual(withLang,
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-java">int a = 1;\n</pre>');
+    var withoutLang = jira.dialects.html.codeBlock('', 'int a = 1;');
+    assert.strictEqual(withoutLang,
+      '<pre class="code panel" style="border-width: 1px;">int a = 1;\n</pre>');
+    var pre = jira.dialects.html.preBlock('irgendwas');
+    assert.strictEqual(pre,
+      '<pre class="noformat panel" style="border-width: 1px;">irgendwas\n</pre>');
   });
 });

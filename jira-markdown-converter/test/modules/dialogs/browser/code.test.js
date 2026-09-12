@@ -193,7 +193,7 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
-  test('Rich-Text-Editor bekommt <pre><code> mit maskiertem Inhalt', async function () {
+  test('Rich-Text-Editor bekommt pre.code.panel mit maskiertem Inhalt', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, RTE);
     await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
@@ -205,10 +205,11 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     }, null, { timeout: 4000 });
     var pastes = await page.evaluate(function () { return window.__pastes; });
     assert.strictEqual(pastes[0].html,
-      '<pre><code class="language-html">&lt;b&gt;&amp;&lt;/b&gt;</code></pre>');
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-html">' +
+      '&lt;b&gt;&amp;&lt;/b&gt;\n</pre>');
     assert.strictEqual(pastes[0].text, '{code:html}\n<b>&</b>\n{code}');
-    var rendered = await page.frameLocator('#description_ifr').locator('pre code').textContent();
-    assert.strictEqual(rendered, '<b>&</b>');
+    var rendered = await page.frameLocator('#description_ifr').locator('pre').textContent();
+    assert.strictEqual(rendered, '<b>&</b>\n');
     await page.close();
   });
 
@@ -286,7 +287,8 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     var copied = await page.evaluate(function () { return window.__copied[0]; });
     assert.strictEqual(copied.kind, 'html', 'nicht als text/html kopiert');
     assert.strictEqual(copied.html,
-      '<pre><code class="language-html">&lt;b&gt;&amp;&lt;/b&gt;</code></pre>');
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-html">' +
+      '&lt;b&gt;&amp;&lt;/b&gt;\n</pre>');
     assert.strictEqual(copied.text, '{code:html}\n<b>&</b>\n{code}');
     assert.deepStrictEqual(await page.evaluate(function () { return window.__pastes; }), [],
       'Kopieren darf nichts einfuegen');
@@ -315,7 +317,7 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
       return window.__copied.length === 1;
     }, null, { timeout: 4000 });
     assert.deepStrictEqual(await page.evaluate(function () { return window.__copied[0]; }),
-      { kind: 'text', text: '<pre><code>a &lt; b</code></pre>' });
+      { kind: 'text', text: '<pre class="code panel" style="border-width: 1px;">a &lt; b\n</pre>' });
     await page.close();
   });
 
