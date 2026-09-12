@@ -155,25 +155,36 @@
     return isRichTextActive(field) ? richTextBody(field) : field;
   }
 
-  // Umschalter zwischen Rich-Text und Markup. Jira benennt ihn je nach
-  // Version anders, darum erst bekannte Selektoren, dann Beschriftungen.
-  var MODE_TOGGLE_SELECTOR = [
+  // Umschalter zwischen Rich-Text und Markup. Zuerst der Umschalter von Jira
+  // 9.12 (Reiter "Text" in nav.editor-toggle-tabs - der Handler haengt nur
+  // am Button, das umgebende <li> traegt bloss data-mode), danach aeltere
+  // bzw. angepasste Faelle als Rueckfall. `container.querySelector()` mit
+  // einer kommagetrennten Liste liefert den ersten Treffer in Dokumentreihenfolge,
+  // nicht den der Listenreihenfolge - darum werden die Eintraege einzeln und
+  // in dieser Reihenfolge abgefragt. `[data-mode="source"]` und
+  // `[data-editor-mode]` sind ersatzlos gestrichen: sie treffen den
+  // Container (<li> bzw. <nav>) statt das Bedienelement.
+  var MODE_TOGGLE_SELECTORS = [
+    '.editor-toggle-tabs li[data-mode="source"] button',
     '.jira-wikifield .rte-toggle',
     '.wiki-edit .rte-toggle',
     'button.rte-button-source',
-    'a.switch-to-source',
-    '[data-mode="source"]',
-    '[data-editor-mode]'
-  ].join(',');
+    'a.switch-to-source'
+  ];
 
-  var MODE_TOGGLE_TEXT = /markup|quelltext|source|klartext|plain\s*text|text-?modus|bearbeitungsmodus|wysiwyg|visual/i;
+  // Beschriftungs-Suche nur noch fuer den Weg in den Textmodus - "wysiwyg"
+  // und "visual" sind gestrichen, weil sie sonst auch den Weg zurueck in den
+  // Rich-Text-Modus treffen wuerden.
+  var MODE_TOGGLE_TEXT = /markup|quelltext|source|klartext|plain\s*text|text-?modus|bearbeitungsmodus/i;
 
   function findModeToggle(field) {
     var container = fieldContainer(field);
     if (!container.querySelector) return null;
 
-    var direct = container.querySelector(MODE_TOGGLE_SELECTOR);
-    if (direct && !isIgnored(direct)) return direct;
+    for (var s = 0; s < MODE_TOGGLE_SELECTORS.length; s++) {
+      var direct = container.querySelector(MODE_TOGGLE_SELECTORS[s]);
+      if (direct && !isIgnored(direct)) return direct;
+    }
 
     var candidates = container.querySelectorAll('button, a, [role="button"]');
     for (var i = 0; i < candidates.length; i++) {
