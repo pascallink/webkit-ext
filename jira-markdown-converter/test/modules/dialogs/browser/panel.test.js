@@ -14,9 +14,24 @@ var fixtures = require('../../../lib/fixtures');
 
 var SERVER = fixtures.SERVER;
 var RTE = fixtures.RTE;
+var JIRA912 = fixtures.JIRA912;
 
 var hasPlaywright = browserLib.hasPlaywright();
 var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
+
+/**
+ * Woertlich uebernommen aus test/modules/dialogs/browser/code.test.js
+ * (openDescriptionVisual) - kein require() auf die fremde Testdatei, das
+ * wuerde deren Faelle hier ein zweites Mal ausfuehren. Beschreibungsfeld im
+ * JIRA912-Nachbau oeffnen, Jira wechselt sofort in den visuellen Modus; nur
+ * bis der Rahmen angehaengt ist warten, nicht auf die Feldleiste (die kommt
+ * separat aus dem 400-ms-Scan in content.js).
+ */
+async function openDescriptionVisual(page) {
+  await page.click('#description-val');
+  await page.waitForSelector('#description-val.active iframe.tox-edit-area__iframe',
+    { state: 'attached', timeout: 4000 });
+}
 
 describe('Panel aus einer Vorlage', { skip: !hasPlaywright }, function () {
   test('Buttonleiste bietet vier Vorlagen an', async function () {
@@ -215,6 +230,34 @@ describe('Panel aus einer Vorlage', { skip: !hasPlaywright }, function () {
     assert.strictEqual(html.indexOf('<div'), -1, 'Panel kam trotzdem als Div-Rahmen an: ' + html);
     var toastText = await page.textContent('.jmd-toast');
     assert.ok(/als Markup eingefuegt/.test(toastText), 'Hinweis auf unformatiertes Markup fehlt: ' + toastText);
+    await page.close();
+  });
+});
+
+describe('Panel im visuellen Modus (JIRA912)', { skip: !hasPlaywright }, function () {
+  test('Warnung kommt als {panel:title=Warnung} im Wiki an', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, JIRA912);
+    await openDescriptionVisual(page);
+    // Feldleiste kommt erst mit dem 400-ms-Scan aus content.js.
+    await page.waitForSelector('.jmd-fieldbar', { timeout: 4000 });
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
+    await page.waitForSelector('.jmd-panelmenu');
+    await page.click('.jmd-panelmenu__item[data-template="warning"]');
+    // Umschalter auf Text, der Nachbau synct dabei aus dem Rahmen zurueck.
+    await page.click('.editor-toggle-tabs li[data-mode="source"] button');
+    var value = await page.inputValue('#description');
+    assert.ok(value.indexOf('{panel:title=Warnung}') !== -1,
+      'kein Panel-Kopf im Wiki-Text angekommen: ' + value);
+    assert.ok(value.indexOf('Hier die Warnung eintragen.') !== -1,
+      'Panel-Text fehlt: ' + value);
+    assert.ok(value.indexOf('{panel}') !== -1,
+      'kein Panel-Ende im Wiki-Text angekommen: ' + value);
+    assert.strictEqual(value.indexOf('*Warnung*'), -1,
+      'Titel kam als fetter Text statt als Panel an: ' + value);
+    // Farben werden hier bewusst nicht geprueft - der Nachbau entfernt
+    // style von jedem div beim Einfuegen (siehe paste-Handler in der
+    // Fixture), in der echten Instanz bleibt border-/bgColor stehen.
     await page.close();
   });
 });
