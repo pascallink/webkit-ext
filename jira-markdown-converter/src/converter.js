@@ -234,7 +234,19 @@
     },
     hardBreak: '\\\\',
     htmlBreak: '\\\\',
+    // '{{...}}' ist Jira-Monospace, aber Jira parst dessen Inhalt weiter:
+    // stecken darin geschweifte Klammern, entstehen verschachtelte oder
+    // unbalancierte Klammern (aus '{{key}}' wird '{{{{key}}}}'). Maskieren
+    // mit '\{' traegt in 9.12.2 nicht - Jira rendert die Maskierung dann
+    // woertlich mit ('{{<tt>key</tt>}}') statt sie zu entfernen. Einziger
+    // Ausweg: {noformat} als Block-Ersatz, der seinen Inhalt nicht weiter
+    // parst. Enthaelt der Text selbst schon '{noformat}', laesst sich
+    // nichts mehr retten - dann bleibt es bei der alten (kaputten) Form,
+    // statt ein zweites kaputtes Muster zu erzeugen.
     code: function (text) {
+      if (/[{}]/.test(text) && text.indexOf('{noformat}') === -1) {
+        return '{noformat}' + text + '{noformat}';
+      }
       return '{{' + text + '}}';
     },
     link: function (label, url) {

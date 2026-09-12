@@ -348,7 +348,7 @@ das Lesen der Zwischenablage funktioniert dort nicht - bitte Strg+V benutzen.
 | `*kursiv*`, `_kursiv_` | `_kursiv_` |
 | `***beides***` | `*_beides_*` |
 | `~~durchgestrichen~~` | `-durchgestrichen-` |
-| `` `code` `` | `{{code}}` |
+| `` `code` `` | `{{code}}`; mit `{` oder `}` → `{noformat}…{noformat}` |
 | ```` ```java … ``` ```` | `{code:java} … {code}` |
 | eingerueckter Codeblock | `{noformat} … {noformat}` |
 | `[Text](url)` | `[Text\|url]` |

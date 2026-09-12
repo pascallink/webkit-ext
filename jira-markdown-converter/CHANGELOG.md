@@ -41,6 +41,8 @@ festgehalten. Das Format orientiert sich an
   besteht (Issue #88).
 - Eingefuegter Text geht bei einem Fehler in der Umwandlung nicht mehr
   verloren.
+- Inline-Code mit geschweiften Klammern (`{{key}}`, `${var}`, JSON-Schnipsel)
+  kommt in Jira 9.12 woertlich an (Issue #98).
 - Im visuellen Editor (Rich Text) ist die Beschreibung schon beim ersten
   Oeffnen eingefroren; ein Klick daneben speichert den halb getippten Text
   nicht mehr (Issue #107).

@@ -169,6 +169,9 @@ describe('Tabellen', function () {
   test('Tabellenzelle mit Markup', function () {
     eq('| A | B |\n| --- | --- |\n| **x** | `y` |', '||A||B||\n|*x*|{{y}}|');
   });
+  test('Tabellenzelle mit Inline-Code und geschweiften Klammern', function () {
+    eq('| A |\n| --- |\n| `{x}` |', '||A||\n|{noformat}{x}{noformat}|');
+  });
   test('mehrere Datenzeilen', function () {
     eq('| A |\n| --- |\n| 1 |\n| 2 |\n| 3 |', '||A||\n|1|\n|2|\n|3|');
   });
@@ -208,7 +211,7 @@ describe('Sonderfaelle', function () {
     eq('Platzhalter {name} einsetzen', 'Platzhalter \\{name\\} einsetzen');
   });
   test('geschweifte Klammern in Code bleiben unveraendert', function () {
-    eq('`{ "a": 1 }`', '{{{ "a": 1 }}}');
+    eq('`{ "a": 1 }`', '{noformat}{ "a": 1 }{noformat}');
     eq('```json\n{ "a": 1 }\n```', '{code:json}\n{ "a": 1 }\n{code}');
   });
   test('harter Zeilenumbruch', function () {

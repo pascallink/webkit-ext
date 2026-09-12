@@ -52,6 +52,31 @@ describe('Code', function () {
     eq('Text:\n\n    zeile eins\n    zeile zwei',
       'Text:\n\n{noformat}\nzeile eins\nzeile zwei\n{noformat}');
   });
+  test('Inline-Code mit geschweiften Klammern als noformat', function () {
+    eq('Nutze `{{key}}` hier', 'Nutze {noformat}{{key}}{noformat} hier');
+    eq('`a}`', '{noformat}a}{noformat}');
+    eq('`{`', '{noformat}{{noformat}');
+    eq('`${var}`', '{noformat}${var}{noformat}');
+    // Regression: Inline-Code ohne Klammern bleibt bei {{ }}.
+    eq('`npm install`', '{{npm install}}');
+    eq('`**nicht fett**`', '{{**nicht fett**}}');
+  });
+  test('Inline-Code, der selbst {noformat} enthaelt, bleibt bei {{ }}', function () {
+    // Bewusste Grenze: {noformat} laesst sich nicht in sich selbst
+    // schachteln, darum bleibt dieser Sonderfall bei der alten Form -
+    // besser eine bekannt kaputte Ausgabe als ein zweites kaputtes Muster.
+    eq('`{noformat}`', '{{{noformat}}}');
+  });
+  test('noformat-Ausgabe bleibt als Jira-Markup erkennbar (Issue #92)', function () {
+    // convert() selbst ist nicht idempotent - reiner Text mit rohen {}
+    // wuerde beim zweiten Durchlauf maskiert. Die eigentliche Absicherung
+    // gegen erneutes Konvertieren sitzt in content.js: looksLikeJiraMarkup()
+    // erkennt {noformat} bereits, die Automatik laesst die Ausgabe darum
+    // beim erneuten Einfuegen stehen, statt sie ein zweites Mal durch
+    // convert() zu schicken.
+    var once = jira.convert('Nutze `{{key}}` hier');
+    assert.ok(jira.looksLikeJiraMarkup(once));
+  });
 });
 
 describe('Zitate, Trenner, Panels', function () {
