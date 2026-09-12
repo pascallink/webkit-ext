@@ -12,6 +12,7 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
 | --- | --- | --- |
 | `jira-markdown-converter/` | `jira` | PowerEdit for Jira - Markdown, Vorlagen und Codebloecke in der Ticket-Bearbeitung. Zielplattform ausschliesslich Jira Server / Data Center 9.12 LTS (9.12.2). |
 | `.github/workflows/` | `ci` | Lint + Test, Versionierung, Releases - Details in [`.github/CI.md`](.github/CI.md). |
+| `stats/` | `repo` | Kostendaten und Tagesreport der Claude-Sessions, kein Produktivcode. |
 | Root | `repo` | Metadaten und commitlint, kein Produktivcode. |
 
 ## Workspace-Befehle
@@ -48,6 +49,9 @@ vorinstallierte Chromium zur gepinnten Playwright-Version passt
 - Nach dem Push endet die Arbeit: PR anlegen, Ergebnis melden, fertig. Nicht
   beobachten, nicht nachfassen, nicht anbieten es zu tun - Pascal kommt aktiv
   zurueck, wenn etwas ansteht. Siehe `.github/CI.md`.
+- Kosten-Tracking: die CSVs unter `stats/` und `stats/report.html` sind
+  generiert, nicht von Hand pflegen; die Zahlen sind Listenpreis-Schaetzungen,
+  keine Rechnung. Details in [`.github/CI.md`](.github/CI.md).
 
 ## Workflow & QA-Regeln
 
