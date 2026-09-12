@@ -33,7 +33,7 @@
     // Bearbeitetes Jira-Feld offen halten, statt es von Jira beim Klick
     // daneben schliessen zu lassen (Schloss in der Buttonleiste).
     freezeEditMode: true,
-    // Konverter-Optionen
+    // Sonderzeichen maskieren, damit Jira sie nicht als Markup liest.
     escapeBraces: true,
     keepCodeLanguage: true,
     convertAlerts: true,
