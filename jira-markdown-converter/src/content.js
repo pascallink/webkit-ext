@@ -1074,10 +1074,12 @@
    * wuerde sonst ihre Randumbrueche verlieren.
    * Die Heuristik gilt inzwischen nicht nur fuer eigene Vorlagen, sondern
    * auch fuer konvertiertes Markdown - siehe deliver() und onPaste().
+   * "{{" ist Inline-Code und kein Blockmakro, darum bleibt es an der
+   * Cursorposition.
    */
   function insertModeFor(markup) {
     if (/\n/.test(markup)) return 'block';
-    return /^\s*(\{|h[1-6]\.|\||[*#]+\s|bq\.|----)/.test(markup) ? 'block' : 'insert';
+    return /^\s*(\{(?!\{)|h[1-6]\.|\||[*#]+\s|bq\.|----)/.test(markup) ? 'block' : 'insert';
   }
 
   function insertCustomTemplate(field, template, values) {
