@@ -13,7 +13,6 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import {
   escapeHtml,
   isoSeconds,
-  selectAbandoned,
   hasAbandonedEntry,
   pruneAbandoned,
   buildReportData,
@@ -163,17 +162,116 @@ test('Prune ist idempotent: zweiter Lauf schreibt keine zweite abandoned-Zeile',
   assert.deepEqual(second.historyRows, first.historyRows);
 });
 
-test('hasAbandonedEntry verhindert eine zweite Zeile, selbst wenn der Branch wieder auftaucht', () => {
+test('pruneAbandoned entfernt Restzeilen eines schon abandoned verbuchten Branches, ohne die History waechst', () => {
   const now = new Date('2026-09-12T00:00:00Z');
   // Simuliert eine durch Rebase/Union-Merge wiederhergestellte Zeile - schon
   // als abandoned verbucht, taucht der Branch trotzdem wieder in costs.csv
-  // auf. selectAbandoned() darf ihn nicht ein zweites Mal auswaehlen.
+  // auf. updated_at liegt vor dem merged_at der History-Zeile: keine neue
+  // Arbeit, die Restzeile muss raus statt ein zweites Mal verbucht zu werden.
   const historyRows = [
     ['feature/old', '', '2026-09-01T00:00:00Z', '1.0000', '1', 'abandoned'],
   ];
+  const historyModelRows = [
+    ['2026-09-01T00:00:00Z', 'feature/old', 'claude-opus-5', '1', '1', '1', '1', '1.0000'],
+  ];
   assert.equal(hasAbandonedEntry(historyRows, 'feature/old'), true);
-  const costsRows = [['feature/old', 's1', daysAgoIso(now, 40), '1.0000']];
-  assert.deepEqual(selectAbandoned(costsRows, historyRows, null, now), []);
+  const costsRows = [['feature/old', 's1', '2026-08-30T00:00:00Z', '1.0000']];
+  const tokensRows = [['feature/old', 's1', 'claude-opus-5', '1', '1', '1', '1', '1.0000']];
+
+  const result = pruneAbandoned(costsRows, tokensRows, historyRows, historyModelRows, null, now);
+
+  assert.deepEqual(result.costsRows, []);
+  assert.deepEqual(result.tokensRows, []);
+  assert.deepEqual(result.alreadyBooked, ['feature/old']);
+  // Keine zweite Verbuchung: historyRows/historyModelRows wachsen nicht.
+  assert.equal(result.historyRows.length, 1);
+  assert.deepEqual(result.historyRows, historyRows);
+  assert.equal(result.historyModelRows.length, 1);
+  assert.deepEqual(result.historyModelRows, historyModelRows);
+});
+
+test('pruneAbandoned verhindert die Doppelverbuchung eines als merged verbuchten Branches', () => {
+  const now = new Date('2026-09-12T00:00:00Z');
+  // Der eigentliche Bugfall: ein Union-Merge-Rebase holt die Rohzeilen eines
+  // bereits mit reason=merged verbuchten Branches zurueck. Der Branch ist am
+  // Remote nicht mehr vorhanden (nach dem Merge geloescht) - ohne die
+  // Restzeilen-Bereinigung wuerde selectAbandoned() ihn erneut als abandoned
+  // verbuchen, weil hasAbandonedEntry() nur reason=abandoned kennt.
+  const historyRows = [
+    ['feature/done', '12', '2026-09-01T12:00:00Z', '5.0000', '1', 'merged'],
+  ];
+  const historyModelRows = [
+    ['2026-09-01T12:00:00Z', 'feature/done', 'claude-opus-5', '100', '200', '300', '400', '5.0000'],
+  ];
+  const costsRows = [['feature/done', 's1', '2026-08-30T00:00:00Z', '5.0000']];
+  const tokensRows = [
+    ['feature/done', 's1', 'claude-opus-5', '100', '200', '300', '400', '5.0000'],
+  ];
+  const remoteBranches = new Set(['other/branch']);
+
+  const result = pruneAbandoned(costsRows, tokensRows, historyRows, historyModelRows, remoteBranches, now);
+
+  assert.deepEqual(result.costsRows, []);
+  assert.deepEqual(result.tokensRows, []);
+  assert.deepEqual(result.abandoned, []);
+  assert.equal(result.historyRows.length, 1);
+
+  // Der eigentliche Schaden war eine verdoppelte Gesamtsumme (10 statt 5) -
+  // den Betrag explizit gegen das Ergebnis von buildReportData pruefen.
+  const data = buildReportData(
+    result.costsRows,
+    result.tokensRows,
+    result.historyRows,
+    result.historyModelRows,
+    now,
+  );
+  assert.equal(data.totalUsd, 5);
+});
+
+test('neue Arbeit auf einem schon verbuchten Branch bleibt erhalten', () => {
+  const now = new Date('2026-09-12T00:00:00Z');
+  // updated_at liegt NACH dem merged_at der History-Zeile - echte neue
+  // Sessions auf einem wiederbelebten Branch, kein Union-Merge-Rest.
+  const historyRows = [
+    ['feature/live', '9', '2026-09-01T00:00:00Z', '2.0000', '1', 'merged'],
+  ];
+  const historyModelRows = [
+    ['2026-09-01T00:00:00Z', 'feature/live', 'claude-opus-5', '1', '1', '1', '1', '2.0000'],
+  ];
+  const costsRows = [['feature/live', 's2', '2026-09-05T00:00:00Z', '0.3000']];
+  const tokensRows = [['feature/live', 's2', 'claude-opus-5', '1', '1', '1', '1', '0.3000']];
+  const remoteBranches = new Set(['feature/live']);
+
+  const result = pruneAbandoned(costsRows, tokensRows, historyRows, historyModelRows, remoteBranches, now);
+
+  assert.deepEqual(result.costsRows, costsRows);
+  assert.deepEqual(result.tokensRows, tokensRows);
+  assert.deepEqual(result.alreadyBooked, []);
+  assert.deepEqual(result.abandoned, []);
+  assert.equal(result.historyRows.length, 1);
+});
+
+test('kaputtes oder fehlendes merged_at loescht nichts', () => {
+  const now = new Date('2026-09-12T00:00:00Z');
+  const historyRows = [
+    ['feature/broken-date', '', 'not-a-date', '1.0000', '1', 'abandoned'],
+    ['feature/no-date', '', '', '1.0000', '1', 'abandoned'],
+  ];
+  const costsRows = [
+    ['feature/broken-date', 's1', daysAgoIso(now, 5), '1.0000'],
+    ['feature/no-date', 's2', daysAgoIso(now, 5), '1.0000'],
+  ];
+  const tokensRows = [
+    ['feature/broken-date', 's1', 'claude-opus-5', '1', '1', '1', '1', '1.0000'],
+    ['feature/no-date', 's2', 'claude-opus-5', '1', '1', '1', '1', '1.0000'],
+  ];
+
+  const result = pruneAbandoned(costsRows, tokensRows, historyRows, [], null, now);
+
+  assert.deepEqual(result.costsRows, costsRows);
+  assert.deepEqual(result.tokensRows, tokensRows);
+  assert.deepEqual(result.alreadyBooked, []);
+  assert.equal(result.historyRows.length, 2);
 });
 
 // --- HTML: keine externen Ressourcen, Escaping ------------------------------------
@@ -201,6 +299,35 @@ test('renderHtml entsteht auch ohne jegliche Daten, mit Hinweis statt leerer Tab
   assert.match(html, /Keine Kostendaten vorhanden\./);
   assert.match(html, /Keine Branch-Daten vorhanden\./);
   assert.match(html, /0\.0 %|\$0\.0000/);
+});
+
+test('Sessions-Zelle: "-" ohne offene Session, Zahl mit offener Session', () => {
+  const now = new Date('2026-09-12T00:00:00Z');
+  // claude-sonnet-5 hat eine offene Session in costs.csv/tokens.csv.
+  const costsRows = [['feature/a', 's1', '2026-09-10T00:00:00Z', '0.1000']];
+  const tokensRows = [['feature/a', 's1', 'claude-sonnet-5', '10', '20', '30', '40', '0.1000']];
+  // claude-haiku-4-5 stammt ausschliesslich aus history-models.csv - der
+  // Branch ist verbucht und laengst geloescht, es gibt keine Session mehr.
+  const historyRows = [['feature/b', '5', '2026-09-01T00:00:00Z', '0.5000', '1', 'merged']];
+  const historyModelRows = [
+    ['2026-09-01T00:00:00Z', 'feature/b', 'claude-haiku-4-5', '100', '200', '300', '400', '0.5000'],
+  ];
+
+  const data = buildReportData(costsRows, tokensRows, historyRows, historyModelRows, now);
+  const sonnetRow = data.modelRows.find((row) => row.model === 'claude-sonnet-5');
+  const haikuRow = data.modelRows.find((row) => row.model === 'claude-haiku-4-5');
+  assert.equal(sonnetRow.sessions, 1);
+  assert.equal(haikuRow.sessions, null);
+
+  const html = renderHtml(data);
+  assert.match(
+    html,
+    /<td>claude-haiku-4-5<\/td>\n(?:<td class="num">[^<]*<\/td>\n){4}<td class="num">-<\/td>/,
+  );
+  assert.match(
+    html,
+    /<td>claude-sonnet-5<\/td>\n(?:<td class="num">[^<]*<\/td>\n){4}<td class="num">1<\/td>/,
+  );
 });
 
 test('escapeHtml escaped alle fuenf Sonderzeichen', () => {
