@@ -1,11 +1,15 @@
 /**
  * JiraOtrsFlow - traegt einen bereits geparsten OTRS-Verweis (JiraOtrsLink.parse)
  * strikt sequenziell in drei Stellen des Jira-Vorgangs ein: Label, Custom
- * Field "Kunden Referenz", Web-Link im Reiter "Web Link".
+ * Field "Kunden Referenz", Web-Link im Dialog "Link".
  *
- * Jeder Schritt versucht zuerst den Tastatur-Shortcut der klassischen AUI-
- * Oberflaeche (l bzw. .), bei Timeout folgt ein direkter DOM-Selektor. Warten,
- * Klicken, Tasten und Werte laufen ausschliesslich ueber JiraUi - kein eigenes
+ * Zielplattform Jira Server / Data Center 9.12 LTS: Label (Taste l) und
+ * Kunden Referenz/Web-Link (Taste . oeffnet den Shifter) versuchen zuerst den
+ * Tastatur-Shortcut, bei Timeout folgt ein sichtbarer DOM-Trigger aus der
+ * Werkzeugleiste. Die Legacy-Dialoge (jira-dialog) liegen in 9.12 dauerhaft
+ * im DOM und werden nur per Klasse jira-dialog-open sichtbar - jedes Warten
+ * auf einen Dialog laeuft darum mit { visible: true }. Warten, Klicken,
+ * Tasten und Werte laufen ausschliesslich ueber JiraUi - kein eigenes
  * setTimeout-Polling.
  */
 (function (root, factory) {
@@ -66,20 +70,37 @@
    * Schritt 1: Label
    * ---------------------------------------------------------------- */
 
+  /**
+   * Fallback-Trigger in Dokumentreihenfolge der Prioritaet: zuerst das
+   * Kennzeichen-Feld selbst (steht direkt in der Ansicht), sonst das
+   * More-Menue der Werkzeugleiste oeffnen und darin "Labels" klicken -
+   * #edit-labels steht dort verborgen, bis #opsbar-operations_more das
+   * Dropdown aufklappt.
+   */
   function openLabelDialogFallback(doc, timeout) {
     var ui = getUi();
-    var trigger = doc.querySelector('#edit-labels') || doc.querySelector('[data-fieldtype="labels"] .editable-field');
-    if (!trigger) {
+    var trigger = doc.querySelector('#wrap-labels .labels-wrap.editable-field');
+    if (trigger) {
+      ui.click(trigger);
+      return ui.waitForElement('#edit-labels-dialog', { root: doc, visible: true, timeout: timeout });
+    }
+    var moreButton = doc.querySelector('#opsbar-operations_more');
+    if (!moreButton) {
       return Promise.reject(new Error('Kennzeichen-Feld nicht gefunden'));
     }
-    ui.click(trigger);
-    return ui.waitForElement('#edit-labels-dialog', { root: doc, timeout: timeout });
+    ui.click(moreButton);
+    var editLabels = doc.querySelector('#edit-labels');
+    if (!editLabels) {
+      return Promise.reject(new Error('Kennzeichen-Feld nicht gefunden'));
+    }
+    ui.click(editLabels);
+    return ui.waitForElement('#edit-labels-dialog', { root: doc, visible: true, timeout: timeout });
   }
 
   function addLabel(ticketNumber, doc, timeout) {
     var ui = getUi();
     ui.sendKey(doc.body, 'l');
-    return ui.waitForElement('#edit-labels-dialog', { root: doc, timeout: SHORTCUT_TIMEOUT })
+    return ui.waitForElement('#edit-labels-dialog', { root: doc, visible: true, timeout: SHORTCUT_TIMEOUT })
       .catch(function () {
         return openLabelDialogFallback(doc, timeout);
       })
@@ -89,11 +110,11 @@
       .then(function (textarea) {
         ui.setValue(textarea, ticketNumber);
         ui.sendKey(textarea, 'Enter');
-        return ui.waitForElement('#edit-labels-dialog .aui-dialog2-footer .aui-button-primary', { root: doc, timeout: timeout });
-      })
-      .then(function (button) {
-        ui.click(button);
-        return ui.waitForGone('#edit-labels-dialog', { root: doc, timeout: timeout });
+        var dialog = doc.querySelector('#edit-labels-dialog');
+        if (!ui.submitForm(dialog)) {
+          throw new Error('Formular des Labels-Dialogs nicht gefunden');
+        }
+        return ui.waitForGone('#edit-labels-dialog', { root: doc, visible: true, timeout: timeout });
       })
       .catch(function (error) {
         throw stepError('label', 'Kennzeichen konnte nicht gesetzt werden: ' + error.message);
@@ -105,31 +126,52 @@
    * ---------------------------------------------------------------- */
 
   /**
-   * Primaerpfad: Schnellsuche nach dem Feldnamen oeffnet das Custom-Field-
-   * Dialog. Das Feld selbst wird ueber ein generisches input im Dialog
-   * gesucht, nicht ueber eine feste ID - die Custom-Field-ID ist
-   * instanzabhaengig.
+   * Oeffnet den Shifter (Taste .), tippt query in #shifter-dialog-field -
+   * das input-Ereignis filtert die Vorschlagsliste - und waehlt den ersten
+   * sichtbaren Treffer per Klick, nicht per Enter: ein synthetisches
+   * KeyboardEvent loest in 9.12 keinen Formular-Submit aus. Loest mit dem
+   * per targetSelector gefundenen Folge-Dialog auf ({ visible: true }, die
+   * Legacy-Dialoge stehen dauerhaft im DOM).
    */
-  function locateReferenceInDialog(fieldName, doc, timeout) {
+  function runShifterAction(query, targetSelector, doc, timeout) {
     var ui = getUi();
     ui.sendKey(doc.body, '.');
-    return ui.waitForElement('#quick-search-dialog', { root: doc, timeout: SHORTCUT_TIMEOUT })
+    return ui.waitForElement('#shifter-dialog', { root: doc, visible: true, timeout: SHORTCUT_TIMEOUT })
       .then(function () {
-        var input = doc.querySelector('#quick-search-input');
-        ui.setValue(input, fieldName);
-        ui.sendKey(input, 'Enter');
-        return ui.waitForElement('#customfield-dialog', { root: doc, timeout: timeout });
+        var field = doc.querySelector('#shifter-dialog-field');
+        ui.setValue(field, query);
+        return ui.waitForElement('#shifter-dialog-suggestions .aui-list-item', { root: doc, visible: true, timeout: timeout });
       })
-      .then(function (dialog) {
-        return { field: dialog.querySelector('input'), dialog: dialog };
+      .then(function (suggestion) {
+        ui.click(suggestion);
+        return ui.waitForElement(targetSelector, { root: doc, visible: true, timeout: timeout });
       });
   }
 
   /**
-   * Fallback: das Feld steht bereits inline auf der Seite, ohne Dialog.
-   * Zwei getrennte Anlaeufe statt einer Selektorliste in einem querySelector
-   * - eine Liste loest in Dokumentreihenfolge auf, nicht in Listenreihenfolge,
-   * und wuerde damit die Prioritaet der beiden Selektoren durcheinanderbringen.
+   * Primaerpfad: der Shifter mit dem Feldnamen als Suchbegriff oeffnet
+   * #modal-field-view. Das Feld selbst wird ueber input[id^="customfield_"]
+   * im Dialog gesucht, nicht ueber eine feste ID - die Custom-Field-ID ist
+   * instanzabhaengig (siehe docs/jira-dialogs-referenz.md).
+   */
+  function locateReferenceInDialog(fieldName, doc, timeout) {
+    return runShifterAction(fieldName, '#modal-field-view', doc, timeout)
+      .then(function (dialog) {
+        var field = dialog.querySelector('input[id^="customfield_"]');
+        if (!field) {
+          throw new Error('Feld fuer Kunden Referenz nicht im Dialog gefunden');
+        }
+        return { field: field, dialog: dialog };
+      });
+  }
+
+  /**
+   * Letzte Stufe, kein regulaerer Weg in 9.12: ohne Wert steht das Feld
+   * "Kunden Referenz" nicht in der Ansicht, der Shifter ist der einzige
+   * Weg hinein. Zwei getrennte Anlaeufe statt einer Selektorliste in einem
+   * querySelector - eine Liste loest in Dokumentreihenfolge auf, nicht in
+   * Listenreihenfolge, und wuerde damit die Prioritaet der beiden
+   * Selektoren durcheinanderbringen.
    */
   function locateReferenceFallback(fieldName, doc) {
     var field = doc.querySelector('[data-field-name="' + fieldName + '"] input');
@@ -137,7 +179,7 @@
       field = doc.querySelector('.customfield input');
     }
     if (!field) {
-      return Promise.reject(new Error('Feld fuer Kunden Referenz nicht gefunden'));
+      return Promise.reject(new Error('Feld fuer Kunden Referenz steht nicht in der Ansicht - der Shifter ist der einzige Weg'));
     }
     return Promise.resolve({ field: field, dialog: null });
   }
@@ -164,9 +206,10 @@
           }
           return previousReference;
         }
-        var button = target.dialog.querySelector('.aui-dialog2-footer .aui-button-primary');
-        ui.click(button);
-        return ui.waitForGone('#customfield-dialog', { root: doc, timeout: timeout }).then(function () {
+        if (!ui.submitForm(target.dialog)) {
+          throw new Error('Formular fuer Kunden Referenz nicht gefunden');
+        }
+        return ui.waitForGone('#modal-field-view', { root: doc, visible: true, timeout: timeout }).then(function () {
           return previousReference;
         });
       })
@@ -179,26 +222,28 @@
    * Schritt 3: Web-Link
    * ---------------------------------------------------------------- */
 
+  /**
+   * Fallback: More-Menue der Werkzeugleiste oeffnen und darin "Link"
+   * klicken - #link-issue steht dort verborgen, bis #opsbar-operations_more
+   * das Dropdown aufklappt.
+   */
   function openWebLinkDialogFallback(doc, timeout) {
     var ui = getUi();
+    var moreButton = doc.querySelector('#opsbar-operations_more');
+    if (!moreButton) {
+      return Promise.reject(new Error('Verweis-Knopf nicht gefunden'));
+    }
+    ui.click(moreButton);
     var trigger = doc.querySelector('#link-issue');
     if (!trigger) {
       return Promise.reject(new Error('Verweis-Knopf nicht gefunden'));
     }
     ui.click(trigger);
-    return ui.waitForElement('#link-issue-dialog', { root: doc, timeout: timeout });
+    return ui.waitForElement('#link-issue-dialog', { root: doc, visible: true, timeout: timeout });
   }
 
   function openWebLinkDialog(doc, timeout) {
-    var ui = getUi();
-    ui.sendKey(doc.body, '.');
-    return ui.waitForElement('#quick-search-dialog', { root: doc, timeout: SHORTCUT_TIMEOUT })
-      .then(function () {
-        var input = doc.querySelector('#quick-search-input');
-        ui.setValue(input, 'link');
-        ui.sendKey(input, 'Enter');
-        return ui.waitForElement('#link-issue-dialog', { root: doc, timeout: timeout });
-      })
+    return runShifterAction('Link', '#link-issue-dialog', doc, timeout)
       .catch(function () {
         return openWebLinkDialogFallback(doc, timeout);
       });
@@ -210,21 +255,25 @@
     return openWebLinkDialog(doc, timeout)
       .then(function (dialog) {
         dialogRef = dialog;
-        var tab = dialog.querySelector('.aui-tabs .menu-item a[href="#web-link"]');
-        if (!tab) throw new Error('Reiter Web-Link nicht gefunden');
-        ui.click(tab);
-        // Auf dialogRef statt doc scopen: AUI laesst beim Oeffnen oft einen
-        // alten, ausgeblendeten .aui-dialog2-Knoten stehen (siehe findMatch-
-        // Kommentar in jiraui.js) - Panel und Primaerbutton muessen aus
-        // demselben Dialogknoten stammen, sonst laufen sie auseinander.
-        return ui.waitForElement('#web-link.active-pane', { root: dialogRef, timeout: timeout });
+        var webLinkButton = dialog.querySelector('#add-web-link-link');
+        if (!webLinkButton) throw new Error('Reiter Web-Link nicht gefunden');
+        if (!webLinkButton.classList.contains('selected')) {
+          ui.click(webLinkButton);
+        }
+        // Der Rumpf wird per AJAX aus data-url nachgeladen - auf dialogRef
+        // statt doc scopen, damit ein alter, noch nicht ausgetauschter
+        // Dialogknoten nicht faelschlich trifft (siehe findMatch-Kommentar
+        // in jiraui.js).
+        return ui.waitForElement('#web-link-url', { root: dialogRef, timeout: timeout });
       })
-      .then(function (panel) {
-        ui.setValue(panel.querySelector('#weblink-url'), url);
-        ui.setValue(panel.querySelector('#weblink-linktext'), linkText);
-        var button = dialogRef.querySelector('.aui-dialog2-footer .aui-button-primary');
-        ui.click(button);
-        return ui.waitForGone('#link-issue-dialog', { root: doc, timeout: timeout });
+      .then(function (urlField) {
+        // #web-link-url ist mit http:// vorbelegt - ersetzen, nicht ergaenzen.
+        ui.setValue(urlField, url);
+        ui.setValue(dialogRef.querySelector('#web-link-title'), linkText);
+        if (!ui.submitForm(dialogRef)) {
+          throw new Error('Formular des Link-Dialogs nicht gefunden');
+        }
+        return ui.waitForGone('#link-issue-dialog', { root: doc, visible: true, timeout: timeout });
       })
       .catch(function (error) {
         throw stepError('link', 'Web-Link konnte nicht erstellt werden: ' + error.message);
