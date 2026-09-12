@@ -6,10 +6,15 @@ Modul anlegt. Hintergrund und Migration: Issue #55.
 
 Zielplattform ist ausschliesslich Jira Server / Data Center 9.12 LTS (9.12.2).
 Neue Tests werden gegen die Server-Fixtures geschrieben (`mock-jira-server.html`,
-`mock-jira-rte.html`, `mock-jira-inline-edit.html`,
-`mock-jira-issue-description.html`). Das Cloud-Fixture `mock-jira.html` und die
-darauf laufenden Faelle bleiben bestehen, damit der ausgelieferte Stand gruen
-ist - sie werden aber nicht mehr ausgebaut.
+`mock-jira-rte.html`, `mock-jira-issue-description.html`,
+`mock-jira-912-issue-view.html` - der DOM-verifizierte Nachbau der
+Vorgangsansicht). Das Cloud-Fixture `mock-jira.html` und die darauf laufenden
+Faelle bleiben bestehen, damit der ausgelieferte Stand gruen ist - sie werden
+aber nicht mehr ausgebaut. `mock-jira-inline-edit.html` schliesst das Feld nur
+ueber einen click-Handler in der Bubble-Phase, nicht wie Jira 9.12 ueber
+mousedown/Fokuswechsel; seit dem Fix zu #112 (Klicks laufen eingefroren durch)
+taugt es nicht mehr als Massstab fuer das Einfrieren und wird von keinem
+Modul mehr geladen.
 
 ## Modul-Landkarte
 
@@ -23,7 +28,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `editors` | `src/editors.js` | 18 Browser | #31, #32 |
 | `content` | `src/content.js`, `src/content.css` | 38 Browser | #31, #32 |
 | `dialogs` | `src/codedialog.js`, `src/templatedialog.js`, `src/codedialog.css` | 44 Browser | #31 |
-| `editlock` | `src/editlock.js` | 21 Browser | #63 |
+| `editlock` | `src/editlock.js` | 24 Browser | #63, #90, #111, #112 |
 | `options` | `options/` | 8 Browser | #31, #32 |
 | `popup` | `popup/` | 5 Browser | - |
 | `background` | `src/background.js` | 7 Node | #32 |
@@ -47,15 +52,16 @@ jira-markdown-converter/test/
     browser.js                 withBrowser, newPage, optionsPage, popupPage,
                                 SOURCES/STYLES aus manifest.json
     dom.js                     pasteInto, stubClipboard, setCaret, setRichCaret
-    fixtures.js                 CLOUD, SERVER, RTE, INLINE, ISSUE - Pfade
-  fixtures/                    die 5 HTML-Mocks, unveraendert und schreibgeschuetzt
+    fixtures.js                 CLOUD, SERVER, RTE, INLINE, ISSUE, OTRS,
+                                JIRA912 - Pfade
+  fixtures/                    die 7 HTML-Mocks, unveraendert und schreibgeschuetzt
   modules/
     converter/    converter.test.js  blocks.test.js  html.test.js
     settings/     settings.test.js   storage.test.js   browser/toggle.test.js
     editors/      browser/{server,rte,caret}.test.js
     content/      browser/{fab,panel,paste,blockmakros,fieldbar,robustheit}.test.js
     dialogs/      browser/{code,panel,placeholder}.test.js
-    editlock/     browser/{inline,description}.test.js
+    editlock/     browser/{inline,description,dialogs}.test.js
     options/      browser/templates.test.js
     otrs/         otrslink.test.js  browser/{jiraui,otrsflow,otrsdialog}.test.js
     popup/        browser/popup.test.js
@@ -109,8 +115,8 @@ Modul-Landkarte oben).
   neue Content-Script-Datei in allen Browser-Tests mitlaeuft.
 - **Modulspezifische Mocks** liegen unter `test/modules/<modul>/mocks/` und
   werden nur dort verwendet - noch nicht gebraucht, aber vorgesehen.
-- **Fixtures bleiben geteilt und schreibgeschuetzt.** Fuenf HTML-Dateien fuer
-  fuenf Jira-Varianten, ueber `lib/fixtures.js` referenziert - je Modul zu
+- **Fixtures bleiben geteilt und schreibgeschuetzt.** Eine HTML-Datei je
+  Jira-Variante, ueber `lib/fixtures.js` referenziert - je Modul zu
   duplizieren wuerde nichts entkoppeln, sondern nur Drift erzeugen.
 - **Service-Worker ohne UMD** (`src/background.js`): laedt seine
   Abhaengigkeiten per `importScripts()` und liest sie ueber `self.JiraMd*`
