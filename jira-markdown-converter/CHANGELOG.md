@@ -9,6 +9,9 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Erweiterung nistet sich nicht mehr auf fremden Seiten ein.
+- Feldleisten, schwebender Button und Einfrieren nur noch auf erkannten
+  Jira-Instanzen; das Kuerzel oeffnet ueberall das Panel ohne Leisten.
 - *Vorher auf den Markup-Modus umschalten* findet den Umschalter von Jira 9.12
   jetzt und schaltet wirklich um, statt still auf formatiertes Einfuegen
   zurueckzufallen (Issue #110).
