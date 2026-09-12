@@ -25,6 +25,16 @@ var manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf
 var SOURCES = manifest.content_scripts[0].js;
 var STYLES = manifest.content_scripts[0].css;
 
+// Zweite Liste fuer standalonePage(): wie SOURCES, aber ohne editlock.js und
+// die vier OTRS-Dateien - deckungsgleich mit STANDALONE_FILES in
+// src/background.js (dort spielt die Sondierung diese Dateien auf fremden
+// Seiten ein).
+var STANDALONE_SOURCES = SOURCES.filter(function (file) {
+  return file !== 'src/editlock.js' && file !== 'src/otrslink.js' &&
+    file !== 'src/jiraui.js' && file !== 'src/otrsflow.js' &&
+    file !== 'src/otrsdialog.js';
+});
+
 function hasPlaywright() {
   try {
     require.resolve('playwright');
@@ -90,6 +100,40 @@ async function newPage(browser, settings, fixture) {
 }
 
 /**
+ * Laedt eine fremde Seite (kein Jira) im Standalone-Modus: dieselben Dateien
+ * wie sendToTab() dort einspielt (STANDALONE_SOURCES statt SOURCES), plus
+ * window.__jiraMarkdownStandalone = true per addInitScript - das Flag muss
+ * vor den Content-Dateien stehen, genau wie markStandalone() es in der
+ * isolierten Welt tut (src/background.js). Ohne schwebenden Button als
+ * Ladesignal wartet diese Fabrik stattdessen auf den registrierten
+ * chrome.runtime.onMessage-Listener aus content.js.
+ */
+async function standalonePage(browser, settings, fixture) {
+  var context = await browser.newContext();
+  var page = await context.newPage();
+  await page.addInitScript({ content: 'window.__jiraMarkdownStandalone = true;' });
+  await page.goto('file://' + path.join(root, 'test', 'fixtures', fixture || fixtures.FOREIGN));
+  for (var s = 0; s < STYLES.length; s++) {
+    await page.addStyleTag({ content: readSource(STYLES[s]) });
+  }
+  await page.addScriptTag({ content: CHROME_STUB });
+  if (settings) {
+    var split = pageStub(settings);
+    await page.evaluate(function (values) {
+      window.__settings = values.sync;
+      window.__local = values.local;
+    }, split);
+  }
+  for (var i = 0; i < STANDALONE_SOURCES.length; i++) {
+    await page.addScriptTag({ content: readSource(STANDALONE_SOURCES[i]) });
+  }
+  await page.waitForFunction(function () {
+    return typeof window.__onMessage === 'function';
+  }, null, { timeout: 5000 });
+  return page;
+}
+
+/**
  * Laedt die Optionsseite. settings.customTemplates (falls gesetzt) landet im
  * local-Bereich des Stubs, alles andere im sync-Bereich - wie in der echten
  * Aufteilung. Der Stub muss per addInitScript vor page.goto stehen, weil die
@@ -143,6 +187,7 @@ module.exports = {
   readSource: readSource,
   withBrowser: withBrowser,
   newPage: newPage,
+  standalonePage: standalonePage,
   optionsPage: optionsPage,
   popupPage: popupPage,
   SOURCES: SOURCES,

@@ -16,34 +16,68 @@ var CONTENT_FILES = ['src/settings.js', 'src/converter.js', 'src/editors.js',
   'src/content.js'];
 var CONTENT_CSS = ['src/content.css', 'src/codedialog.css', 'src/otrsdialog.css'];
 
+// Fuer Seiten, die die Sondierung nicht als Jira erkennt: ohne Sperr-
+// Infrastruktur (editlock.js) und ohne die OTRS-Anbindung, die ohnehin nur
+// im Jira-Vorgang Sinn ergibt. content.js erkennt selbst per
+// window.__jiraMarkdownStandalone, dass es im schlanken Modus laeuft.
+var STANDALONE_FILES = CONTENT_FILES.filter(function (file) {
+  return file !== 'src/editlock.js' && file !== 'src/otrslink.js' &&
+    file !== 'src/jiraui.js' && file !== 'src/otrsflow.js' &&
+    file !== 'src/otrsdialog.js';
+});
+
 /* -------------------------------------------------------------------- *
  * Kontextmenue
  * -------------------------------------------------------------------- */
 
 var TOGGLE_MENU_ID = 'toggle-convert-on-paste';
 
+// Gleiche Werte wie content_scripts[0].matches im Manifest - hier als
+// Konstante nachgezogen statt zur Laufzeit aus dem Manifest gelesen, weil
+// chrome.runtime.getManifest() in Node-Tests einen weiteren Stub braeuchte.
+var DEFAULT_MATCHES = ['https://*.atlassian.net/*'];
+
+/**
+ * Baut die Kontextmenue-Eintraege neu auf und begrenzt convert-selection und
+ * open-panel per documentUrlPatterns auf die freigegebenen Hosts (Standard
+ * plus vom Nutzer eingetragene Extra-Hosts) - auf fremden Seiten sollen sie
+ * gar nicht erst im Menue auftauchen. Der Umschalter am Symbol
+ * (TOGGLE_MENU_ID, Kontext action) bleibt ohne Muster, er soll unabhaengig
+ * von der aktuellen Seite erreichbar sein.
+ */
 function createMenus() {
-  chrome.contextMenus.removeAll(function () {
-    chrome.contextMenus.create({
-      id: 'convert-selection',
-      title: 'Markdown in Jira-Markup umwandeln',
-      contexts: ['selection', 'editable']
-    });
-    chrome.contextMenus.create({
-      id: 'open-panel',
-      title: 'Markdown-Konverter oeffnen',
-      contexts: ['editable', 'page']
-    });
-    // Direkt am Symbol der Erweiterung erreichbar (Rechtsklick darauf).
-    chrome.contextMenus.create({
-      id: TOGGLE_MENU_ID,
-      title: 'Beim Einfuegen automatisch umwandeln',
-      type: 'checkbox',
-      checked: true,
-      contexts: ['action', 'editable', 'page']
-    }, function () {
-      void chrome.runtime.lastError;
-      refreshIndicators();
+  return Settings.load().then(function (settings) {
+    var patterns = DEFAULT_MATCHES.concat(
+      (settings.extraHosts || [])
+        .map(Settings.normalizeHost)
+        .filter(Boolean)
+        .map(Settings.hostPattern)
+    );
+
+    chrome.contextMenus.removeAll(function () {
+      chrome.contextMenus.create({
+        id: 'convert-selection',
+        title: 'Markdown in Jira-Markup umwandeln',
+        contexts: ['selection', 'editable'],
+        documentUrlPatterns: patterns
+      });
+      chrome.contextMenus.create({
+        id: 'open-panel',
+        title: 'Markdown-Konverter oeffnen',
+        contexts: ['editable', 'page'],
+        documentUrlPatterns: patterns
+      });
+      // Direkt am Symbol der Erweiterung erreichbar (Rechtsklick darauf).
+      chrome.contextMenus.create({
+        id: TOGGLE_MENU_ID,
+        title: 'Beim Einfuegen automatisch umwandeln',
+        type: 'checkbox',
+        checked: true,
+        contexts: ['action', 'editable', 'page']
+      }, function () {
+        void chrome.runtime.lastError;
+        refreshIndicators();
+      });
     });
   });
 }
@@ -137,25 +171,89 @@ chrome.commands.onCommand.addListener(function (command) {
 });
 
 /**
- * Schickt eine Nachricht an das Content-Script und spielt es bei Bedarf
- * nach (z. B. auf einem Host, der gerade erst freigegeben wurde).
+ * Laeuft im Tab (isolierte Welt) und meldet, ob die Seite eine Jira Server /
+ * Data Center-Instanz ist. Ohne Abhaengigkeiten, weil chrome.scripting sie
+ * per toString() in den Tab schickt - kein Zugriff auf Variablen aus
+ * background.js oder auf Seiten-Globals wie window.JIRA/AJS/jQuery.
+ */
+function detectJira() {
+  if (document.querySelector('meta[name="ajs-version-number"]')) return true;
+  if (document.getElementById('jira')) return true;
+  if (document.body && document.body.id === 'jira') return true;
+  return false;
+}
+
+/**
+ * Sondiert per chrome.scripting.executeScript im Hauptrahmen des Tabs, ob es
+ * sich um Jira handelt - allFrames bleibt aus, ein einzelnes iframe mit
+ * eigenem ajs-Meta soll die ganze Seite nicht als Jira durchgehen lassen.
+ * lastError oder ein leeres Ergebnis (z. B. chrome://-Seiten, PDF-Viewer)
+ * gilt konservativ als Nicht-Jira.
+ */
+function probeJira(tabId, done) {
+  chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    func: detectJira
+  }, function (results) {
+    if (chrome.runtime.lastError || !results || !results.length) {
+      done(false);
+      return;
+    }
+    done(!!results[0].result);
+  });
+}
+
+/**
+ * Setzt in jedem Frame der isolierten Welt das Signal fuer den schlanken
+ * Modus, bevor content.js dort ueberhaupt laeuft (Reihenfolge in
+ * injectFiles()) - content.js liest es beim Start und laesst Feldleisten,
+ * schwebenden Button und Einfrieren aus.
+ */
+function markStandalone() {
+  window.__jiraMarkdownStandalone = true;
+}
+
+/** Spielt die uebergebenen Dateien plus CONTENT_CSS ein und schickt danach die Nachricht nach. */
+function injectFiles(tabId, message, files) {
+  chrome.scripting.executeScript({
+    target: { tabId: tabId, allFrames: true },
+    files: files
+  }, function () {
+    if (chrome.runtime.lastError) return;
+    chrome.scripting.insertCSS({
+      target: { tabId: tabId, allFrames: true },
+      files: CONTENT_CSS
+    }, function () {
+      if (chrome.runtime.lastError) return;
+      chrome.tabs.sendMessage(tabId, message, function () {
+        void chrome.runtime.lastError;
+      });
+    });
+  });
+}
+
+/**
+ * Schickt eine Nachricht an das Content-Script und spielt es bei Bedarf nach
+ * (z. B. auf einem Host, der gerade erst freigegeben wurde). Antwortet der
+ * Tab nicht, entscheidet die Jira-Sondierung ueber den Funktionsumfang:
+ * auf Jira wie bisher CONTENT_FILES komplett, sonst STANDALONE_FILES ohne
+ * Sperr-Infrastruktur und OTRS-Anbindung, dafuer erst das Standalone-Signal
+ * in der isolierten Welt gesetzt.
  */
 function sendToTab(tabId, message) {
   chrome.tabs.sendMessage(tabId, message, function () {
     if (!chrome.runtime.lastError) return;
-    chrome.scripting.executeScript({
-      target: { tabId: tabId, allFrames: true },
-      files: CONTENT_FILES
-    }, function () {
-      if (chrome.runtime.lastError) return;
-      chrome.scripting.insertCSS({
+    probeJira(tabId, function (isJira) {
+      if (isJira) {
+        injectFiles(tabId, message, CONTENT_FILES);
+        return;
+      }
+      chrome.scripting.executeScript({
         target: { tabId: tabId, allFrames: true },
-        files: CONTENT_CSS
+        func: markStandalone
       }, function () {
-        if (chrome.runtime.lastError) return;
-        chrome.tabs.sendMessage(tabId, message, function () {
-          void chrome.runtime.lastError;
-        });
+        void chrome.runtime.lastError;
+        injectFiles(tabId, message, STANDALONE_FILES);
       });
     });
   });
@@ -217,7 +315,10 @@ function syncExtraHosts() {
 chrome.storage.onChanged.addListener(function (changes, area) {
   if (area !== 'sync') return;
   if (changes.extraHosts) {
+    // Ein neu freigegebener Host soll sofort im Menue stehen, nicht erst
+    // nach einem Neustart des Service-Workers.
     syncExtraHosts();
+    createMenus();
   }
   if (changes.convertOnPaste) {
     refreshIndicators();

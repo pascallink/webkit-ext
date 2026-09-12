@@ -90,6 +90,11 @@ Dazu kommen ein Symbolleisten-Popup (Konverter ohne Jira-Seite), ein
 Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`
 (macOS: `Cmd+Umschalt+M`), das die aktuelle Auswahl im Editor umwandelt.
 
+Das Kontextmenue steht nur auf freigegebenen Jira-Hosts zur Verfuegung; das
+Tastenkuerzel oeffnet ueberall das Panel ohne Feldleiste, schwebenden Button
+oder Einfrieren - diese Bedienelemente braucht es nur auf erkannten Jira-
+Instanzen.
+
 ## Code einfuegen
 
 Der Knopf *Code einfuegen* – in der Buttonleiste am Feld wie im Panel – oeffnet

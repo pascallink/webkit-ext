@@ -15,6 +15,25 @@
   var TemplateDialog = window.JiraTemplateDialog;
   var EditLock = window.JiraEditLock;
 
+  // Fremde Seite (kein Jira): src/background.js spielt hier STANDALONE_FILES
+  // ein und setzt window.__jiraMarkdownStandalone schon vor den Dateien
+  // (markStandalone(), isolierte Welt) - editlock.js fehlt in dieser Liste
+  // bewusst, siehe dort.
+  var standalone = !!window.__jiraMarkdownStandalone;
+
+  // Ohne editlock.js (Standalone-Modus) gibt es kein window.JiraEditLock -
+  // die uebrigen Aufrufe (z. B. aus Settings.onChange) sollen trotzdem nicht
+  // werfen, darum eine No-Op-Huelle mit derselben Form.
+  if (!EditLock) {
+    EditLock = {
+      lock: function () {},
+      cleanup: function () {},
+      watch: function () {},
+      configure: function () {},
+      createButton: function () { return null; }
+    };
+  }
+
   var settings = Settings.DEFAULTS;
   var panel = null;
   var fab = null;
@@ -1609,40 +1628,48 @@
   }
 
   function start() {
-    document.addEventListener('paste', onPaste, true);
-    document.addEventListener('focusin', function (event) {
-      var field = Editors.editableFrom(event.target);
-      if (!field) return;
-      target = field;
-      // Sobald im Feld gearbeitet wird, friert der Bearbeitungsmodus ein.
-      EditLock.lock(field);
-    }, true);
+    // Feldleisten, schwebender Button, Einfrieren und die Einfuege-Automatik
+    // gehoeren nur zu Jira - auf einer fremden Seite bleibt nur das Panel
+    // uebrig (onMessage, Settings.onChange laufen unveraendert weiter). Das
+    // automatische Umschreiben beim Einfuegen ist Jira-Verhalten und darf
+    // auf einer fremden Seite nicht still mitlaufen. Issue #97.
+    if (!standalone) {
+      document.addEventListener('paste', onPaste, true);
 
-    // Fokuswechsel ueber die iframe-Grenze: faengt den Rahmen ab, wenn Jira
-    // ihn beim Oeffnen selbst fokussiert (Issue #107). Am Fenster in der
-    // Erfassungsphase, damit der Fokuswechsel auch dann ankommt, wenn
-    // `editlock.js` ihn fuer ein bereits gesperrtes Feld stoppt - siehe
-    // `EditLock.watch()` unten.
-    window.addEventListener('focus', lockFrameFromEvent, true);
-    window.addEventListener('focusin', lockFrameFromEvent, true);
+      document.addEventListener('focusin', function (event) {
+        var field = Editors.editableFrom(event.target);
+        if (!field) return;
+        target = field;
+        // Sobald im Feld gearbeitet wird, friert der Bearbeitungsmodus ein.
+        EditLock.lock(field);
+      }, true);
 
-    // Solange ein Feld eingefroren ist, kommen die gestoppten Ereignisse
-    // nicht mehr bis zu unseren eigenen Wachposten am Dokument. Sie bekommen
-    // sie deshalb von der Sperre gereicht - sonst bliebe das Vorlagenmenue
-    // offen und die Feldauswahl taub. `editlock.js` laedt laut
-    // `manifest.json` vor `content.js` und ist damit am Fenster zuerst
-    // registriert - ohne diese Weiterleitung saehe der Wachposten oben den
-    // Fokuswechsel in einen bereits gesperrten Rahmen nie.
-    EditLock.watch(function (event) {
-      if (event.type === 'mousedown') {
-        onMenuOutside(event);
-        if (pickingTarget) onPickClick(event);
-        return;
-      }
-      if (event.type === 'focus' || event.type === 'focusin') {
-        lockFrameFromEvent(event);
-      }
-    });
+      // Fokuswechsel ueber die iframe-Grenze: faengt den Rahmen ab, wenn Jira
+      // ihn beim Oeffnen selbst fokussiert (Issue #107). Am Fenster in der
+      // Erfassungsphase, damit der Fokuswechsel auch dann ankommt, wenn
+      // `editlock.js` ihn fuer ein bereits gesperrtes Feld stoppt - siehe
+      // `EditLock.watch()` unten.
+      window.addEventListener('focus', lockFrameFromEvent, true);
+      window.addEventListener('focusin', lockFrameFromEvent, true);
+
+      // Solange ein Feld eingefroren ist, kommen die gestoppten Ereignisse
+      // nicht mehr bis zu unseren eigenen Wachposten am Dokument. Sie bekommen
+      // sie deshalb von der Sperre gereicht - sonst bliebe das Vorlagenmenue
+      // offen und die Feldauswahl taub. `editlock.js` laedt laut
+      // `manifest.json` vor `content.js` und ist damit am Fenster zuerst
+      // registriert - ohne diese Weiterleitung saehe der Wachposten oben den
+      // Fokuswechsel in einen bereits gesperrten Rahmen nie.
+      EditLock.watch(function (event) {
+        if (event.type === 'mousedown') {
+          onMenuOutside(event);
+          if (pickingTarget) onPickClick(event);
+          return;
+        }
+        if (event.type === 'focus' || event.type === 'focusin') {
+          lockFrameFromEvent(event);
+        }
+      });
+    }
 
     // Cursorposition festhalten, solange das Feld sie noch kennt. Sobald der
     // Nutzer ins Panel klickt, ist sie sonst verloren.
@@ -1654,12 +1681,14 @@
       if (field) Editors.rememberCaret(field);
     }, true);
 
-    createFab();
-    attachFieldButtons();
-    watchRichTextFrames();
+    if (!standalone) {
+      createFab();
+      attachFieldButtons();
+      watchRichTextFrames();
 
-    var observer = new MutationObserver(onMutations);
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+      var observer = new MutationObserver(onMutations);
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    }
 
     if (chrome.runtime && chrome.runtime.onMessage) {
       chrome.runtime.onMessage.addListener(onMessage);
@@ -1667,11 +1696,14 @@
 
     Settings.onChange(function (next) {
       settings = next;
-      EditLock.configure({ enabled: settings.freezeEditMode });
-      if (settings.showFloatingButton) {
-        createFab();
-      } else {
-        removeFab();
+      // Standalone friert nie ein, egal was settings.freezeEditMode sagt.
+      EditLock.configure({ enabled: !standalone && settings.freezeEditMode });
+      if (!standalone) {
+        if (settings.showFloatingButton) {
+          createFab();
+        } else {
+          removeFab();
+        }
       }
       syncPanelState();
       updateFab();
@@ -1686,7 +1718,8 @@
 
   Settings.load().then(function (loaded) {
     settings = loaded;
-    EditLock.configure({ enabled: settings.freezeEditMode });
+    // Standalone friert nie ein, egal was settings.freezeEditMode sagt.
+    EditLock.configure({ enabled: !standalone && settings.freezeEditMode });
     if (document.body) {
       start();
     } else {
