@@ -162,8 +162,13 @@ describe('Einfrieren im Beschreibungsfeld des Vorgangs', { skip: !hasPlaywright 
       await page.addInitScript({ content: browserLib.readSource(browserLib.SOURCES[i]) });
     }
     await page.goto('file://' + path.join(root, 'test', 'fixtures', ISSUE));
+    // Diese Fixture hat weder Feld noch Vorgangsmarker beim Laden - der
+    // schwebende Button baut sich seit Issue #102 also nicht sofort ein.
+    // Der registrierte chrome.runtime.onMessage-Listener steht erst nach dem
+    // Fab-Aufbau in start() und ist darum ein gleichwertiges "fertig
+    // geladen"-Signal (wie in test/lib/browser.js#newPage).
     await page.waitForFunction(function () {
-      return !!document.querySelector('.jmd-fab');
+      return typeof window.__onMessage === 'function';
     }, null, { timeout: 5000 });
     await openDescription(page);
     await page.click('#daneben');

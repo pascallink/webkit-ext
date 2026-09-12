@@ -18,6 +18,8 @@ festgehalten. Das Format orientiert sich an
 - Die Buttonleiste erscheint jetzt auch an Feldern, die beim ersten Scan noch zu
   klein oder verdeckt waren (Dialog *Vorgang bearbeiten*, Reiter *Vorschau*,
   eingeklapptes Kommentarfeld) - Issue #101.
+- Der schwebende Button erscheint nur noch auf Seiten mit Eingabefeld oder auf
+  Vorgangsseiten; die Loginseite bleibt unberuehrt (Issue #102).
 - Erweiterung nistet sich nicht mehr auf fremden Seiten ein.
 - Feldleisten, schwebender Button und Einfrieren nur noch auf erkannten
   Jira-Instanzen; das Kuerzel oeffnet ueberall das Panel ohne Leisten.

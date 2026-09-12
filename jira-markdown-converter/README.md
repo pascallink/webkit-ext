@@ -52,7 +52,8 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    *Ins Ticket einfuegen*, *Feld ersetzen*, *Markup kopieren* oder
    *Formatiert kopieren* (fuer den Rich-Text-Editor). Ueber
    *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Code
-   einfuegen* und *Panel aus Vorlage* gibt es auch hier.
+   einfuegen* und *Panel aus Vorlage* gibt es auch hier. Der schwebende
+   Button erscheint nur auf Seiten mit Eingabefeld oder auf Vorgangsseiten.
 3. **Dialog "Code einfuegen"** – Sprache aus der Liste der von Jira
    unterstuetzten Sprachen waehlen, Code eintippen, fertigen Codeblock an der
    Cursorposition einsetzen. Zu erreichen ueber die Buttonleiste am Feld und
@@ -93,7 +94,8 @@ Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`
 Das Kontextmenue steht nur auf freigegebenen Jira-Hosts zur Verfuegung; das
 Tastenkuerzel oeffnet ueberall das Panel ohne Feldleiste, schwebenden Button
 oder Einfrieren - diese Bedienelemente braucht es nur auf erkannten Jira-
-Instanzen.
+Instanzen. Der schwebende Button erscheint dabei nur auf Seiten mit Eingabefeld
+oder auf Vorgangsseiten.
 
 ## Code einfuegen
 
