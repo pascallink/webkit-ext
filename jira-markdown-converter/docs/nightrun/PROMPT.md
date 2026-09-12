@@ -22,6 +22,10 @@ Parameter `model`: `opus` | `sonnet` | `haiku`, `subagent_type`:
   *Commit Convention* (`commitlint`) gruen UND `mergeable == MERGEABLE` UND
   letztes Opus-Review `APPROVED`. CodeQL und *Haiku PR Summary* zaehlen nicht;
   `mergeStateStatus` nie verwenden (steht wegen CodeQL auf UNSTABLE).
+- PRs entstehen als **Draft** (`gh pr create --draft`) und bleiben es,
+  solange ein Opus-Review oder Korrekturen ausstehen. Erst **done** hebt
+  den Draft auf (`gh pr ready <pr>`); geparkte PRs bleiben Draft. So ist
+  von aussen sichtbar, welcher PR noch in der Kette steckt.
 - Browser-Tests brauchen `CHROMIUM_PATH="/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"`.
   Nie `npx playwright install`.
 
@@ -58,8 +62,8 @@ GitHub-Nummern und Kommentar auf jedes Issue).
 - **implement**: je Sub-Task ein Agent(`<model aus dem Plan>`,
   `templates/implementer.md`) in Reihenfolge. Der erste legt den Branch vom
   `last_good_branch` an, der letzte laeuft `lint` + `npm test`, pusht und
-  legt den PR an (`--base <last_good_branch>`, Body mit `Closes #<gh>` je
-  Issue der Gruppe). Antwort nur
+  legt den PR als Draft an (`--draft --base <last_good_branch>`, Body mit
+  `Closes #<gh>` je Issue der Gruppe). Antwort nur
   `RESULT: pr=<nr|-> branch=<b> sha=<sha> tests=<ok|fail> note=<eine Zeile>`.
 - **ci**: selbst, ohne Agent. Bis zu 3x
   `timeout 540 gh pr checks <pr> --repo pascallink/webkit-ext --watch` (Fehler
@@ -82,7 +86,8 @@ GitHub-Nummern und Kommentar auf jedes Issue).
   Agent(`templates/fixer.md`) mit dem Modell aus der Prompt-Ueberschrift
   (`haiku` nur bei STYLE/MINOR, sonst `sonnet`), Sonnet-Prompts zuerst; nur
   der letzte Fixer laeuft `lint` + `npm test` und pusht. Danach **ci**.
-- **done**: wenn ci gruen und Review APPROVED: `gh issue comment <gh>` je
+- **done**: wenn ci gruen und Review APPROVED: `gh pr ready <pr>` (Draft
+  aufheben), `gh issue comment <gh>` je
   Issue der Gruppe (PR-Link, drei Zeilen was getan wurde, offene Punkte),
   `last_good_branch = branch`, `status = mergeable`, `consecutive_parked = 0`,
   `current = null`.
