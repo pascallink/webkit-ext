@@ -54,7 +54,8 @@ vorinstallierte Chromium zur gepinnten Playwright-Version passt
 Kette je Aufgabe: Sonnet setzt um -> Opus reviewt -> Haiku oder Sonnet
 korrigiert. Die Uebergabe laeuft ueber die Vorlagen in
 [`.github/PROMPTS.md`](.github/PROMPTS.md) - dort auch die Ausgaberegeln
-(kein Wrapper-Text, strikte Struktur, beschnittener Kontext).
+(kein Wrapper-Text, strikte Struktur, beschnittener Kontext) und die Zuordnung
+der Subagents unter `.claude/agents/`.
 
 - **Subtask-Abschluss (Sonnet):** jede umsetzende Session endet verpflichtend
   mit dem Review-Prompt (Stufe 1) fuer Opus.
@@ -66,6 +67,9 @@ korrigiert. Die Uebergabe laeuft ueber die Vorlagen in
 - **Prompt-Ausgabeformat:** jeder Folge-Prompt als reiner Text in einem eigenen
   Codeblock (drei Backticks, ohne Sprache), Modellwahl als Ueberschrift davor,
   nichts davon ausserhalb des Blocks.
+- **Uebergabe per Subagent:** statt die Prompts in eine neue Sitzung zu kopieren,
+  laeuft jede Stufe auch als Subagent aus `.claude/agents/` - gleiche Kette,
+  gleiche Vorlagen, ein Aufruf statt drei Chats.
 
 ## Test-Kontext-Regeln
 
