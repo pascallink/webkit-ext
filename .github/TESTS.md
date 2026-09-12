@@ -204,18 +204,24 @@ Zwei Dinge daran sind Absicht:
 
 ## Root-Skripte
 
-Validierungstests fuer die Repository-Struktur liegen in `scripts/test/` und
-laufen isoliert von den Projekt-Tests. Sie brauchen keine Dependencies - nur
-node:-Builtins - und prufen Manifeste, Package.json-Konsistenz und erforderliche
-Dateien.
+Tests fuer die Skripte in der Repo-Wurzel liegen unter `scripts/test/`, ein
+`*.test.mjs` je Skript. Sie brauchen keine Dependencies - nur `node:`-Builtins -
+und laufen getrennt von den Projekt-Tests.
 
 | Ordner | Quelle | Tests | Issue |
 | --- | --- | --- | --- |
-| `scripts/test/` | `scripts/test.mjs` | 17 Node | #49 |
+| `scripts/test/` | `scripts/costs-update.mjs` | 17 Node | #49 |
 
-Runner: `npm test` aus der Repo-Wurzel. Das Kommando mit Verzeichnisargument
-(`node --test scripts/test/*.test.mjs`) funktioniert ab Node 21 nicht mehr;
-stattdessen wird die Datei direkt angegeben.
+Runner: `npm test` aus der Repo-Wurzel, dahinter
+`node --test scripts/test/*.test.mjs`. Das Muster muss ausgeschrieben stehen:
+ein blosses Verzeichnisargument (`node --test scripts/test`) scheitert ab
+Node 21 mit `MODULE_NOT_FOUND`, die Shell-Expansion laeuft unter Node 20 wie
+unter Node 22.
+
+Die Struktur des Repos pruefen die Projekt-Tests, nicht diese Ebene - fuer
+`jira-markdown-converter` sitzt das in `test/modules/package/`. Ein zweiter,
+ungefilterter Satz Struktur-Tests in der Wurzel widerspricht der Regel "Nie
+global, immer gefiltert" aus der Root-`CLAUDE.md`.
 
 ## Neues Modul anlegen
 
