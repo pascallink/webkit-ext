@@ -202,6 +202,21 @@ Zwei Dinge daran sind Absicht:
   einmalig **Network access: Custom** mit den beiden Download-Hosts oben, sonst
   meldet das Script genau das.
 
+## Root-Skripte
+
+Validierungstests fuer die Repository-Struktur liegen in `scripts/test/` und
+laufen isoliert von den Projekt-Tests. Sie brauchen keine Dependencies - nur
+node:-Builtins - und prufen Manifeste, Package.json-Konsistenz und erforderliche
+Dateien.
+
+| Ordner | Quelle | Tests | Issue |
+| --- | --- | --- | --- |
+| `scripts/test/` | `scripts/test.mjs` | 17 Node | #49 |
+
+Runner: `npm test` aus der Repo-Wurzel. Das Kommando mit Verzeichnisargument
+(`node --test scripts/test/*.test.mjs`) funktioniert ab Node 21 nicht mehr;
+stattdessen wird die Datei direkt angegeben.
+
 ## Neues Modul anlegen
 
 1. Ordner unter `test/modules/<modul>/` anlegen; Browser-Tests kommen in
