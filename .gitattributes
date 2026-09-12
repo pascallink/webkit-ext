@@ -1,4 +1,5 @@
 stats/costs.csv merge=union
 stats/tokens.csv merge=union
 stats/history.csv merge=union
+stats/history-models.csv merge=union
 stats/report.html -diff
