@@ -248,6 +248,13 @@ test('summaryBlock listet Modelle nach Kosten absteigend', () => {
   );
 });
 
+test('summaryBlock nimmt eine eigene Ueberschrift fuer das Issue', () => {
+  const perModel = new Map([['m', { costUsd: 0.1 }]]);
+  const block = summaryBlock({ totalUsd: 0.1, sessions: 1, perModel }, '### Kosten aus PR #44');
+  assert.match(block, /^### Kosten aus PR #44\n\n/);
+  assert.match(block, /\*\*\$0\.1000\*\* aus 1 Session - m \$0\.1000\./);
+});
+
 test('changelogLine haelt das vorgegebene Format ein', () => {
   const perModel = new Map([['claude-opus-5', { costUsd: 0.142 }]]);
   assert.equal(

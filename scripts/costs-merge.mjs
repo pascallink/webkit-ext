@@ -195,18 +195,25 @@ export function formatUsd(value) {
   return `$${num(value).toFixed(4)}`;
 }
 
+const HEADING_PR = '### Kosten dieses PR';
+
 function sessionWord(count) {
   return count === 1 ? 'Session' : 'Sessions';
 }
 
-/** Inhalt des Markerblocks fuer PR- und Issue-Beschreibung. */
-export function summaryBlock({ totalUsd, sessions, perModel }) {
+/**
+ * Inhalt des Markerblocks fuer PR- und Issue-Beschreibung.
+ * @param {{totalUsd: number, sessions: number, perModel: Map}} agg
+ * @param {string} [heading] Ueberschrift; im Issue nennt sie den PR, weil
+ *   dort die Bloecke mehrerer Sub-Task-PRs nebeneinander stehen.
+ */
+export function summaryBlock({ totalUsd, sessions, perModel }, heading = HEADING_PR) {
   const parts = modelsByCost(perModel).map(
     ([model, bucket]) => `${model} ${formatUsd(bucket.costUsd)}`,
   );
   const tail = parts.length ? ` - ${parts.join(', ')}` : '';
   return [
-    '### Kosten dieses PR',
+    heading,
     '',
     `**${formatUsd(totalUsd)}** aus ${sessions} ${sessionWord(sessions)}${tail}.`,
   ].join('\n');
@@ -474,7 +481,7 @@ async function postComment(repo, pr, block) {
   log(`Kommentar an PR #${pr} geschrieben.`);
 }
 
-async function patchDescriptions(repo, pr, prBody, block) {
+async function patchDescriptions(repo, pr, prBody, block, issueBlock) {
   // Aktuellen PR-Body per API holen statt der Ereignis-Nutzlast zu vertrauen -
   // sonst macht ein Re-Run zwischenzeitliche Body-Aenderungen rueckgaengig.
   // Nur wenn der Abruf scheitert, faellt der Lauf auf PR_BODY zurueck.
@@ -505,7 +512,7 @@ async function patchDescriptions(repo, pr, prBody, block) {
       const current = await gh.get(repo, issue, 'issues');
       // Eigener Marker je PR: mehrere Sub-Task-PRs auf dasselbe Issue duerfen
       // sich nicht gegenseitig den Kostenblock ueberschreiben.
-      const nextBody = gh.mergeIntoBody(current.body, block, issueMarker);
+      const nextBody = gh.mergeIntoBody(current.body, issueBlock, issueMarker);
       if (nextBody === (current.body || '')) {
         log(`Issue #${issue} unveraendert.`);
         continue;
@@ -565,16 +572,19 @@ async function main() {
 
   if (agg.sessions === 0) {
     log(`Keine Kostenzeilen fuer Branch ${branch} - nichts zu verbuchen.`);
-    appendStepSummary(`### Kosten dieses PR\n\nKeine Sessions fuer \`${branch}\` erfasst.`);
+    appendStepSummary(`${HEADING_PR}\n\nKeine Sessions fuer \`${branch}\` erfasst.`);
     return;
   }
 
   const block = summaryBlock(agg);
+  // Im Issue steht die Ueberschrift neben denen anderer Sub-Task-PRs und muss
+  // deshalb sagen, zu welchem PR die Zahl gehoert.
+  const issueBlock = summaryBlock(agg, `### Kosten aus PR #${pr}`);
   appendStepSummary(block);
 
   if (online) {
     await postComment(repo, pr, block);
-    await patchDescriptions(repo, pr, prBody, block);
+    await patchDescriptions(repo, pr, prBody, block, issueBlock);
   } else {
     warn('GITHUB_REPOSITORY oder GITHUB_TOKEN fehlt - GitHub-Schritte uebersprungen.');
   }
