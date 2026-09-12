@@ -211,6 +211,34 @@ Zwei Einschraenkungen gehoeren dazu:
   den Markup-Modus umgeschaltet wird - anders als bei formatiert eingefuegtem
   Markdown gibt es zu einer freien Vorlage kein aequivalentes HTML.
 
+## OTRS-Link einpflegen
+
+Der Knopf *OTRS-Link einpflegen* - im Panel und in der Buttonleiste am Feld -
+oeffnet einen kleinen Dialog fuer OTRS-Verweise. Verstanden werden drei
+Eingabeformen: ein Markdown-Link (`[Titel](URL)`), ein HTML-Anker
+(`<a href="URL">Titel</a>`) oder blosser Text mit eingebetteter
+`http(s)://`-URL. Eine Live-Vorschau zeigt schon beim Tippen, was daraus wird.
+
+Nach *Absenden* traegt die Erweiterung den Verweis an drei Stellen des
+Jira-Vorgangs ein:
+
+| Feld | Wert |
+| --- | --- |
+| Label | die erkannte Ticketnummer |
+| Kunden Referenz | der erkannte Titel |
+| Web-Link | URL und Titel als Linktext |
+
+War die "Kunden Referenz" bereits belegt, bleibt eine laenger stehende
+Warnung mit dem ueberschriebenen alten Wert sichtbar, bis sie von Hand
+geschlossen wird.
+
+Der Helfer laesst sich in den Einstellungen unter *OTRS-Link-Helfer anbieten*
+an- und abschalten; dort steht auch der Feldname der Kundenreferenz, falls
+die eigene Jira-Instanz ihn anders nennt. Wie die uebrige Automation setzt
+der Helfer ausschliesslich auf **Jira Server / Data Center 9.12 LTS** auf -
+er bedient die Formularfelder im AUI-Dialog der Instanz, nicht die
+ProseMirror-Oberflaeche von Jira Cloud.
+
 ## Bearbeitung einfrieren
 
 Das Hauptfeld eines Vorgangs – die Beschreibung – wechselt in Jira per Klick
@@ -492,11 +520,16 @@ jira-markdown-converter/
 │   ├── codedialog.js        Dialog "Code einfuegen"
 │   ├── templatedialog.js  Dialog fuer Platzhalterwerte eigener Vorlagen
 │   ├── editlock.js          Bearbeitungsmodus einfrieren (Schloss)
+│   ├── otrslink.js          OTRS-Verweis zerlegen (ohne DOM)
+│   ├── jiraui.js            DOM-Helfer fuer die AUI-Dialoge
+│   ├── otrsflow.js          Label, Kunden Referenz, Web-Link nacheinander setzen
+│   ├── otrsdialog.js        Dialog "OTRS-Link einpflegen"
 │   ├── content.js           Bedienelemente, Einfuege-Automatik
 │   ├── settings.js          gemeinsame Einstellungen
 │   ├── background.js        Tastenkuerzel, Kontextmenue, eigene Hosts
 │   ├── content.css
-│   └── codedialog.css
+│   ├── codedialog.css
+│   └── otrsdialog.css
 ├── popup/             Konverter in der Symbolleiste
 ├── options/           Einstellungsseite
 ├── icons/
@@ -516,8 +549,8 @@ npm run lint
 ```
 
 Module: `converter`, `settings`, `editors`, `content`, `dialogs`, `editlock`,
-`options`, `popup`, `background`, `package` - Modul-Landkarte und Testzahlen
-in [`.github/TESTS.md`](../.github/TESTS.md).
+`options`, `popup`, `background`, `otrs`, `package` - Modul-Landkarte und
+Testzahlen in [`.github/TESTS.md`](../.github/TESTS.md).
 
 Die Browser-Module brauchen Playwright. Ist es global installiert, hilft
 `NODE_PATH=$(npm root -g) npm test`; fehlt es, werden diese Testdateien

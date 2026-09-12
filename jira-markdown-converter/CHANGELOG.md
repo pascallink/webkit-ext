@@ -5,6 +5,20 @@ festgehalten. Das Format orientiert sich an
 [Keep a Changelog](https://keepachangelog.com/de/1.0.0/), Versionierung an
 [SemVer](https://semver.org/lang/de/).
 
+## [1.4.0] - 2026-09-12
+
+### Hinzugefuegt
+
+- OTRS-Link-Helfer: nimmt einen OTRS-Verweis als Markdown-Link, HTML-Anker
+  oder Rohtext mit eingebetteter URL entgegen und pflegt ihn nach *Absenden*
+  an drei Stellen des Jira-Vorgangs ein - Label, Custom Field "Kunden
+  Referenz" und Web-Link. Erreichbar ueber einen Knopf im Panel und in der
+  Feldleiste, abschaltbar in den Einstellungen (*OTRS-Link-Helfer*), Feldname
+  der Kundenreferenz dort ebenfalls einstellbar. Zielumgebung ausschliesslich
+  Jira Server / Data Center 9.12 LTS (Issue #17).
+- War die Kundenreferenz bereits belegt, zeigt eine laenger stehende Warnung
+  den ueberschriebenen alten Wert.
+
 ## [1.3.0] - 2026-09-07
 
 ### Hinzugefuegt
