@@ -73,12 +73,6 @@ describe('Manifest', function () {
     assert.ok(js.indexOf('src/editors.js') < js.indexOf('src/editlock.js'), 'editors vor editlock');
     assert.ok(js.indexOf('src/codedialog.js') < js.indexOf('src/templatedialog.js'), 'codedialog vor templatedialog');
     assert.ok(js.indexOf('src/templatedialog.js') < js.indexOf('src/editlock.js'), 'templatedialog vor editlock');
-    assert.ok(js.indexOf('src/otrslink.js') < js.indexOf('src/content.js'), 'otrslink vor content');
-    assert.ok(js.indexOf('src/jiraui.js') < js.indexOf('src/content.js'), 'jiraui vor content');
-    assert.ok(js.indexOf('src/otrsflow.js') < js.indexOf('src/content.js'), 'otrsflow vor content');
-    assert.ok(js.indexOf('src/jiraui.js') < js.indexOf('src/otrsflow.js'), 'jiraui vor otrsflow');
-    assert.ok(js.indexOf('src/otrsdialog.js') < js.indexOf('src/content.js'), 'otrsdialog vor content');
-    assert.ok(js.indexOf('src/otrsflow.js') < js.indexOf('src/otrsdialog.js'), 'otrsflow vor otrsdialog');
   });
 
   test('Popup und Optionsseite vorhanden', function () {

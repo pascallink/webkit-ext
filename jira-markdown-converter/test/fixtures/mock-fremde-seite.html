@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Fremde Seite</title>
+  <style>
+    body { font-family: sans-serif; margin: 24px; }
+    textarea { width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>Fremde Seite</h1>
+
+  <!-- Kein ajs-*-Meta, kein #jira, keine Jira-Klassen - eine ganz normale
+       Seite. Die Textarea ist ueber 48 px hoch, damit sie im Jira-Modus als
+       Zielfeld mit Leiste gelten wuerde; im Standalone-Modus darf trotzdem
+       keine Leiste erscheinen. -->
+  <textarea id="notiz" rows="6" style="height: 120px;"></textarea>
+
+  <p><a id="link" href="#ziel">Ziel</a></p>
+  <button id="knopf" type="button">Klick mich</button>
+
+  <script>
+    window.__clicks = [];
+    document.getElementById('link').addEventListener('click', function (event) {
+      event.preventDefault();
+      window.__clicks.push('link');
+    });
+    document.getElementById('knopf').addEventListener('click', function () {
+      window.__clicks.push('knopf');
+    });
+    // Zeigt, ob Escape ungehindert bei der Seite ankommt.
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') window.__escapeSeen = true;
+    });
+  </script>
+</body>
+</html>

@@ -55,7 +55,8 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   });
   test('Codeblock mit Sprache', function () {
     html('```java\nif (a < b) {}\n```',
-      '<pre><code class="language-java">if (a &lt; b) {}</code></pre>');
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-java">' +
+      'if (a &lt; b) {}\n</pre>');
   });
   test('Liste', function () {
     html('- a\n- b', '<ul><li>a</li><li>b</li></ul>');
@@ -69,6 +70,10 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   test('gemischte Verschachtelung', function () {
     html('- a\n  1. b\n- c', '<ul><li>a<ol><li>b</li></ol></li><li>c</li></ul>');
   });
+  test('Fortsetzungsabsatz bricht die Liste nicht', function () {
+    html('- erster Punkt\n\n  Fortsetzung.\n\n- zweiter',
+      '<ul><li>erster Punkt<br>Fortsetzung.</li><li>zweiter</li></ul>');
+  });
   test('Aufgabenliste', function () {
     html('- [x] fertig\n- [ ] offen',
       '<ul><li>&#9745; fertig</li><li>&#9744; offen</li></ul>');
@@ -78,8 +83,18 @@ describe('HTML fuer den Rich-Text-Editor', function () {
       '<table><thead><tr><th>A</th><th>B</th></tr></thead>' +
       '<tbody><tr><td>1</td><td>2</td></tr></tbody></table>');
   });
+  test('Tabellenzelle mit maskiertem Strich', function () {
+    // HTML-Dialekt braucht keine Maskierung im <td> - bleibt unveraendert.
+    html('| A | B |\n| --- | --- |\n| Regex | a\\|b |',
+      '<table><thead><tr><th>A</th><th>B</th></tr></thead>' +
+      '<tbody><tr><td>Regex</td><td>a|b</td></tr></tbody></table>');
+  });
   test('Zitat', function () {
     html('> Zitat', '<blockquote>\n<p>Zitat</p>\n</blockquote>');
+  });
+  test('verschachteltes Zitat bleibt eine Huelle', function () {
+    html('> a\n>> b\n>>> c',
+      '<blockquote>\n<p>a<br>\nb<br>\nc</p>\n</blockquote>');
   });
   test('Hinweisblock wird Zitat mit Ueberschrift', function () {
     html('> [!WARNING]\n> Vorsicht',
@@ -115,8 +130,44 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   test('weiche Zeilenumbrueche werden zu <br>', function () {
     html('Zeile eins\nZeile zwei', '<p>Zeile eins<br>\nZeile zwei</p>');
   });
+  test('Backslash-Umbruch liefert <br> ohne Backslash', function () {
+    html('Zeile eins\\\nZeile zwei', '<p>Zeile eins<br>\nZeile zwei</p>');
+  });
+  test('E-Mail-Autolink behaelt die Adresse als sichtbaren Text', function () {
+    html('<max@x.de>', '<p><a href="mailto:max@x.de">max@x.de</a></p>');
+  });
   test('leere Eingabe', function () {
     html('', '');
+  });
+  test('Azure-DevOps-Marker verschwinden auch im HTML-Zweig', function () {
+    html('[[_TOC_]]', '');
+    html('Hallo @<9F4E1A2B-1111-2222-3333-444455556666> bitte', '<p>Hallo bitte</p>');
+  });
+});
+
+describe('Rohes HTML aus Azure DevOps', function () {
+  test('Fremde Tags werden aufgeloest, Inhalt bleibt', function () {
+    eq('<div><img src="https://x/a.png" width="200"><br/>Text <span style="color:red">rot</span></div>',
+      '!https://x/a.png!\\\\Text {color:red}rot{color}');
+    eq('<details><summary>Mehr</summary>Inhalt</details>', 'Mehr Inhalt');
+    eq('<table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table>',
+      '||a||b||\n|1|2|');
+    eq('<b>fett</b>', '*fett*');
+    eq('<code>x</code>', '{{x}}');
+    eq('a < b und 3 > 2', 'a < b und 3 > 2');
+  });
+  test('convertHtml:false laesst rohes HTML unangetastet stehen', function () {
+    var actual = jira.convert('<div><span style="color:red">rot</span></div>', { convertHtml: false });
+    assert.strictEqual(actual, '<div><span style="color:red">rot</span></div>');
+  });
+  test('Getippter Text in spitzen Klammern bleibt erhalten (Issue #99)', function () {
+    eq('Setze <Name> ein und ersetze <TICKET> durch die Nummer.',
+      'Setze <Name> ein und ersetze <TICKET> durch die Nummer.');
+    eq('Der Typ ist List<String>.', 'Der Typ ist List<String>.');
+  });
+  test('Markdown im Farb-Span wird weiter aufgeloest', function () {
+    eq('<span style="color:red">**fett**</span>', '{color:red}*fett*{color}');
+    eq('<span style="color:red">a [L](http://x) b</span>', '{color:red}a [L|http://x] b{color}');
   });
 });
 
@@ -129,7 +180,7 @@ describe('Beide Formate auf einmal', function () {
   test('Optionen wirken auf beide Formate', function () {
     var both = jira.convertBoth('```js\na\n```', { keepCodeLanguage: false });
     assert.strictEqual(both.jira, '{code}\na\n{code}');
-    assert.strictEqual(both.html, '<pre><code>a</code></pre>');
+    assert.strictEqual(both.html, '<pre class="code panel" style="border-width: 1px;">a\n</pre>');
   });
 });
 
@@ -256,12 +307,14 @@ describe('Panel aus einer Vorlage', function () {
     });
   });
 
-  test('HTML-Zweig faerbt Akzentleiste und Fuellung nach Vorlage', function () {
+  test('HTML-Zweig liefert Jiras Panel-Form', function () {
     Settings.PANEL_TEMPLATES.forEach(function (entry) {
       var panelHtml = jira.panelHtml(entry);
-      assert.ok(panelHtml.indexOf('border-left: 4px solid ' + entry.borderColor) !== -1, entry.id + ': ' + panelHtml);
+      assert.ok(panelHtml.indexOf('class="plain panel"') !== -1, entry.id + ': ' + panelHtml);
       assert.ok(panelHtml.indexOf('background-color: ' + entry.bgColor) !== -1, entry.id + ': ' + panelHtml);
-      assert.ok(panelHtml.indexOf('<strong>' + entry.title + '</strong>') !== -1, entry.id + ': ' + panelHtml);
+      assert.ok(panelHtml.indexOf('border-color: ' + entry.borderColor) !== -1, entry.id + ': ' + panelHtml);
+      assert.ok(panelHtml.indexOf('<panel-title') !== -1, entry.id + ': ' + panelHtml);
+      assert.ok(panelHtml.indexOf('>' + entry.title + '</panel-title>') !== -1, entry.id + ': ' + panelHtml);
       assert.ok(panelHtml.indexOf('<p>' + entry.body + '</p>') !== -1, entry.id + ': ' + panelHtml);
     });
   });

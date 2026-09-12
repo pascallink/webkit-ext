@@ -69,6 +69,30 @@ describe('Popup', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
+  test('Einfuegen schickt das Markdown an den Tab', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.popupPage(browser);
+    await page.fill('#input', '# Titel');
+    // Umbiegung nur fuer diesen Test - der Stub in page-stub.js bleibt
+    // unveraendert, damit kein anderes Modul mitzieht.
+    await page.evaluate(function () {
+      window.__sent = null;
+      chrome.tabs.query = function (info, cb) { cb([{ id: 1 }]); };
+      chrome.tabs.sendMessage = function (tabId, message, cb) {
+        window.__sent = message;
+        cb({ ok: true });
+      };
+    });
+    await page.click('#insert');
+    await page.waitForFunction(function () { return window.__sent !== null; });
+    var sent = await page.evaluate(function () { return window.__sent; });
+    assert.strictEqual(sent.type, 'insert-text');
+    assert.strictEqual(sent.markdown, '# Titel');
+    assert.strictEqual(sent.mode, 'insert');
+    assert.strictEqual(sent.text, undefined);
+    await page.close();
+  });
+
   test('Schalter otrsHelper startet mit dem gespeicherten Zustand', async function () {
     var browser = await browserPromise;
     var page = await browserLib.popupPage(browser, { otrsHelper: false });

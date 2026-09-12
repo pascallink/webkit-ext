@@ -38,7 +38,7 @@
     otrsHelper: true,
     // Name des Custom Fields, ueber das der Shifter das Feld findet.
     otrsFieldName: 'Kunden Referenz',
-    // Konverter-Optionen
+    // Sonderzeichen maskieren, damit Jira sie nicht als Markup liest.
     escapeBraces: true,
     keepCodeLanguage: true,
     convertAlerts: true,

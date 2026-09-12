@@ -113,12 +113,15 @@
   });
 
   document.getElementById('insert').addEventListener('click', function () {
-    if (!output.value) {
+    if (!input.value.trim()) {
       say('Es gibt noch nichts einzufuegen.', true);
       return;
     }
     withActiveTab(function (tab) {
-      chrome.tabs.sendMessage(tab.id, { type: 'insert-text', text: output.value, mode: 'insert' }, function (response) {
+      // Absichtlich Markdown statt fertigem Markup schicken: deliver() im
+      // Content-Script wendet dann die Rich-Text-Einstellungen des Tabs an
+      // (switchToMarkup, richEditorFormat) statt Rohtext in TinyMCE zu kippen.
+      chrome.tabs.sendMessage(tab.id, { type: 'insert-text', markdown: input.value, mode: 'insert' }, function (response) {
         if (chrome.runtime.lastError) {
           say('Auf dieser Seite laeuft die Erweiterung nicht.', true);
           return;
@@ -126,8 +129,10 @@
         if (response && response.ok) {
           say('In Jira eingefuegt.');
           window.close();
-        } else {
+        } else if (response && response.reason === 'no-target') {
           say('Kein Jira-Eingabefeld gefunden.', true);
+        } else {
+          say('Einfuegen nicht moeglich.', true);
         }
       });
     });

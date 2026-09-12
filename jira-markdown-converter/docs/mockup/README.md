@@ -6,7 +6,7 @@ Material aus der Analyse- und Testsession vom 2026-09-11 (siehe
 
 | Datei | Zweck |
 | --- | --- |
-| `mock-jira-912-issue-view.html` | Vorgangsansicht, aus dem DOM-Geruest von DBREFI-10549 auf jira.inxire.com (9.12.2, Rich-Text-Editor aktiv) gebaut: Kopf mit echten Toolbar-Links, Details mit Labels, Inline-Beschreibung, Kommentarformular, Dialog *Vorgang bearbeiten* (AUI-Dialog2), Label-Dialog (`l`), Shifter (`.`), Link-Dialog mit Web-Link-Pane, Feld-Modal *Kunden Referenz*, TinyMCE-Nachbau (`div.tox`, `iframe#mce_N_ifr`) mit Wiki<->HTML-Umschalter und den beobachteten Paste-Regeln (style auf `div` entfernt, `pre` ohne panel-Klasse ausgepackt). Jira-Handler protokollieren in `window.__mock.log` und im Kasten unten rechts. Zustaende per `?state=comment|description|edit|labels|link|shifter`. |
+| `../../test/fixtures/mock-jira-912-issue-view.html` | Vorgangsansicht, aus dem DOM-Geruest von DBREFI-10549 auf jira.inxire.com (9.12.2, Rich-Text-Editor aktiv) gebaut: Kopf mit echten Toolbar-Links, Details mit Labels, Inline-Beschreibung, Kommentarformular, Dialog *Vorgang bearbeiten* (AUI-Dialog2), Label-Dialog (`l`), Shifter (`.`), Link-Dialog mit Web-Link-Pane, Feld-Modal *Kunden Referenz*, TinyMCE-Nachbau (`div.tox`, `iframe#mce_N_ifr`) mit Wiki<->HTML-Umschalter und den beobachteten Paste-Regeln (style auf `div` entfernt, `pre` ohne panel-Klasse ausgepackt). Jira-Handler protokollieren in `window.__mock.log` und im Kasten unten rechts. Zustaende per `?state=comment|description|edit|labels|link|shifter`. Liegt als Fixture unter `test/fixtures/` (Eintrag `JIRA912` in `test/lib/fixtures.js`, Test `test/modules/editlock/browser/dialogs.test.js`), lokaler Sanitizer statt DOMPurify per CDN - laeuft ohne Netz. |
 | `edge-harness.js` | Startet das installierte Edge (`channel: 'msedge'`) mit der Erweiterung in einem frischen Profil, CDP auf Port 9333. Erwartet `./ext` (Kopie der Erweiterung; Manifest wird um `localhost:8765` und `jira.inxire.com` ergaenzt) und `./profile`. |
 | `cdp.js` | `withPage(url, fn)` per `connectOverCDP`, Dialoge werden protokolliert und bestaetigt, Screenshots nach `./shots`. |
 | `jira-lib.js` | DOM-Geruest ziehen (`skeleton()`, wie `docs/dom-auszug.md`, ohne Inhalte), Zustand der Erweiterung lesen (`extState()`), Protokoll. |
@@ -26,6 +26,7 @@ mkdir -p /tmp/poweredit-harness && cd /tmp/poweredit-harness
 cp <repo>/jira-markdown-converter/docs/mockup/*.js .
 mkdir -p ext profile shots www
 cp -R <repo>/jira-markdown-converter/{manifest.json,src,popup,options,icons} ext/
+# mock-jira-912-issue-view.html liegt seit dem Fixture-Umzug unter test/fixtures/
 cp <repo>/jira-markdown-converter/test/fixtures/*.html <repo>/jira-markdown-converter/docs/mockup/*.html www/
 
 # 2. Fixtures und Nachbau ausliefern

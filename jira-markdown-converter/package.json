@@ -16,6 +16,7 @@
     "test:dialogs": "node test/run.js dialogs",
     "test:editlock": "node test/run.js editlock",
     "test:editors": "node test/run.js editors",
+    "test:ext": "node test/run.js ext",
     "test:module": "node test/run.js",
     "test:node": "node test/run.js --node",
     "test:options": "node test/run.js options",

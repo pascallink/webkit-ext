@@ -2,6 +2,7 @@
  * Content-Script: baut die Bedienelemente in Jira ein und uebernimmt das
  * Konvertieren und Einfuegen.
  */
+/* global ResizeObserver */
 (function () {
   'use strict';
 
@@ -16,6 +17,25 @@
   var EditLock = window.JiraEditLock;
   var OtrsFlow = window.JiraOtrsFlow;
   var OtrsDialog = window.JiraOtrsDialog;
+
+  // Fremde Seite (kein Jira): src/background.js spielt hier STANDALONE_FILES
+  // ein und setzt window.__jiraMarkdownStandalone schon vor den Dateien
+  // (markStandalone(), isolierte Welt) - editlock.js fehlt in dieser Liste
+  // bewusst, siehe dort.
+  var standalone = !!window.__jiraMarkdownStandalone;
+
+  // Ohne editlock.js (Standalone-Modus) gibt es kein window.JiraEditLock -
+  // die uebrigen Aufrufe (z. B. aus Settings.onChange) sollen trotzdem nicht
+  // werfen, darum eine No-Op-Huelle mit derselben Form.
+  if (!EditLock) {
+    EditLock = {
+      lock: function () {},
+      cleanup: function () {},
+      watch: function () {},
+      configure: function () {},
+      createButton: function () { return null; }
+    };
+  }
 
   var settings = Settings.DEFAULTS;
   var panel = null;
@@ -60,8 +80,56 @@
   function deliver(field, markdown, mode) {
     if (!field) return Promise.resolve('');
 
+    // Ab hier faengt try/catch einen werfenden Konverter ab: ohne das wuerde
+    // ein Fehler synchron aus deliver() fliegen, statt als abgelehntes
+    // Promise beim Aufrufer anzukommen - der weiss dann nicht, dass nichts
+    // eingefuegt wurde. Issue #88.
+    try {
+      // Einmal berechnen und wiederverwenden: die Blockhaftigkeit stammt
+      // immer aus dem Jira-Markup, auch wenn am Ende Markdown eingefuegt
+      // wird. Nur 'insert' wird ueber die Heuristik verfeinert - 'replace'
+      // und jeder andere Wert bleiben unveraendert.
+      var markup = convert(markdown);
+      var where = mode === 'insert' ? insertModeFor(markup) : mode;
+
+      if (isPlainField(field)) {
+        return Promise.resolve(Editors.insert(field, markup, where) ? 'markup' : '');
+      }
+
+      var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
+        ? Editors.switchToMarkup(field)
+        : Promise.resolve(false);
+
+      return switching.then(function (switched) {
+        if (switched) {
+          return Editors.insert(field, markup, where) ? 'switched' : '';
+        }
+        if (settings.richEditorFormat === 'markdown') {
+          return Editors.insert(field, markdown, where) ? 'markdown' : '';
+        }
+        if (settings.richEditorFormat === 'jira') {
+          return Editors.insert(field, markup, where) ? 'markup' : '';
+        }
+        // Standard: formatiert einfuegen, damit der Editor kein Markup anzeigt.
+        var both = Converter.convertBoth(markdown, Settings.converterOptions(settings));
+        return Editors.insertFormatted(field, both.jira, both.html, where) ? 'formatted' : '';
+      });
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  /**
+   * Wie deliver(), aber fuer bereits fertiges Jira-Markup (Fremdaufrufer
+   * ueber die Nachricht insert-text, Feld text statt markdown - Issue #105).
+   * Das Markup geht nie durch convert() und nie als HTML in den Rich-Text-
+   * Editor: nur einfuegen, davor bei Bedarf auf den Markup-Modus umschalten.
+   */
+  function deliverMarkup(field, markup, mode) {
+    var where = mode === 'insert' ? insertModeFor(markup) : mode;
+
     if (isPlainField(field)) {
-      return Promise.resolve(Editors.insert(field, convert(markdown), mode) ? 'markup' : '');
+      return Promise.resolve(Editors.insert(field, markup, where) ? 'markup' : '');
     }
 
     var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
@@ -69,18 +137,7 @@
       : Promise.resolve(false);
 
     return switching.then(function (switched) {
-      if (switched) {
-        return Editors.insert(field, convert(markdown), mode) ? 'switched' : '';
-      }
-      if (settings.richEditorFormat === 'markdown') {
-        return Editors.insert(field, markdown, mode) ? 'markdown' : '';
-      }
-      if (settings.richEditorFormat === 'jira') {
-        return Editors.insert(field, convert(markdown), mode) ? 'markup' : '';
-      }
-      // Standard: formatiert einfuegen, damit der Editor kein Markup anzeigt.
-      var both = Converter.convertBoth(markdown, Settings.converterOptions(settings));
-      return Editors.insertFormatted(field, both.jira, both.html, mode) ? 'formatted' : '';
+      return Editors.insert(field, markup, where) ? (switched ? 'switched' : 'markup') : '';
     });
   }
 
@@ -116,6 +173,11 @@
       return false;
     }
 
+    // Der Klick ist eine bewusste Aktion - anders als beim automatischen
+    // Einfuegen (Issue #92) wird hier nicht abgebrochen, nur die Rueckmeldung
+    // weist darauf hin, dass der Text schon wie Jira-Markup aussah.
+    var sawJiraMarkup = Converter.looksLikeJiraMarkup(source);
+
     if (isPlainField(field)) {
       var output = convert(source);
       if (output === source) {
@@ -128,12 +190,25 @@
         output = /^\s*/.exec(source)[0] + output + /\s*$/.exec(source)[0];
       }
       var done = Editors.insert(field, output, selected ? 'insert' : 'replace');
-      toast(done ? 'In Jira-Markup umgewandelt.' : 'Einfuegen nicht moeglich.', !done);
+      var plainMessage = !done
+        ? 'Einfuegen nicht moeglich.'
+        : sawJiraMarkup
+          ? 'Sah schon nach Jira-Markup aus - trotzdem umgewandelt.'
+          : 'In Jira-Markup umgewandelt.';
+      toast(plainMessage, !done || sawJiraMarkup);
       return done;
     }
 
     deliver(field, source, selected ? 'insert' : 'replace').then(function (how) {
-      toast(how ? insertMessage(how) : 'Einfuegen nicht moeglich.', !how);
+      if (!how) {
+        toast('Einfuegen nicht moeglich.', true);
+        return;
+      }
+      if (sawJiraMarkup) {
+        toast('Sah schon nach Jira-Markup aus - trotzdem umgewandelt.', true);
+        return;
+      }
+      toast(insertMessage(how));
     });
     return true;
   }
@@ -154,20 +229,64 @@
     var text = clipboard.getData('text/plain');
     if (!text || !Converter.looksLikeMarkdown(text)) return;
 
+    // Fertiges Jira-Markup nicht anfassen - eine erneute Umwandlung wuerde
+    // Makros wie {code} zerstoeren. Vor preventDefault(), damit der Browser
+    // den Text ganz normal einfuegt. Issue #92.
+    if (Converter.looksLikeJiraMarkup(text)) {
+      toast('Sieht schon nach Jira-Markup aus - nicht umgewandelt.', true);
+      return;
+    }
+
     // Markdown durchreichen heisst: nichts tun, der Editor macht den Rest.
     if (!isPlainField(field) && settings.richEditorFormat === 'markdown' &&
         !settings.switchToMarkup) {
       return;
     }
-    if (isPlainField(field) && convert(text) === text) return;
+
+    // Reines Textfeld: die Umwandlung genau einmal versuchen, bevor der
+    // Browser sein eigenes Einfuegen verwirft (event.preventDefault()).
+    // Schlaegt sie fehl, bleibt der Rohtext-Weg offen - kein unbehandelter
+    // Fehler, kein verlorener Text. Issue #88.
+    var plainOutput = null;
+    if (isPlainField(field)) {
+      try {
+        plainOutput = convert(text);
+      } catch (error) {
+        return;
+      }
+      if (plainOutput === text) return;
+    }
 
     event.preventDefault();
     event.stopPropagation();
     target = field;
     // Die Position steht noch - der Nutzer hat gerade in das Feld getippt.
     Editors.rememberCaret(field);
-    deliver(field, text, 'insert').then(function (how) {
+
+    var insertion;
+    if (isPlainField(field)) {
+      // Ab hier faengt try/catch einen werfenden Editors.insert() ab: ohne
+      // das wuerde ein Fehler synchron aus onPaste() fliegen - nach dem
+      // preventDefault() oben gaebe es dann weder Toast noch Rohtext, der
+      // Zwischenablageninhalt waere kommentarlos weg. Issue #88.
+      try {
+        insertion = Promise.resolve(
+          Editors.insert(field, plainOutput, insertModeFor(plainOutput)) ? 'markup' : ''
+        );
+      } catch (error) {
+        insertion = Promise.reject(error);
+      }
+    } else {
+      insertion = deliver(field, text, 'insert');
+    }
+
+    insertion.then(function (how) {
       if (how) toast(insertMessage(how));
+    }, function () {
+      // preventDefault() ist schon gefallen - der Browser fuegt nichts mehr
+      // ein. Wenigstens Bescheid sagen, statt den Text kommentarlos zu
+      // verlieren (Rich-Text-Pfad ueber deliver()). Issue #88.
+      toast('Einfuegen nicht moeglich - die Umwandlung ist fehlgeschlagen.', true);
     });
   }
 
@@ -175,8 +294,31 @@
    * Oberflaeche: schwebender Button
    * ------------------------------------------------------------------ */
 
+  // Vorgangsseite: #issue-content traegt das Editier-Formular, das
+  // ajs-issue-key-Meta steht schon vor dem vollen DOM-Aufbau fest - beides
+  // zusammen erkennt die Seite auch, solange das Feld noch fehlt. Issue #102.
+  var ISSUE_PAGE_SELECTOR = '#issue-content, meta[name="ajs-issue-key"]';
+
+  function isIssuePage() {
+    try {
+      return !!document.querySelector(ISSUE_PAGE_SELECTOR);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Der schwebende Button erscheint nur, wo es ein Ziel gibt: auf einer
+   * Vorgangsseite (das Feld kommt dort oft erst nach dem Scan) oder sobald
+   * ein Editor-Ziel im DOM steht. So bleibt das Dashboard und jede andere
+   * feldlose Jira-Seite ohne Button. Issue #102.
+   */
+  function fabWanted() {
+    return settings.showFloatingButton && (isIssuePage() || Editors.findAllTargets().length > 0);
+  }
+
   function createFab() {
-    if (fab || !settings.showFloatingButton) return;
+    if (fab || !fabWanted()) return;
     // In iframes (Jira Server bettet Editoren ein) wuerde sonst pro Rahmen
     // ein weiterer Button erscheinen.
     if (!isTopFrame()) return;
@@ -344,7 +486,9 @@
     '  <textarea id="jmd-input" class="jmd-textarea" rows="7" spellcheck="false"',
     '            placeholder="Markdown hier einfuegen (Strg+V) ..."></textarea>',
     '  <div class="jmd-row">',
-    '    <button type="button" class="jmd-btn" data-action="from-clipboard">Aus Zwischenablage</button>',
+    '    <button type="button" class="jmd-btn" data-action="from-clipboard"',
+    '            title="Markdown aus der Zwischenablage lesen - auf http-Seiten stattdessen Strg+V">',
+    '      Aus Zwischenablage</button>',
     '    <button type="button" class="jmd-btn" data-action="from-field">Aus Zielfeld</button>',
     '    <button type="button" class="jmd-btn" data-action="clear">Leeren</button>',
     '  </div>',
@@ -443,6 +587,10 @@
         break;
       case 'from-clipboard':
         readClipboard().then(function (text) {
+          if (text === null) {
+            toast('Auf http-Seiten bitte Strg+V benutzen.', true);
+            return;
+          }
           if (!text) {
             toast('Zwischenablage ist leer oder nicht lesbar.', true);
             return;
@@ -532,6 +680,9 @@
     target = into;
     CodeDialog.open({
       target: Editors.describe(into),
+      // Fokus gehoert in die Schreibflaeche, nicht auf den Leisten-Knopf, der
+      // beim Oeffnen gerade den Fokus haelt.
+      opener: Editors.editingSurface(into),
       onEmpty: function () {
         toast('Bitte zuerst Code eingeben.', true);
       },
@@ -607,14 +758,48 @@
       }
     }
     if (!write) {
+      if (fallbackToLegacyRich(html, text)) return;
       copyText(html, 'HTML als Text kopiert.');
       return;
     }
     write.then(function () {
       toast('Formatiert kopiert.');
     }, function () {
+      if (fallbackToLegacyRich(html, text)) return;
       copyText(html, 'HTML als Text kopiert.');
     });
+  }
+
+  /**
+   * Legacy-Rueckfall nur, wenn navigator.clipboard.writeText selbst fehlt -
+   * reine http-Instanzen kennen navigator.clipboard ueberhaupt nicht. Ist
+   * writeText vorhanden (nur write/ClipboardItem fehlt), bleibt der alte Weg
+   * ueber copyText()/writeText die bessere Wahl als das veraltete
+   * execCommand. Rueckgabe true heisst: erledigt, kein weiterer Rueckfall.
+   */
+  function fallbackToLegacyRich(html, text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return false;
+    if (!copyRichViaCommand(html, text)) return false;
+    toast('Formatiert kopiert.');
+    return true;
+  }
+
+  /**
+   * Rueckfall fuer copyRich() ohne navigator.clipboard.write: ein einmaliger
+   * copy-Listener belegt das Ereignis mit text/html und text/plain, bevor
+   * copyViaCommand() ueber das alte execCommand kopiert. Ohne Zwischenablage
+   * ueberhaupt (Listener greift nicht) liefert copyViaCommand() false.
+   */
+  function copyRichViaCommand(html, text) {
+    var listener = function (event) {
+      event.clipboardData.setData('text/html', html);
+      event.clipboardData.setData('text/plain', text);
+      event.preventDefault();
+    };
+    document.addEventListener('copy', listener);
+    var success = copyViaCommand(text);
+    document.removeEventListener('copy', listener);
+    return success;
   }
 
   /* ------------------------------------------------------------------ *
@@ -694,8 +879,12 @@
     if (label) label.textContent = state.label;
     if (hint) hint.textContent = state.hint;
 
+    // OtrsDialog fehlt im Standalone-Modus (otrsdialog.js steht nicht in
+    // STANDALONE_FILES, siehe background.js) - der Helfer ergibt ausserhalb
+    // eines echten Jira-Vorgangs ohnehin keinen Sinn (Label, Custom Field,
+    // Web-Link gibt es dort nicht).
     var otrsButton = panel.querySelector('[data-action="otrs"]');
-    if (otrsButton) otrsButton.hidden = !settings.otrsHelper;
+    if (otrsButton) otrsButton.hidden = !settings.otrsHelper || !OtrsDialog;
 
     updateTargetLabel();
   }
@@ -1016,10 +1205,14 @@
    * Blockhaftigkeit ist eine Eigenschaft der ganzen Vorlage, nicht nur ihres
    * ersten Zeichens - eine mehrzeilige Vorlage ohne dieses erste Zeichen
    * wuerde sonst ihre Randumbrueche verlieren.
+   * Die Heuristik gilt inzwischen nicht nur fuer eigene Vorlagen, sondern
+   * auch fuer konvertiertes Markdown - siehe deliver() und onPaste().
+   * "{{" ist Inline-Code und kein Blockmakro, darum bleibt es an der
+   * Cursorposition.
    */
   function insertModeFor(markup) {
     if (/\n/.test(markup)) return 'block';
-    return /^\s*(\{|h[1-6]\.|\||[*#]+\s|bq\.|----)/.test(markup) ? 'block' : 'insert';
+    return /^\s*(\{(?!\{)|h[1-6]\.|\||[*#]+\s|bq\.|----)/.test(markup) ? 'block' : 'insert';
   }
 
   function insertCustomTemplate(field, template, values) {
@@ -1118,18 +1311,81 @@
       if (field.dataset[BUTTON_FLAG]) continue;
       var box = Editors.isRichTextActive(field) ? Editors.richTextFrame(field) : field;
       var rect = box.getBoundingClientRect();
-      // Nur an echte Eingabebereiche, nicht an winzige Einzeiler.
-      if (rect.height < 48) continue;
+      // Nur an echte Eingabebereiche, nicht an winzige Einzeiler. Statt das
+      // Feld einfach zu uebergehen, beobachtet watchForGrowth() es weiter -
+      // sonst blieben Faelle ohne DOM- oder Attributaenderung (z. B. ein
+      // Feld mit vh-Hoehe nach einem Fensterwechsel) fuer immer ohne Leiste.
+      if (rect.height < 48) {
+        watchForGrowth(box, field);
+        continue;
+      }
       field.dataset[BUTTON_FLAG] = '1';
       addButtonBar(field);
     }
   }
 
+  // Beobachter fuer uebersprungene Felder (Issue #101 Sub-Task 2): je Feld
+  // hoechstens ein Eintrag, ueber field.dataset.jmdGrowthWatched abgesichert.
+  // Ein Array statt einer Map genuegt - die Liste bleibt so lang wie es
+  // uebersprungene Felder gibt, also klein.
+  var growthWatchers = [];
+
+  /**
+   * Haengt einen ResizeObserver an ein zu kleines Feld, statt es beim naechsten
+   * Scan erneut zu pruefen. Faengt reine Groessenwechsel ab, die weder einen
+   * childList- noch einen Attribut-Eintrag im MutationObserver ausloesen (z. B.
+   * vh-Einheiten nach einem Fensterwechsel oder ein AJAX-Dialog, der fertig
+   * gelayoutet nachgeliefert wird). Ohne ResizeObserver im Browser bleibt das
+   * alte Verhalten (kein zweiter Versuch) unveraendert erhalten.
+   */
+  function watchForGrowth(box, field) {
+    if (typeof ResizeObserver !== 'function') return;
+    if (field.dataset.jmdGrowthWatched) return;
+    field.dataset.jmdGrowthWatched = '1';
+
+    var entry = { field: field, observer: null };
+    entry.observer = new ResizeObserver(function () {
+      try {
+        if (box.getBoundingClientRect().height < 48) return;
+        stopWatchingGrowth(entry);
+        // Nicht direkt anbauen - der Debounce bleibt die einzige Stelle,
+        // an der die Leiste entsteht.
+        scheduleScan();
+      } catch (error) {
+        /* Jira baut viel um - Fehler hier nie hochblubbern lassen */
+      }
+    });
+    entry.observer.observe(box);
+    growthWatchers.push(entry);
+  }
+
+  function stopWatchingGrowth(entry) {
+    entry.observer.disconnect();
+    delete entry.field.dataset.jmdGrowthWatched;
+    var index = growthWatchers.indexOf(entry);
+    if (index !== -1) growthWatchers.splice(index, 1);
+  }
+
+  /**
+   * Loest Beobachtungen fuer Felder, die Jira beim Umbau des DOM bereits
+   * entfernt hat - sonst haeufen sich bei jedem Neuaufbau weitere
+   * ResizeObserver an, ohne dass ihr Feld je wieder waechst.
+   */
+  function cleanupGrowthWatchers() {
+    for (var i = growthWatchers.length - 1; i >= 0; i--) {
+      if (!growthWatchers[i].field.isConnected) {
+        stopWatchingGrowth(growthWatchers[i]);
+      }
+    }
+  }
+
   /**
    * Jira Server baut beim Inline-Bearbeiten ganze Feldbloecke neu auf. Leisten,
-   * deren Feld verschwunden ist, muessen mit weg.
+   * deren Feld verschwunden ist, muessen mit weg - ebenso verwaiste
+   * Groessen-Beobachter aus watchForGrowth().
    */
   function removeOrphanBars() {
+    cleanupGrowthWatchers();
     var bars = document.querySelectorAll('.jmd-fieldbar');
     for (var i = 0; i < bars.length; i++) {
       var field = bars[i].__jmdField;
@@ -1175,11 +1431,16 @@
     pasteButton.type = 'button';
     pasteButton.className = 'jmd-fieldbar__btn';
     pasteButton.textContent = 'Einfuegen';
-    pasteButton.title = 'Markdown aus der Zwischenablage umgewandelt an der Cursorposition einfuegen';
+    pasteButton.title = 'Markdown aus der Zwischenablage umgewandelt an der Cursorposition einfuegen'
+      + ' - auf http-Seiten stattdessen Strg+V';
     pasteButton.addEventListener('click', function (event) {
       event.preventDefault();
       target = field;
       readClipboard().then(function (text) {
+        if (text === null) {
+          toast('Auf http-Seiten bitte Strg+V benutzen.', true);
+          return;
+        }
         if (!text) {
           toast('Zwischenablage ist leer oder nicht lesbar.', true);
           return;
@@ -1307,8 +1568,12 @@
    * ------------------------------------------------------------------ */
 
   function readClipboard() {
+    // Fehlt die Clipboard-API komplett (z. B. auf http-Seiten), gibt es
+    // keinen Lesezugriff - das liefert null, damit die Aufrufer auf Strg+V
+    // verweisen koennen. Eine tatsaechlich leere Zwischenablage liefert
+    // weiterhin '', das bleibt die alte Meldung.
     if (!navigator.clipboard || !navigator.clipboard.readText) {
-      return Promise.resolve('');
+      return Promise.resolve(null);
     }
     return navigator.clipboard.readText().catch(function () {
       return '';
@@ -1324,11 +1589,44 @@
       navigator.clipboard.writeText(text).then(function () {
         toast(message || 'Jira-Markup kopiert.');
       }, function () {
-        toast('Kopieren nicht moeglich.', true);
+        copyTextFallback(text, message);
       });
       return;
     }
-    toast('Kopieren nicht moeglich.', true);
+    copyTextFallback(text, message);
+  }
+
+  /** Meldet copyViaCommand() ueber denselben Toast wie den Erfolgspfad. */
+  function copyTextFallback(text, message) {
+    if (copyViaCommand(text)) {
+      toast(message || 'Jira-Markup kopiert.');
+    } else {
+      toast('Kopieren nicht moeglich.', true);
+    }
+  }
+
+  /**
+   * Rueckfall ohne Clipboard-API (reine http-Jira-Instanzen kennen
+   * navigator.clipboard nicht): verstecktes Textarea befuellen, markieren,
+   * mit dem alten execCommand kopieren, Knoten wieder entfernen.
+   */
+  function copyViaCommand(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.top = '-1000px';
+    area.style.left = '-1000px';
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    var success = false;
+    try {
+      success = document.execCommand('copy');
+    } catch (error) {
+      success = false;
+    }
+    document.body.removeChild(area);
+    return success;
   }
 
   /**
@@ -1400,8 +1698,20 @@
           sendResponse({ ok: false, reason: 'no-target' });
           return;
         }
-        sendResponse({ ok: Editors.insert(field, message.text, message.mode || 'insert') });
-        break;
+        // markdown kommt vom eigenen Popup und laeuft ueber deliver() (Rich-
+        // Text-Einstellungen greifen), text ist fertiges Markup von einem
+        // Fremdaufrufer und geht direkt ueber deliverMarkup(). Beide Wege
+        // antworten asynchron - darum unten "return true", sonst schliesst
+        // Chrome den Nachrichtenkanal vor sendResponse.
+        var delivery = message.markdown != null
+          ? deliver(field, message.markdown, message.mode || 'insert')
+          : deliverMarkup(field, message.text, message.mode || 'insert');
+        delivery.then(function (how) {
+          sendResponse({ ok: !!how, how: how });
+        }, function () {
+          sendResponse({ ok: false, reason: 'error' });
+        });
+        return true;
       case 'convert-context-selection':
         handleContextSelection(message.text);
         sendResponse({ ok: true });
@@ -1472,6 +1782,30 @@
       target = field;
       EditLock.lock(field);
     }, true);
+    // Jira fokussiert den Rahmen beim Oeffnen selbst, noch bevor dieser
+    // Wachposten haengt - der focusin ist dann laengst durch (Issue #107).
+    // Nur ein wirklich fokussierter Rahmen friert hier sofort ein; ein
+    // Dokument ohne fokussiertes Element meldet laut DOM ebenfalls
+    // activeElement === body, das ist keine Fokuspruefung. Der Fokuswechsel
+    // auf einen (noch) nicht fokussierten Rahmen kommt danach ueber
+    // lockFrameFromEvent() am Fenster.
+    if (frame.ownerDocument.activeElement === frame) {
+      target = field;
+      EditLock.lock(field);
+    }
+  }
+
+  /**
+   * Fokus-Wachposten am Fenster: faengt den Fokuswechsel ueber die
+   * iframe-Grenze ab, bevor `watchRichTextFrames()` per Debounce zum Zuge
+   * kommt (Issue #107). `Editors.fieldForFrame()` liefert nur fuer einen
+   * Rich-Text-Rahmen ein Feld, sonst null.
+   */
+  function lockFrameFromEvent(event) {
+    var field = Editors.fieldForFrame(event.target);
+    if (!field) return;
+    target = field;
+    EditLock.lock(field);
   }
 
   var scanTimer = null;
@@ -1482,6 +1816,12 @@
       scanTimer = null;
       try {
         attachFieldButtons();
+        // Holt den Button nach, sobald ein Feld oder #issue-content auftaucht
+        // (spaet ladende Vorgangsseiten, Issue #102) - createFab() ist ueber
+        // "if (fab) return" idempotent. Bewusst kein removeFab() hier: einmal
+        // gezeigt bleibt der Button stehen, auch wenn das Feld wieder
+        // verschwindet (Dialog zu) - sonst wuerde er bei jedem Scan flackern.
+        createFab();
         watchRichTextFrames();
         EditLock.cleanup();
         if (panel && panel.classList.contains('jmd-panel--open')) {
@@ -1493,25 +1833,108 @@
     }, 400);
   }
 
-  function start() {
-    document.addEventListener('paste', onPaste, true);
-    document.addEventListener('focusin', function (event) {
-      var field = Editors.editableFrom(event.target);
-      if (!field) return;
-      target = field;
-      // Sobald im Feld gearbeitet wird, friert der Bearbeitungsmodus ein.
-      EditLock.lock(field);
-    }, true);
+  /**
+   * Reagiert sofort auf neu eingefuegte Rahmen, statt auf den 400-ms-Scan zu
+   * warten (Issue #107) - `watchRichTextFrames()` ist ueber
+   * `frame.dataset.jmdWatched` idempotent, ein zusaetzlicher Aufruf hier
+   * kostet daher nichts. Der Debounce bleibt fuer alles andere unveraendert.
+   */
+  function onMutations(records) {
+    var scanned = false;
+    for (var i = 0; i < records.length && !scanned; i++) {
+      var added = records[i].addedNodes;
+      for (var j = 0; j < added.length; j++) {
+        var node = added[j];
+        if (node.nodeType !== 1) continue;
+        var hasFrame = node.tagName === 'IFRAME'
+          || (node.querySelector && node.querySelector('iframe'));
+        if (hasFrame) {
+          try {
+            watchRichTextFrames();
+          } catch (error) {
+            /* Jira baut viel um - Fehler hier nie hochblubbern lassen */
+          }
+          scanned = true;
+          break;
+        }
+      }
+    }
+    scheduleScan();
+  }
 
-    // Solange ein Feld eingefroren ist, kommen die gestoppten Ereignisse
-    // nicht mehr bis zu unseren eigenen Wachposten am Dokument. Sie bekommen
-    // sie deshalb von der Sperre gereicht - sonst bliebe das Vorlagenmenue
-    // offen und die Feldauswahl taub.
-    EditLock.watch(function (event) {
-      if (event.type !== 'mousedown') return;
-      onMenuOutside(event);
-      if (pickingTarget) onPickClick(event);
-    });
+  // Loginseite: eigenes Formular ohne Vorgangsbearbeitung - Feldleisten,
+  // schwebender Button und Einfrieren sollen dort so wenig einbauen wie im
+  // Standalone-Modus, auch wenn ein Eingabefeld im DOM steht. Issue #102.
+  function isLoginPage() {
+    try {
+      return !!document.querySelector('#login-form-username');
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function start() {
+    // Standalone (fremde Seite) und die Loginseite bauen beide nichts ein,
+    // ausser dem Panel - zusammengefasst als "passive". standalone bleibt
+    // daneben bestehen, weil es zusaetzlich die No-Op-Huelle fuer
+    // editlock.js steuert (siehe oben). Issue #102.
+    var passive = standalone || isLoginPage();
+
+    // Der Aufruf in Settings.load().then() lief vor document.body und kannte
+    // die Loginseite darum noch nicht - hier steht sie fest.
+    EditLock.configure({ enabled: !passive && settings.freezeEditMode });
+
+    // Feldleisten, schwebender Button, Einfrieren und die Einfuege-Automatik
+    // gehoeren nur zu einer Jira-Vorgangsseite - auf einer fremden Seite oder
+    // der Loginseite bleibt nur das Panel uebrig (onMessage, Settings.onChange
+    // laufen unveraendert weiter). Das automatische Umschreiben beim
+    // Einfuegen ist Jira-Verhalten und darf dort nicht still mitlaufen.
+    // Issue #97, #102.
+    if (!passive) {
+      document.addEventListener('paste', onPaste, true);
+
+      document.addEventListener('focusin', function (event) {
+        var field = Editors.editableFrom(event.target);
+        if (!field) return;
+        target = field;
+        // Sobald im Feld gearbeitet wird, friert der Bearbeitungsmodus ein.
+        EditLock.lock(field);
+        // Deckt den Fall ab, dass der Nutzer in ein beim letzten Scan noch
+        // zu kleines oder verdecktes Feld klickt (Issue #101) - der Scan
+        // ist idempotent, ein zusaetzlicher Aufruf kostet nichts.
+        try {
+          scheduleScan();
+        } catch (error) {
+          /* Jira baut viel um - Fehler hier nie hochblubbern lassen */
+        }
+      }, true);
+
+      // Fokuswechsel ueber die iframe-Grenze: faengt den Rahmen ab, wenn Jira
+      // ihn beim Oeffnen selbst fokussiert (Issue #107). Am Fenster in der
+      // Erfassungsphase, damit der Fokuswechsel auch dann ankommt, wenn
+      // `editlock.js` ihn fuer ein bereits gesperrtes Feld stoppt - siehe
+      // `EditLock.watch()` unten.
+      window.addEventListener('focus', lockFrameFromEvent, true);
+      window.addEventListener('focusin', lockFrameFromEvent, true);
+
+      // Solange ein Feld eingefroren ist, kommen die gestoppten Ereignisse
+      // nicht mehr bis zu unseren eigenen Wachposten am Dokument. Sie bekommen
+      // sie deshalb von der Sperre gereicht - sonst bliebe das Vorlagenmenue
+      // offen und die Feldauswahl taub. `editlock.js` laedt laut
+      // `manifest.json` vor `content.js` und ist damit am Fenster zuerst
+      // registriert - ohne diese Weiterleitung saehe der Wachposten oben den
+      // Fokuswechsel in einen bereits gesperrten Rahmen nie.
+      EditLock.watch(function (event) {
+        if (event.type === 'mousedown') {
+          onMenuOutside(event);
+          if (pickingTarget) onPickClick(event);
+          return;
+        }
+        if (event.type === 'focus' || event.type === 'focusin') {
+          lockFrameFromEvent(event);
+        }
+      });
+    }
 
     // Cursorposition festhalten, solange das Feld sie noch kennt. Sobald der
     // Nutzer ins Panel klickt, ist sie sonst verloren.
@@ -1523,12 +1946,25 @@
       if (field) Editors.rememberCaret(field);
     }, true);
 
-    createFab();
-    attachFieldButtons();
-    watchRichTextFrames();
+    if (!passive) {
+      createFab();
+      attachFieldButtons();
+      watchRichTextFrames();
 
-    var observer = new MutationObserver(scheduleScan);
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+      var observer = new MutationObserver(onMutations);
+      // attributes bleibt eng gefiltert (Issue #101): reine Attribut- oder
+      // Groessenaenderungen (rows/cols, style, class, hidden, aria-hidden)
+      // erzeugen sonst keinen childList-Eintrag und die Leiste bliebe an
+      // spaet gewachsenen Feldern aus. data-jmd-button-attached steht
+      // bewusst nicht im Filter, sonst loest die eigene Markierung selbst
+      // wieder einen Scan aus.
+      observer.observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class', 'hidden', 'rows', 'cols', 'aria-hidden']
+      });
+    }
 
     if (chrome.runtime && chrome.runtime.onMessage) {
       chrome.runtime.onMessage.addListener(onMessage);
@@ -1536,11 +1972,15 @@
 
     Settings.onChange(function (next) {
       settings = next;
-      EditLock.configure({ enabled: settings.freezeEditMode });
-      if (settings.showFloatingButton) {
-        createFab();
-      } else {
-        removeFab();
+      // Standalone und Loginseite frieren nie ein, egal was
+      // settings.freezeEditMode sagt.
+      EditLock.configure({ enabled: !passive && settings.freezeEditMode });
+      if (!passive) {
+        if (settings.showFloatingButton) {
+          createFab();
+        } else {
+          removeFab();
+        }
       }
       syncPanelState();
       updateFab();
@@ -1556,7 +1996,8 @@
 
   Settings.load().then(function (loaded) {
     settings = loaded;
-    EditLock.configure({ enabled: settings.freezeEditMode });
+    // Standalone friert nie ein, egal was settings.freezeEditMode sagt.
+    EditLock.configure({ enabled: !standalone && settings.freezeEditMode });
     if (document.body) {
       start();
     } else {

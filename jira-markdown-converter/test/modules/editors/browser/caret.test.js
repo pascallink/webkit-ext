@@ -11,8 +11,10 @@ var nodeTest = require('node:test');
 var describe = nodeTest.describe;
 var test = nodeTest.test;
 var browserLib = require('../../../lib/browser');
+var dom = require('../../../lib/dom');
 var fixtures = require('../../../lib/fixtures');
 
+var setCaret = dom.setCaret;
 var SERVER = fixtures.SERVER;
 var RTE = fixtures.RTE;
 
@@ -80,6 +82,29 @@ describe('Gemerkte Cursorposition', { skip: !hasPlaywright }, function () {
       return window.__caretParagraph;
     });
     assert.strictEqual(wasCollapsedInA, 'a', 'Einfuegemarke lag nicht mehr im ersten Absatz');
+    await page.close();
+  });
+
+  test('Einfuegen merkt die neue Position sofort', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await page.fill('#description', 'Zeile1\nZeile2');
+    await setCaret(page, 6);
+    await page.evaluate(function () {
+      var field = document.querySelector('#description');
+      window.JiraEditors.insert(field, '{code}\nx\n{code}', 'block');
+      // Fokus weg vom Feld nehmen (eigener Tick, damit der Fokuswechsel
+      // wirklich greift) - die zweite Einfuegung muss trotzdem hinter dem
+      // Codeblock landen, nicht an der Stelle von vor dem ersten Einfuegen.
+      field.blur();
+    });
+    await page.waitForTimeout(50);
+    await page.evaluate(function () {
+      var field = document.querySelector('#description');
+      window.JiraEditors.insert(field, 'ZWEI', 'insert');
+    });
+    assert.strictEqual(await page.inputValue('#description'),
+      'Zeile1\n{code}\nx\n{code}ZWEI\nZeile2');
     await page.close();
   });
 });

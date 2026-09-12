@@ -258,12 +258,46 @@
     });
   }
 
+  /** Formular zu element: erst element.form (Feld), dann Vorfahre, dann Nachfahre. */
+  function findForm(element) {
+    if (element.form) return element.form;
+    var ancestor = typeof element.closest === 'function' ? element.closest('form') : null;
+    if (ancestor) return ancestor;
+    return element.querySelector ? element.querySelector('form') : null;
+  }
+
+  /**
+   * Schickt das Formular zu element ab, ohne einen Primaerbutton zu suchen -
+   * jeder Dialog in 9.12 hat einen anderen (button#submit, input.button[type
+   * =submit], input[name="Link"]), das Formular ist die einzige gemeinsame
+   * Klammer. Bevorzugt form.requestSubmit() (feuert den echten submit-Event
+   * inkl. eingebauter Validierung), faellt sonst auf einen Klick auf den
+   * Submit-Button zurueck und zuletzt auf form.submit(). Liefert false ohne
+   * gefundenes Formular, sonst true.
+   */
+  function submitForm(element) {
+    var form = findForm(element);
+    if (!form) return false;
+    if (typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+    } else {
+      var submitControl = form.querySelector('input[type="submit"], button[type="submit"]');
+      if (submitControl) {
+        click(submitControl);
+      } else {
+        form.submit();
+      }
+    }
+    return true;
+  }
+
   return {
     waitForElement: waitForElement,
     waitForGone: waitForGone,
     setValue: setValue,
     sendKey: sendKey,
     click: click,
+    submitForm: submitForm,
     visible: visible,
     delay: delay
   };

@@ -46,6 +46,49 @@ async function stubClipboard(page) {
   });
 }
 
+/**
+ * Simuliert eine http-Instanz ohne Clipboard-API: navigator.clipboard fehlt,
+ * document.execCommand('copy') wird durch einen Stub ersetzt, der den Text
+ * des gerade selektierten Feldes (oder der Seitenselektion) uebernimmt und
+ * einen echten copy-Listener ausloest - so kann ein Rueckfall in content.js
+ * per event.clipboardData.setData() text/html und text/plain unterbringen.
+ */
+async function stubLegacyClipboard(page) {
+  await page.evaluate(function () {
+    window.__copied = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: undefined
+    });
+    document.execCommand = function (command) {
+      if (command !== 'copy') return false;
+      var active = document.activeElement;
+      var text = '';
+      if (active && active.value !== undefined && typeof active.selectionStart === 'number') {
+        text = active.value.substring(active.selectionStart, active.selectionEnd);
+      } else {
+        text = String(document.getSelection());
+      }
+      var event = new ClipboardEvent('copy', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: new DataTransfer()
+      });
+      document.dispatchEvent(event);
+      if (event.defaultPrevented) {
+        window.__copied.push({
+          kind: 'html',
+          html: event.clipboardData.getData('text/html'),
+          text: event.clipboardData.getData('text/plain')
+        });
+      } else {
+        window.__copied.push({ kind: 'text', text: text });
+      }
+      return true;
+    };
+  });
+}
+
 /** Setzt den Cursor an eine feste Stelle im Beschreibungsfeld. */
 async function setCaret(page, index) {
   await page.evaluate(function (at) {
@@ -78,6 +121,7 @@ async function setRichCaret(page, html, id, offset) {
 module.exports = {
   pasteInto: pasteInto,
   stubClipboard: stubClipboard,
+  stubLegacyClipboard: stubLegacyClipboard,
   setCaret: setCaret,
   setRichCaret: setRichCaret
 };

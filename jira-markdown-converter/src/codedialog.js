@@ -303,15 +303,19 @@
    * ------------------------------------------------------------------ */
 
   /**
-   * options: { target: Beschriftung des Zielfeldes, onInsert: fn(result),
-   *            onCopy: fn(result, 'jira' | 'html'), onEmpty: fn, onClose: fn }
+   * options: { target: Beschriftung des Zielfeldes, opener: Element fuer die
+   *            Fokusrueckgabe, onInsert: fn(result), onCopy: fn(result,
+   *            'jira' | 'html'), onEmpty: fn, onClose: fn }
    * onInsert darf false (oder ein Promise darauf) liefern - dann bleibt der
-   * Dialog offen.
+   * Dialog offen. opener ist optional - ohne Angabe zaehlt der Fokus beim
+   * Oeffnen (document.activeElement), das ist aber beim Klick auf den
+   * Leisten-Knopf genau dieser Knopf, nicht das Schreibfeld. Der Aufrufer
+   * soll darum das eigentliche Ziel angeben.
    */
   function open(options) {
     handlers = options || {};
     create();
-    opener = document.activeElement;
+    opener = handlers.opener || document.activeElement;
 
     var input = dialog.querySelector('#jmd-code-input');
     var select = dialog.querySelector('[data-role="language"]');
@@ -329,11 +333,16 @@
 
   function close() {
     if (!dialog) return;
+    // Vor dem Entfernen der Klasse pruefen - .jmd-dialog ist display: none,
+    // danach waere der Fokus schon aus dem Dialog geblurrt.
+    var focusInDialog = dialog.contains(document.activeElement);
     dialog.classList.remove('jmd-dialog--open');
     var done = handlers && handlers.onClose;
     handlers = null;
-    // Fokus zurueck ins Jira-Feld, damit die Cursorposition erhalten bleibt.
-    if (opener && opener.isConnected && opener.focus) opener.focus();
+    // Der Fokus geht nur zurueck, wenn er noch im Dialog steht (Abbrechen,
+    // Escape, Klick daneben) - hat das Einfuegen den Fokus schon ins Jira-Feld
+    // gesetzt, darf das hier nicht ueberschrieben werden.
+    if (focusInDialog && opener && opener.isConnected && opener.focus) opener.focus();
     opener = null;
     if (done) done();
   }

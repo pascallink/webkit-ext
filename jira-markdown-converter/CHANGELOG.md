@@ -5,6 +5,81 @@ festgehalten. Das Format orientiert sich an
 [Keep a Changelog](https://keepachangelog.com/de/1.0.0/), Versionierung an
 [SemVer](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Geaendert
+
+- Die vier OTRS-Dateien (`otrslink`, `jiraui`, `otrsflow`, `otrsdialog`) waren
+  zwischenzeitlich aus `manifest.json` genommen, weil sie noch nicht
+  verdrahtet waren (Issue #103); mit dem OTRS-Link-Helfer aus 1.4.0 stehen
+  sie wieder in `manifest.json` und `CONTENT_FILES`. Abweichende Selektoren
+  gegen die echte Jira-9.12.2-Instanz bleiben als offener Befund in Issue #26.
+- Aus Azure DevOps kopierte Bildgroessen, Anhangspfade, TOC-Marker,
+  GUID-Erwaehnungen und fremde HTML-Tags landen nicht mehr roh im Ticket
+  (Issue #99).
+
+### Behoben
+
+- *In Jira einfuegen* aus dem Popup beachtet jetzt *Vorher auf den
+  Markup-Modus umschalten* und *Im Rich-Text-Editor*; bisher landete bei
+  aktivem Rich-Text-Editor Rohtext (Issue #105).
+- Die Buttonleiste erscheint jetzt auch an Feldern, die beim ersten Scan noch zu
+  klein oder verdeckt waren (Dialog *Vorgang bearbeiten*, Reiter *Vorschau*,
+  eingeklapptes Kommentarfeld) - Issue #101.
+- Der schwebende Button erscheint nur noch auf Seiten mit Eingabefeld oder auf
+  Vorgangsseiten; die Loginseite bleibt unberuehrt (Issue #102).
+- Erweiterung nistet sich nicht mehr auf fremden Seiten ein.
+- Feldleisten, schwebender Button und Einfrieren nur noch auf erkannten
+  Jira-Instanzen; das Kuerzel oeffnet ueberall das Panel ohne Leisten.
+- *Vorher auf den Markup-Modus umschalten* findet den Umschalter von Jira 9.12
+  jetzt und schaltet wirklich um, statt still auf formatiertes Einfuegen
+  zurueckzufallen (Issue #110).
+- Strg+Z nach der Einfuege-Automatik loescht nicht mehr das ganze Feld (Issue #96).
+- Nach dem Code-Dialog steht der Cursor hinter dem Codeblock; das naechste
+  Panel oder die naechste Vorlage landet dort und nicht mehr davor (Issue #95).
+- Ein mit `\|` maskierter senkrechter Strich bleibt in der
+  Tabellenzelle stehen, statt die Spalten zu verschieben (Issue #94).
+- Sonderzeichen im Fliesstext werden maskiert, damit Jira sie nicht als
+  Markup liest (Issue #93).
+- Auf `http://`-Instanzen kopieren Panel, Feldleiste und Code-Dialog wieder;
+  Einfuegen verweist dort jetzt auf Strg+V statt eine leere Zwischenablage zu
+  melden (Issue #106).
+- Panel-Vorlagen im visuellen Modus kommen jetzt als echtes Panel an statt als
+  fetter Titel mit Absatz (Issue #109).
+- Code-Dialog liefert im visuellen Modus einen echten Codeblock statt
+  Inline-Monospace (Issue #108).
+- Beim Einfuegen von bereits vorhandenem Jira-Markup wird nicht mehr
+  konvertiert; Makros wie `{code}` bleiben heil (Issue #92).
+- Einfrieren sperrte die Navigation und Dialoge; nun bleiben Toolbar,
+  Bedienelemente ausserhalb des Feldes und Escape funktionieren normal
+  (Issue #112).
+- Bearbeiten-Dialog und Abbrechen werden vom Einfrieren nicht blockiert
+  (Issue #90).
+- Label-Felder und andere kleine Auswahlfelder frieren nicht ein (Issue #111).
+- Tab friert nicht mehr ein, wenn eine Zeile nur aus einem Listenmarker
+  besteht (Issue #88).
+- Eingefuegter Text geht bei einem Fehler in der Umwandlung nicht mehr
+  verloren.
+- Inline-Code mit geschweiften Klammern (`{{key}}`, `${var}`, JSON-Schnipsel)
+  kommt in Jira 9.12 woertlich an (Issue #98).
+- Im visuellen Editor (Rich Text) ist die Beschreibung schon beim ersten
+  Oeffnen eingefroren; ein Klick daneben speichert den halb getippten Text
+  nicht mehr (Issue #107).
+- Ueberschrift, Liste und Tabelle kleben beim Einfuegen mitten in einer Zeile
+  nicht mehr am Text, sondern ruecken auf eigene Zeilen (Issue #91).
+- Verschachtelte Zitate landen in einer Huelse statt als verschachtelte
+  `{quote}`-Bloecke (Issue #100).
+- E-Mail-Adressen ohne Schema (`<max@x.de>`) werden zu `mailto:`-Links verlinkt
+  (Issue #100).
+- Senkrechte Striche in URLs werden kodiert, damit sie nicht als Tabellentrenner
+  wirken (Issue #100).
+- Backslash am Zeilenende erzeugt einen harten Umbruch statt roh durchgereicht
+  zu werden (Issue #100).
+- Eingerueckte Abschnitte nach einer Leerzeile in Listen werden angehaengt statt
+  die Liste zu beenden (Issue #100).
+- Setext-Ueberschriften (Titel mit Strichreihe darunter) werden als
+  Ueberschriften erkannt (Issue #100).
+
 ## [1.4.0] - 2026-09-12
 
 ### Hinzugefuegt
@@ -18,6 +93,54 @@ festgehalten. Das Format orientiert sich an
   Jira Server / Data Center 9.12 LTS (Issue #17).
 - War die Kundenreferenz bereits belegt, zeigt eine laenger stehende Warnung
   den ueberschriebenen alten Wert.
+
+## [1.3.6] - 2026-09-11
+
+Nur interne Doku und Planung (Fehlersammlung, Testprotokoll, Nachbau der
+Jira-9.12-Instanz), keine nutzersichtbaren Aenderungen.
+
+## [1.3.5] - 2026-09-11
+
+### Hinzugefuegt
+
+- `JiraOtrsDialog`: Dialog "OTRS-Link einpflegen", nimmt einen OTRS-Verweis
+  in beliebigem Format entgegen und zeigt per `JiraOtrsLink` eine
+  Live-Vorschau der drei Zielwerte (Label, Kunden Referenz, Web-Link) - Teil
+  der OTRS-Anbindung aus Issue #17, noch nicht verdrahtet.
+
+## [1.3.4] - 2026-09-11
+
+Nur interne Planungsnotiz zum OTRS-Ablauf, keine nutzersichtbaren
+Aenderungen.
+
+## [1.3.3] - 2026-09-11
+
+### Hinzugefuegt
+
+- `JiraOtrsFlow`: traegt einen geparsten OTRS-Verweis strikt sequenziell in
+  drei Stellen des Jira-Vorgangs ein - Label, Custom Field "Kunden
+  Referenz", Web-Link im Dialog "Link" - mit Tastatur-Shortcut und
+  DOM-Fallback fuer Jira Server / Data Center 9.12 LTS (Issue #17, noch
+  nicht verdrahtet).
+
+## [1.3.2] - 2026-09-11
+
+### Geaendert
+
+- `playwright` als Entwicklungsabhaengigkeit exakt auf die Version des
+  vorinstallierten Chromium gepinnt statt auf einen Bereich - vermeidet
+  einen Versions-Mismatch beim Cloud-Sandbox-Setup.
+
+## [1.3.1] - 2026-09-11
+
+### Hinzugefuegt
+
+- `JiraOtrsLink`: zerlegt einen OTRS-Verweis (Markdown-Link, HTML-Anker oder
+  Rohtext mit eingebetteter URL) in Ticketnummer, Titel und URL - DOM-frei,
+  Grundlage der OTRS-Anbindung aus Issue #17.
+- `JiraUi`: generische DOM-Helfer gegen die klassische AUI-Oberflaeche von
+  Jira Server / Data Center - Warten auf Elemente per MutationObserver,
+  Werte setzen, Tastendruecke und Klicks nachbilden, ohne OTRS-Wissen.
 
 ## [1.3.0] - 2026-09-07
 

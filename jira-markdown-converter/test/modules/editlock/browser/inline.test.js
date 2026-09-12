@@ -1,7 +1,16 @@
 /**
  * Bearbeitungsmodus einfrieren: Inline-Bearbeitung bleibt beim Klick daneben
  * offen, das Schloss zeigt und aendert den Zustand, Speichern/Escape bleiben
- * funktionsfaehig.
+ * funktionsfaehig, Klicks daneben erreichen trotzdem ihr Ziel.
+ *
+ * Laeuft gegen ISSUE (mock-jira-issue-description.html): dort schliesst
+ * Jira das Feld wie in 9.12 ueber mousedown in der Erfassungsphase am
+ * Dokument - genau das Ereignis, das die Erweiterung stoppt. Das aeltere
+ * Mock mock-jira-inline-edit.html schliesst dagegen nur ueber einen
+ * click-Handler in der Bubble-Phase; seit dem Fix zu #112 laesst die
+ * Erweiterung click/dblclick bewusst durch (Toolbar-Links und Dialoge muessen
+ * bedienbar bleiben), darum taugt jenes Mock nicht mehr als Massstab dafuer,
+ * ob das Einfrieren ein Feld schuetzt.
  * Aufruf: npm run test:editlock --prefix jira-markdown-converter
  */
 'use strict';
@@ -13,7 +22,7 @@ var test = nodeTest.test;
 var browserLib = require('../../../lib/browser');
 var fixtures = require('../../../lib/fixtures');
 
-var INLINE = fixtures.INLINE;
+var ISSUE = fixtures.ISSUE;
 
 var hasPlaywright = browserLib.hasPlaywright();
 var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
@@ -31,25 +40,35 @@ async function clickBeside(page) {
 
 function editing(page) {
   return page.evaluate(function () {
-    return !!document.getElementById('description-wiki-edit');
+    return document.getElementById('description-val').classList.contains('active');
   });
+}
+
+function closedBy(page) {
+  return page.evaluate(function () { return window.__closed; });
+}
+
+function foreignClicks(page) {
+  return page.evaluate(function () { return window.__fremdeKlicks; });
 }
 
 describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
   test('ohne Einfrieren schliesst Jira das Feld beim Klick daneben', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, { freezeEditMode: false }, INLINE);
+    var page = await browserLib.newPage(browser, { freezeEditMode: false }, ISSUE);
     await startEditing(page);
     await clickBeside(page);
     assert.strictEqual(await editing(page), false, 'das Feld haette schliessen muessen');
-    assert.deepStrictEqual(await page.evaluate(function () { return window.__closed; }),
-      ['klick-daneben']);
+    assert.deepStrictEqual(await closedBy(page), ['klick-daneben']);
     await page.close();
   });
 
   test('eingefroren bleibt das Feld beim Klick daneben offen', async function () {
+    // Jira schliesst ueber mousedown in der Erfassungsphase am Dokument; der
+    // Wachposten am Fenster stoppt das Ereignis vorher. Der Klick selbst
+    // laeuft durch (#112), das Mock reagiert im Bearbeiten aber nicht darauf.
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
     await page.waitForFunction(function () {
       return window.JiraEditLock.isActive();
@@ -57,7 +76,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
     await page.fill('#description', 'Wichtige Aenderung');
     await clickBeside(page);
     assert.strictEqual(await editing(page), true, 'das Feld wurde geschlossen');
-    assert.deepStrictEqual(await page.evaluate(function () { return window.__closed; }), []);
+    assert.deepStrictEqual(await closedBy(page), []);
     assert.strictEqual(await page.inputValue('#description'), 'Wichtige Aenderung',
       'der Text ist verloren gegangen');
     await page.close();
@@ -68,10 +87,10 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
     // (gleiche id, neuer Knoten). Die Sperre zeigte danach noch auf den alten,
     // entfernten Knoten - ein Blur/Focusout des neuen Knotens rutschte durch,
     // bevor die naechste Bereinigung (MutationObserver-Debounce) das nachzog.
-    // Das hiesige Mock schliesst per Klick-Delegation, nicht per Blur - darum
-    // wird das Durchsickern hier direkt am Blur-Ereignis gemessen.
+    // Gemessen wird direkt am Blur-Ereignis des Knotens, nicht am Mock: das
+    // Mock schliesst ueber mousedown, und das stoppt der Wachposten ohnehin.
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
     await page.waitForFunction(function () {
       return window.JiraEditLock.isActive();
@@ -100,8 +119,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
     });
     await page.waitForTimeout(50);
 
-    await page.click('#daneben');
-    await page.waitForTimeout(150);
+    await clickBeside(page);
     assert.strictEqual(await page.evaluate(function () { return window.__blurLeaked; }), 0,
       'das Blur des ausgetauschten Knotens ist durchgesickert');
     await page.close();
@@ -109,7 +127,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
 
   test('das Schloss zeigt den Zustand an', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
     var view = await page.evaluate(function () {
       var button = document.querySelector('.jmd-fieldbar__btn--lock');
@@ -127,7 +145,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
 
   test('geoeffnetes Schloss stellt Jiras Verhalten wieder her', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
     await page.click('.jmd-fieldbar__btn--lock');
     var view = await page.evaluate(function () {
@@ -143,7 +161,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
 
   test('Escape bricht das eingefrorene Feld nicht ab', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
     await page.press('#description', 'Escape');
     await page.waitForTimeout(150);
@@ -157,7 +175,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
 
   test('ein geoeffnetes Schloss friert nicht von selbst wieder ein', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
     await page.click('.jmd-fieldbar__btn--lock');
     // Zurueck ins Feld: der Fokus darf die Sperre nicht wieder setzen.
@@ -171,7 +189,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
 
   test('Speichern im Feld funktioniert weiter', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
     await page.fill('#description', 'Neuer Stand');
     await page.click('#speichern');
@@ -182,7 +200,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
 
   test('vor dem Verlassen der Seite wird gefragt, solange eingefroren ist', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
     var asks = function () {
       return page.evaluate(function () {
@@ -199,7 +217,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
 
   test('geschlossenes Feld gibt seine Sperre wieder ab', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
     await page.click('.jmd-fieldbar__btn--lock');
     await clickBeside(page);
@@ -217,7 +235,7 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
 
   test('abgeschaltet gibt es weder Schloss noch Einfrieren', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, { freezeEditMode: false }, INLINE);
+    var page = await browserLib.newPage(browser, { freezeEditMode: false }, ISSUE);
     await startEditing(page);
     var hidden = await page.evaluate(function () {
       return document.querySelector('.jmd-fieldbar__btn--lock').hidden;
@@ -227,19 +245,34 @@ describe('Bearbeitungsmodus einfrieren', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
-  test('eingefroren bleiben Klicks daneben ohne Wirkung', async function () {
-    // Bewusst so: das Feld ist eingefroren, die Seite reagiert daneben nicht
-    // mehr auf Klicks. Das Schloss oeffnen gibt sie wieder frei.
+  test('eingefroren erreichen Klicks daneben ihr Ziel, das Feld bleibt offen', async function () {
+    // Seit dem Fix zu #112 stoppt die Erweiterung click/dblclick nicht mehr:
+    // ein fremder Knopf bekommt seinen Klick, obwohl das Feld eingefroren
+    // ist - sonst blieben Toolbar-Links und Dialoge unbedienbar. Gestoppt
+    // wird nur, woran Jira das Schliessen festmacht (Pointer-/Maus-Runter,
+    // Fokuswechsel, siehe GUARDED in editlock.js) - darum bleibt das Feld
+    // trotzdem offen. Das Schloss oeffnen gibt Jira den Klick daneben zurueck.
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, INLINE);
+    var page = await browserLib.newPage(browser, null, ISSUE);
     await startEditing(page);
+    await page.waitForFunction(function () {
+      return window.JiraEditLock.isActive();
+    }, null, { timeout: 4000 });
     await page.click('#fremder-knopf');
-    await page.waitForTimeout(100);
-    assert.strictEqual(await page.evaluate(function () { return window.__fremdeKlicks; }), 0);
+    await page.waitForTimeout(150);
+    assert.strictEqual(await foreignClicks(page), 1, 'der fremde Klick ist trotz Sperre nicht angekommen');
+    assert.strictEqual(await editing(page), true, 'das Feld wurde geschlossen');
+    assert.deepStrictEqual(await closedBy(page), []);
+
+    // Schloss auf: jetzt schliesst Jira schon beim mousedown. Das Mock baut
+    // die Leseansicht darunter um, der Knopf rutscht unter dem Zeiger weg
+    // und mouseup landet daneben - darum zaehlt hier nur das Schliessen,
+    // nicht der Klick-Zaehler.
     await page.click('.jmd-fieldbar__btn--lock');
     await page.click('#fremder-knopf');
-    await page.waitForTimeout(100);
-    assert.strictEqual(await page.evaluate(function () { return window.__fremdeKlicks; }), 1);
+    await page.waitForTimeout(150);
+    assert.strictEqual(await editing(page), false, 'nach dem Oeffnen haette Jira schliessen duerfen');
+    assert.deepStrictEqual(await closedBy(page), ['klick-daneben']);
     await page.close();
   });
 });

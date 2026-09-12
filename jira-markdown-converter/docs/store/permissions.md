@@ -24,7 +24,7 @@ Berechtigung ist der einfachste Weg in die Rueckfrage.
 | Muster | Art | Begruendung fuer das Partner Center |
 | --- | --- | --- |
 | `https://*.atlassian.net/*` | fest | Jira Cloud. Dort liegt der Editor, in dem die Erweiterung ihre Buttonleiste einbaut und Markdown in Jira-Markup umwandelt. Enger geht es nicht: die Instanz jedes Kunden hat ihre eigene Subdomain unter atlassian.net. |
-| `*://*/*` | optional | **Nicht** beim Installieren erteilt. Jira Server / Data Center laeuft unter einer beliebigen Firmenadresse (`jira.firma.de`, `http://jira:8080/`), die erst der Nutzer kennt. Er traegt sie selbst ein - im Popup ueber "Diese Jira-Adresse freigeben" oder in den Einstellungen -, und die Erweiterung fordert daraufhin ueber `chrome.permissions.request()` genau eine Origin an: `*://<eingetragener-host>/*`. Der Browser zeigt dabei seinen eigenen Zustimmungsdialog fuer genau diesen Host. Ohne diesen Schritt ist die Erweiterung auf keiner Seite ausserhalb von `*.atlassian.net` aktiv. |
+| `*://*/*` | optional | **Nicht** beim Installieren erteilt. Jira Server / Data Center laeuft unter einer beliebigen Firmenadresse (`jira.firma.de`, `http://jira:8080/`), die erst der Nutzer kennt. Er traegt sie selbst ein - im Popup ueber "Diese Jira-Adresse freigeben" oder in den Einstellungen -, und die Erweiterung fordert daraufhin ueber `chrome.permissions.request()` genau eine Origin an: `*://<eingetragener-host>/*`. Der Browser zeigt dabei seinen eigenen Zustimmungsdialog fuer genau diesen Host. Ohne diesen Schritt ist die Erweiterung auf keiner Seite ausserhalb von `*.atlassian.net` aktiv. Auf reinen `http`-Adressen bedient die Erweiterung die Zwischenablage nur schreibend. |
 
 ### Warum `*://*/*` nicht enger gefasst werden kann
 

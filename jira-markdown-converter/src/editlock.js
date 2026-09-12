@@ -30,20 +30,23 @@
 
   // Ereignisse, mit denen Jira das Inline-Bearbeiten beendet: der Klick
   // daneben und der Fokuswechsel aus dem Feld heraus. Zeigergeraete melden
-  // sich vor der Maus - moderne Oberflaechen haengen daran.
-  var GUARDED = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick',
+  // sich vor der Maus - moderne Oberflaechen haengen daran. `click` und
+  // `dblclick` stehen bewusst nicht mehr in der Liste: Jira macht das
+  // Schliessen am Pointer-/Fokuswechsel fest, nicht am Klick selbst - wird
+  // der Klick durchgelassen, oeffnen Toolbar-Links und Dialoge wieder normal
+  // und Jira faengt seine eigenen Links wieder ab (Issue #112).
+  var GUARDED = ['pointerdown', 'pointerup', 'mousedown', 'mouseup',
     'touchstart', 'focus', 'focusin', 'focusout', 'blur'];
 
   // Ereignisse, bei denen der Fokus das Feld verlaesst. Sie werden nur
   // gestoppt, wenn sie aus dem eingefrorenen Feld kommen.
   var LEAVING = { focusout: true, blur: true };
 
-  // Unsere eigene Oberflaeche muss bedienbar bleiben - Jira muss davon aber
-  // nichts mitbekommen, sonst schliesst es das Feld, sobald jemand den
-  // schwebenden Editor benutzt. Durchgelassen wird darum nur der Klick, an
-  // dem unsere Knoepfe haengen. Fokus, Einfuegemarke und Auswahl erledigt
-  // der Browser von selbst; das haelt kein gestopptes Ereignis auf.
-  var OWN_UI_PASS = { click: true, dblclick: true };
+  // Ziele, die trotz Sperre immer bedienbar bleiben: Speichern und Abbrechen
+  // liegen in Jira oft ausserhalb des Rahmens, den AREA_SELECTOR um das Feld
+  // findet (Issue #90) - `guard()` stoppt dort nichts, egal wo sie liegen.
+  var ALWAYS_USABLE = '.buttons-container,.save-options,.form-footer,'
+    + '.cancel,.submit,[type="submit"]';
 
   // Rahmen, die Jira um genau ein bearbeitetes Feld legt.
   var AREA_SELECTOR = [
@@ -58,6 +61,20 @@
     '.ak-editor-content-area',      // Jira Cloud
     '[data-testid*="inline-edit"]',
     '[data-testid*="rich-text"]'
+  ].join(',');
+
+  // Nur was eine Leiste bekommen hat oder als Wiki-Feld gilt, darf einfrieren
+  // - kleine Auswahl-Textareas (Labels, Versionen, Picker) bleiben aussen vor,
+  // auch wenn `editors.js` sie (noch) nicht als solche kennt (#111). Die
+  // Oder-Verknuepfung ist noetig, weil der Fokus vor dem 400-ms-Scan aus
+  // `content.js` ankommen kann und die Leiste dann noch fehlt.
+  var FREEZABLE_SELECTOR = [
+    '.wiki-textfield',
+    '.jira-wikifield textarea',
+    '.wiki-edit textarea',
+    'textarea#description',
+    'textarea#comment',
+    'textarea#environment'
   ].join(',');
 
   var LOCKED = { glyph: '🔒', text: 'Eingefroren' };
@@ -159,6 +176,11 @@
     return !!(node && node.closest && node.closest('[data-jmd-ui]'));
   }
 
+  /** Speichern, Abbrechen und die Werkzeugleiste bleiben immer bedienbar. */
+  function isAlwaysUsable(node) {
+    return !!(node && node.closest && node.closest(ALWAYS_USABLE));
+  }
+
   function insideAnyLock(node) {
     for (var i = 0; i < locks.length; i++) {
       if (inside(locks[i], node)) return true;
@@ -197,8 +219,9 @@
     if (!locks.length) return;
     var node = event.target;
     if (!node || !node.nodeType) return;
+    if (isAlwaysUsable(node)) return;
     if (isOwnUi(node)) {
-      if (!OWN_UI_PASS[event.type]) block(event);
+      block(event);
       return;
     }
 
@@ -211,11 +234,14 @@
     block(event);
   }
 
-  /** Escape bricht das Bearbeiten in Jira ab - solange eingefroren ist, nicht. */
+  /**
+   * Escape bricht das Bearbeiten in Jira ab - solange eingefroren ist, nicht,
+   * aber nur innerhalb des gesperrten Feldes. Steht der Cursor woanders
+   * (Dialog, Zusammenfassung, Picker), gehoert das Escape Jira.
+   */
   function onKeydown(event) {
     if (!locks.length || event.key !== 'Escape') return;
-    if (isOwnUi(event.target)) return;
-    block(event);
+    if (insideAnyLock(event.target)) block(event);
   }
 
   function onBeforeUnload(event) {
@@ -266,6 +292,11 @@
     return indexIn(locks, field) !== -1;
   }
 
+  /** Traegt dieses Feld eine Leiste, oder gilt es als Wiki-Feld? Nur dann friert es ein. */
+  function isFreezable(field) {
+    return !!(field.dataset && field.dataset.jmdButtonAttached) || matches(field, FREEZABLE_SELECTOR);
+  }
+
   /**
    * Friert ein Feld ein. Ein per Hand geoeffnetes Schloss bleibt offen -
    * sonst wuerde schon der naechste Klick ins Feld wieder einfrieren.
@@ -273,6 +304,7 @@
   function lock(field) {
     if (!enabled || !field || isLocked(field)) return false;
     if (indexIn(opened, field) !== -1) return false;
+    if (!isFreezable(field)) return false;
     locks.push(field);
     listen();
     showState();

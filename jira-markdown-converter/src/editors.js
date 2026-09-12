@@ -59,7 +59,11 @@
     '[aria-label*="Suche" i]',
     '[aria-label*="search" i]',
     '[placeholder*="Suche" i]',
-    '[placeholder*="search" i]'
+    '[placeholder*="search" i]',
+    // Picker-Textareas (Labels, Versionen, Verknuepfungen ...): keine
+    // Wiki-Bearbeitung, sondern eine Auswahl mit Vorschlagsliste (#111)
+    '.jira-multi-select textarea',
+    'textarea[role="combobox"]'
   ].join(',');
 
   /* ------------------------------------------------------------------ *
@@ -151,25 +155,36 @@
     return isRichTextActive(field) ? richTextBody(field) : field;
   }
 
-  // Umschalter zwischen Rich-Text und Markup. Jira benennt ihn je nach
-  // Version anders, darum erst bekannte Selektoren, dann Beschriftungen.
-  var MODE_TOGGLE_SELECTOR = [
+  // Umschalter zwischen Rich-Text und Markup. Zuerst der Umschalter von Jira
+  // 9.12 (Reiter "Text" in nav.editor-toggle-tabs - der Handler haengt nur
+  // am Button, das umgebende <li> traegt bloss data-mode), danach aeltere
+  // bzw. angepasste Faelle als Rueckfall. `container.querySelector()` mit
+  // einer kommagetrennten Liste liefert den ersten Treffer in Dokumentreihenfolge,
+  // nicht den der Listenreihenfolge - darum werden die Eintraege einzeln und
+  // in dieser Reihenfolge abgefragt. `[data-mode="source"]` und
+  // `[data-editor-mode]` sind ersatzlos gestrichen: sie treffen den
+  // Container (<li> bzw. <nav>) statt das Bedienelement.
+  var MODE_TOGGLE_SELECTORS = [
+    '.editor-toggle-tabs li[data-mode="source"] button',
     '.jira-wikifield .rte-toggle',
     '.wiki-edit .rte-toggle',
     'button.rte-button-source',
-    'a.switch-to-source',
-    '[data-mode="source"]',
-    '[data-editor-mode]'
-  ].join(',');
+    'a.switch-to-source'
+  ];
 
-  var MODE_TOGGLE_TEXT = /markup|quelltext|source|klartext|plain\s*text|text-?modus|bearbeitungsmodus|wysiwyg|visual/i;
+  // Beschriftungs-Suche nur noch fuer den Weg in den Textmodus - "wysiwyg"
+  // und "visual" sind gestrichen, weil sie sonst auch den Weg zurueck in den
+  // Rich-Text-Modus treffen wuerden.
+  var MODE_TOGGLE_TEXT = /markup|quelltext|source|klartext|plain\s*text|text-?modus|bearbeitungsmodus/i;
 
   function findModeToggle(field) {
     var container = fieldContainer(field);
     if (!container.querySelector) return null;
 
-    var direct = container.querySelector(MODE_TOGGLE_SELECTOR);
-    if (direct && !isIgnored(direct)) return direct;
+    for (var s = 0; s < MODE_TOGGLE_SELECTORS.length; s++) {
+      var direct = container.querySelector(MODE_TOGGLE_SELECTORS[s]);
+      if (direct && !isIgnored(direct)) return direct;
+    }
 
     var candidates = container.querySelectorAll('button, a, [role="button"]');
     for (var i = 0; i < candidates.length; i++) {
@@ -523,6 +538,37 @@
     element.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  /**
+   * Schreibt ueber execCommand('insertText'), damit die Aenderung im
+   * Undo-Stack der Textarea landet (der native Value-Setter in
+   * setTextareaValue() loescht den Verlauf ersatzlos). Geht nur, solange das
+   * Feld wirklich fokussiert ist - execCommand wirkt sonst auf die falsche
+   * Auswahl oder gar nicht. Liefert true nur, wenn der Browser den Befehl
+   * bestaetigt UND der Wert danach wie erwartet aussieht; sonst (und bei
+   * jedem Wurf) faellt insertIntoTextarea() auf den nativen Setter zurueck.
+   */
+  function insertViaCommand(element, payload, expected, mode) {
+    if (!payload) return false;
+    if (element.ownerDocument.activeElement !== element) return false;
+    try {
+      if (mode === 'replace') {
+        element.select();
+      } else {
+        element.setSelectionRange(element.selectionStart, element.selectionEnd);
+      }
+      var ok = element.ownerDocument.execCommand('insertText', false, payload);
+      if (!ok || String(element.value || '') !== expected) return false;
+      // Kein input-Event nachschieben - execCommand feuert es selbst; Jiras
+      // eigene Aenderungserkennung braucht zusaetzlich das change-Event, das
+      // React/Backbone bei einem echten Tastaturereignis erst beim
+      // Verlassen des Feldes bekaemen.
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
   /** Fuegt Text an der Cursorposition einer Textarea ein. */
   function insertIntoTextarea(element, text, mode) {
     // Steht der Cursor noch im Feld, gilt die aktuelle Auswahl. Erst wenn der
@@ -535,8 +581,14 @@
     var end = element.selectionEnd;
 
     if (mode === 'replace' || start === null || start === undefined) {
-      setTextareaValue(element, text);
+      if (!insertViaCommand(element, text, text, mode)) {
+        setTextareaValue(element, text);
+      }
       element.setSelectionRange(text.length, text.length);
+      // Sofort merken statt auf selectionchange zu warten - das kommt
+      // asynchron und sieht das Feld womoeglich schon unfokussiert (naechster
+      // Klick auf Panel oder Dialog).
+      rememberCaret(element);
       return true;
     }
 
@@ -544,9 +596,15 @@
     var after = value.slice(end);
     var payload = mode === 'block' ? asOwnLines(text, before, after) : text;
     var next = before + payload + after;
-    setTextareaValue(element, next);
+    if (!insertViaCommand(element, payload, next, mode)) {
+      setTextareaValue(element, next);
+    }
     var caret = start + payload.length;
     element.setSelectionRange(caret, caret);
+    // Sofort merken statt auf selectionchange zu warten - das kommt
+    // asynchron und sieht das Feld womoeglich schon unfokussiert (naechster
+    // Klick auf Panel oder Dialog).
+    rememberCaret(element);
     return true;
   }
 
@@ -566,9 +624,19 @@
   // Blockelemente, die im Rich-Text-Editor eine eigene Zeile bilden.
   var BLOCK_TAGS = /^(?:P|DIV|LI|TD|TH|PRE|BLOCKQUOTE|H[1-6]|SECTION|ARTICLE|BODY|DD|DT|FIGCAPTION)$/;
 
+  // Bloecke, deren echte Teilung gefahrlos ist: Absatz und Ueberschrift haben
+  // im Elterncontainer immer Platz fuer ein weiteres Geschwister. Bei LI, TD,
+  // TH, DD, DT wuerde der Klon aus splitBlockAtCaret() dagegen einen
+  // zusaetzlichen Listenpunkt bzw. eine zusaetzliche Zelle erzeugen, und die
+  // Blockgrenze laege in <ul>/<ol>/<tr>, wo ein Blockmakro keinen gueltigen
+  // Platz hat - fuer PRE, BLOCKQUOTE, DIV & Co. bleibt darum ebenfalls die
+  // Rueckfallebene mit BLOCK_SEPARATOR zustaendig.
+  var SPLITTABLE_BLOCK_TAGS = /^(?:P|H[1-6])$/;
+
   // Leerer Absatz als Trenner: er sorgt dafuer, dass der Editor den Block
-  // wirklich als Block uebernimmt, verschwindet beim Einfuegen aber im
-  // umgebenden Absatz.
+  // wirklich als Block uebernimmt, bleibt aber als leerer Absatz im Editor
+  // stehen. Nur noch die Rueckfallebene, wenn splitBlockAtCaret() nicht
+  // greift (siehe asOwnBlocks()).
   var BLOCK_SEPARATOR = '<p></p>';
 
   /** Der Block (Absatz, Listenpunkt, Zelle ...), in dem dieser Knoten steckt. */
@@ -614,19 +682,113 @@
   }
 
   /**
-   * Blockmakros im Rich-Text-Editor: steht die Marke mitten in einem Absatz,
-   * zieht der Editor den eingefuegten Block in diesen Absatz hinein - aus dem
-   * Codeblock wird dann eine Zeile mit geschweiften Klammern bzw. Text mit
-   * Code-Auszeichnung. Ein leerer Absatz davor und dahinter schliesst den
-   * Block ab, damit er als eigener Block ankommt.
+   * Loest die Marke aus ihrem Block, damit ein Blockmakro als eigenstaendiges
+   * Element ankommt statt in fremden Inhalt eingemischt zu werden - ganz ohne
+   * Trenner-Absatz:
+   *   - steht sie mitten im Block (Text davor und dahinter), wird der Block
+   *     an dieser Stelle echt geteilt: der Teil nach der Marke wandert in ein
+   *     neues Element hinter dem Block, die Selektion landet auf der neuen
+   *     Blockgrenze;
+   *   - steht sie schon am Blockanfang bzw. -ende, genuegt es, die Selektion
+   *     vor bzw. hinter den Block zu ruecken - ohne den Block selbst
+   *     anzufassen. Sonst haengt ein direkt am Rand eingefuegtes Element
+   *     (z. B. <pre> vor "Referenz" in einer Ueberschrift) im umgebenden
+   *     Element fest, statt daneben zu stehen (siehe JIRA912-Fixture).
+   * Ist der Block ohnehin leer, bleibt die Marke unangetastet - dafuer reicht
+   * die alte Rueckfallebene mit BLOCK_SEPARATOR. Schlaegt die Auswertung fehl
+   * (kein Bereich, kein eindeutiger Block, Blocktyp nicht in
+   * SPLITTABLE_BLOCK_TAGS ...), faellt der Aufrufer ebenfalls auf
+   * BLOCK_SEPARATOR zurueck.
+   *
+   * Liefert bei Erfolg ein Objekt mit `undo` zurueck: steht sie mitten im
+   * Block, ist das die Funktion, die den echten Split wieder rueckgaengig
+   * macht (siehe insertIntoRich()); an den Blockraendern ist `undo` null,
+   * da dort nur die Selektion verschoben wurde, ohne das Dokument zu
+   * aendern.
+   */
+  function splitBlockAtCaret(surface) {
+    try {
+      var doc = surface.ownerDocument;
+      var view = doc.defaultView;
+      var selection = view && view.getSelection();
+      if (!selection || !selection.rangeCount) return false;
+      var range = selection.getRangeAt(0);
+      if (!range.collapsed) return false;
+      if (!surface.contains(range.startContainer)) return false;
+
+      var block = blockAround(range.startContainer, surface);
+      if (block === surface || !block.parentNode) return false;
+      if (!SPLITTABLE_BLOCK_TAGS.test(block.tagName || '')) return false;
+
+      var before = doc.createRange();
+      before.selectNodeContents(block);
+      before.setEnd(range.startContainer, range.startOffset);
+
+      var after = doc.createRange();
+      after.selectNodeContents(block);
+      after.setStart(range.startContainer, range.startOffset);
+
+      var beforeEmpty = !before.toString().trim();
+      var afterEmpty = !after.toString().trim();
+      var boundary = doc.createRange();
+      var undo = null;
+
+      if (beforeEmpty && afterEmpty) {
+        return false;   // Block ist ohnehin leer - Rueckfallebene reicht
+      } else if (afterEmpty) {
+        boundary.setStartAfter(block);
+      } else if (beforeEmpty) {
+        boundary.setStartBefore(block);
+      } else {
+        // Die urspruengliche Marke merken, um den Split rueckgaengig machen
+        // zu koennen, wenn hinterher kein Einfuegeweg erfolgreich war.
+        var originalRange = range.cloneRange();
+        var fragment = after.extractContents();
+        var next = block.cloneNode(false);
+        next.removeAttribute('id');
+        next.appendChild(fragment);
+        block.parentNode.insertBefore(next, block.nextSibling);
+        boundary.setStartAfter(block);
+        undo = function () {
+          while (next.firstChild) {
+            block.appendChild(next.firstChild);
+          }
+          if (next.parentNode) next.parentNode.removeChild(next);
+          selection.removeAllRanges();
+          selection.addRange(originalRange);
+        };
+      }
+      boundary.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(boundary);
+      return { undo: undo };
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Blockmakros im Rich-Text-Editor: steht die Marke mitten in fremdem
+   * Inhalt, zieht der Editor den eingefuegten Block sonst dort hinein - aus
+   * dem Codeblock wird dann eine Zeile mit geschweiften Klammern bzw. Text
+   * mit Code-Auszeichnung, oder er haengt in einer Ueberschrift fest. Darum
+   * loest splitBlockAtCaret die Marke zuerst aus ihrem Block - der Block
+   * kommt so ohne Trenner-Absaetze an. Nur wenn das misslingt, greift die
+   * alte Rueckfallebene mit BLOCK_SEPARATOR.
    */
   function asOwnBlocks(surface, text, html) {
     var edges = blockEdges(surface);
+    var split = html ? splitBlockAtCaret(surface) : false;
+    // Nach erfolgreichem Teilen steht die Marke bereits auf einer
+    // Blockgrenze - die zusaetzlichen \n aus edges braucht dann nur noch
+    // der Text-Zweig, wenn das Teilen nicht gegriffen hat.
+    var atBoundary = !!split;
     return {
-      text: (edges.start ? '' : '\n') + text + (edges.end ? '' : '\n'),
-      html: html
-        ? (edges.start ? '' : BLOCK_SEPARATOR) + html + (edges.end ? '' : BLOCK_SEPARATOR)
-        : html
+      text: (atBoundary || edges.start ? '' : '\n') + text + (atBoundary || edges.end ? '' : '\n'),
+      html: !html || split
+        ? html
+        : (edges.start ? '' : BLOCK_SEPARATOR) + html + (edges.end ? '' : BLOCK_SEPARATOR),
+      undoSplit: split && split.undo ? split.undo : null
     };
   }
 
@@ -634,6 +796,10 @@
    * Fuegt Text in einen ProseMirror-Editor ein. Wir schicken ein synthetisches
    * paste-Event: der Editor verarbeitet es wie eine echte Einfuege-Aktion,
    * inklusive Undo-Historie.
+   *
+   * Merkt die Position hier bewusst nicht sofort wie insertIntoTextarea() das
+   * jetzt tut - der visuelle Rich-Text-Modus hat seinen eigenen Fehlerkreis
+   * (Issues #107-#109) und bleibt darum unveraendert.
    */
   function insertIntoRich(element, text, html, mode) {
     var live = surfaceHasFocus(element);
@@ -679,6 +845,17 @@
       }
     } catch (error) {
       /* aufgeben */
+    }
+
+    // Kein Einfuegeweg war erfolgreich - einen vorab geteilten Block wieder
+    // zusammenfuehren, damit kein halb geteilter Block ohne Blockmakro
+    // zurueckbleibt.
+    if (payload.undoSplit) {
+      try {
+        payload.undoSplit();
+      } catch (error) {
+        /* aufgeben */
+      }
     }
     return false;
   }

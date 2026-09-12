@@ -54,7 +54,9 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    *Ins Ticket einfuegen*, *Feld ersetzen*, *Markup kopieren* oder
    *Formatiert kopieren* (fuer den Rich-Text-Editor). Ueber
    *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Code
-   einfuegen*, *OTRS-Link* und *Panel aus Vorlage* gibt es auch hier.
+   einfuegen*, *OTRS-Link* und *Panel aus Vorlage* gibt es auch hier. Der
+   schwebende Button erscheint nur auf Seiten mit Eingabefeld oder auf
+   Vorgangsseiten.
 3. **Dialog "Code einfuegen"** – Sprache aus der Liste der von Jira
    unterstuetzten Sprachen waehlen, Code eintippen, fertigen Codeblock an der
    Cursorposition einsetzen. Zu erreichen ueber die Buttonleiste am Feld und
@@ -72,7 +74,11 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
 
 5. **Automatik beim Einfuegen** – wird mit `Strg+V` Text in ein Jira-Feld
    eingefuegt, der nach Markdown aussieht, wandelt die Erweiterung ihn direkt
-   beim Einfuegen um. `Strg+Z` macht das rueckgaengig.
+   beim Einfuegen um. `Strg+Z` nimmt die Umwandlung zurueck und laesst den vorher
+   getippten Text stehen; gilt fuer Textfelder im Markup-Modus. Erkennt die
+   Erweiterung bereits vorhandenes Jira-Markup in der Zwischenablage, laesst sie
+   den Text stehen und meldet das. Der Button *Umwandeln* konvertiert weiterhin
+   und weist darauf hin.
 
 Eingefuegt wird immer an der Cursorposition im Jira-Feld, auch wenn der Text
 vorher im Panel getippt wurde. Ist im Feld ein Rich-Text-Editor aktiv, kommt
@@ -87,6 +93,12 @@ Markup als Rueckfalltext daneben.
 Dazu kommen ein Symbolleisten-Popup (Konverter ohne Jira-Seite), ein
 Kontextmenue-Eintrag und das Tastenkuerzel `Strg+Umschalt+M`
 (macOS: `Cmd+Umschalt+M`), das die aktuelle Auswahl im Editor umwandelt.
+
+Das Kontextmenue steht nur auf freigegebenen Jira-Hosts zur Verfuegung; das
+Tastenkuerzel oeffnet ueberall das Panel ohne Feldleiste, schwebenden Button
+oder Einfrieren - diese Bedienelemente braucht es nur auf erkannten Jira-
+Instanzen. Der schwebende Button erscheint dabei nur auf Seiten mit Eingabefeld
+oder auf Vorgangsseiten.
 
 ## Code einfuegen
 
@@ -112,7 +124,7 @@ Der Code wird dabei nie durch den Markdown-Parser geschickt: `# Titel` oder
 | Feldtyp | Was ankommt |
 | --- | --- |
 | Textfeld (Wiki Style Renderer) | `{code:java} … {code}` |
-| Rich-Text-Editor | `<pre><code class="language-java"> … </code></pre>` |
+| Rich-Text-Editor | `<pre class="code panel" data-language="code-java"> … </pre>` |
 
 Derselbe Codeblock, einmal im Textfeld von Jira Server 9.12 und einmal im
 Rich-Text-Editor – eingesetzt an der Stelle, an der der Cursor stand:
@@ -160,7 +172,7 @@ Was ankommt, haengt am Feldtyp:
 | Feld | Ausgabe |
 | --- | --- |
 | reines Textfeld | `{panel:title=Info\|borderColor=#0052cc\|bgColor=#deebff} … {panel}` |
-| Rich-Text-Editor (TinyMCE, Textarea mit iframe) | dasselbe als HTML: ein `div` mit denselben Farben, Titel fett darueber |
+| Rich-Text-Editor (TinyMCE, Textarea mit iframe) | dasselbe als HTML: ein `div.plain.panel` mit `panel-title` und denselben Farben, die der Editor beim Speichern selbst nach `{panel}` zurueckwandelt |
 | ProseMirror-Editor (Jira Cloud, neuer Full Editor in Data Center) - ausser Scope, nicht gepflegt | Wiki-Markup wie oben, dazu ein Hinweis-Toast |
 
 Das ADF-Schema von ProseMirror kennt keinen frei gestylten Div-Rahmen; HTML wuerde beim Einfuegen auf nackten Absatztext zusammenfallen (Issue #64).
@@ -260,9 +272,11 @@ wird. Fuer Kommentar- und Umgebungsfelder gilt dasselbe.
 
 Solange das Schloss zu ist:
 
-* Ein Klick neben das Feld schliesst es nicht mehr – und die Seite reagiert
-  daneben auch sonst nicht auf Klicks. Genau das ist das Einfrieren: der
-  Vorgang bleibt so stehen, wie er ist.
+* Ein Klick neben das Feld schliesst es nicht mehr – Jira schliesst das Feld
+  nicht mehr, Toolbar, Dialoge, Speichern, Abbrechen und Escape ausserhalb des
+  Feldes bleiben bedienbar; nur Escape im Feld selbst ist gesperrt, solange das
+  Schloss zu ist. Der Vorgang bleibt so stehen, wie er ist.
+* Kleine Auswahlfelder (Labels, Versionen, Picker) frieren nie ein.
 * `Escape` bricht das Bearbeiten nicht ab.
 * Wer die Seite verlaesst oder neu laedt, wird vom Browser gefragt, ob er das
   wirklich will.
@@ -356,22 +370,29 @@ auf der Jira-Seite gar nichts:
 
 `http` und `https` sind beide abgedeckt, ein Port spielt keine Rolle
 (`http://jira:8080/` funktioniert also ebenso wie `https://jira.firma.de/`).
+Auf `http://`-Adressen funktioniert das Kopieren ueber einen Rueckfall (ohne Clipboard-API);
+das Lesen der Zwischenablage funktioniert dort nicht - bitte Strg+V benutzen.
 
 ## Umwandlungstabelle
 
 | Markdown (Azure DevOps) | Jira-Markup |
 | --- | --- |
 | `# H1` … `###### H6` | `h1.` … `h6.` |
+| `Titel`<br>`=====` | `h1. Titel` |
+| `Titel`<br>`-----` | `h2. Titel` |
 | `**fett**`, `__fett__` | `*fett*` |
 | `*kursiv*`, `_kursiv_` | `_kursiv_` |
 | `***beides***` | `*_beides_*` |
 | `~~durchgestrichen~~` | `-durchgestrichen-` |
-| `` `code` `` | `{{code}}` |
+| `` `code` `` | `{{code}}`; mit `{` oder `}` → `{noformat}…{noformat}` |
 | ```` ```java … ``` ```` | `{code:java} … {code}` |
 | eingerueckter Codeblock | `{noformat} … {noformat}` |
 | `[Text](url)` | `[Text\|url]` |
 | `![alt](url)` | `!url!` |
+| `![a](url =300x)` | `!url!` |
+| `[[_TOC_]]` | entfaellt |
 | `<https://…>` | `[https://…]` |
+| `<mail@x.de>` | `[mail@x.de\|mailto:mail@x.de]` |
 | `- a` / `1. a` (auch verschachtelt) | `* a` / `# a`, `**`, `*#` … |
 | `- [x] erledigt` / `- [ ] offen` | `* (/) erledigt` / `* (x) offen` |
 | Tabelle | `\|\|Kopf\|\|` und `\|Zelle\|` |
@@ -379,11 +400,20 @@ auf der Jira-Seite gar nichts:
 | `> [!NOTE]` … | `{panel:title=Hinweis} … {panel}` |
 | `---` | `----` |
 | `<br>`, `<b>`, `<i>`, `<code>` | `\\`, `*`, `_`, `{{…}}` |
+| `<div>`, `<span style>`, `<table>` | aufgeloest statt woertlich |
 
 Sprachnamen werden auf die von Jira unterstuetzten abgebildet (`js` →
 `javascript`, `yml` → `yaml`); unbekannte Sprachen fallen auf `{code}` zurueck.
-Inhalte von Code-Bloecken bleiben unangetastet, geschweifte Klammern im
-Fliesstext werden maskiert, damit Jira sie nicht als Makro liest.
+Inhalte von Code-Bloecken bleiben unangetastet, Sonderzeichen im Fliesstext
+werden maskiert (geschweifte Klammern, eckige Klammern und paarige
+Auszeichnungszeichen), damit Jira sie nicht als Markup liest. `\|` in einer
+Tabellenzelle kommt als literaler Strich an; ein roher Strich in
+Inline-Code trennt die Zelle wie in GitHub-Markdown.
+
+Senkrechte Striche in URLs werden kodiert (`%7C`), damit sie nicht die
+Tabellenspalten teilen. Zwei Leerzeichen oder ein Backslash am Zeilenende
+(`  ` oder `\\`) erzeugen einen harten Umbruch. Ein Codeblock innerhalb einer Liste landet hinter der
+Liste; `#`-Listen zaehlen danach neu.
 
 ## Jira Server / Data Center im Detail
 
@@ -394,7 +424,9 @@ eingefuegt.
 
 Die Buttonleiste erscheint direkt ueber dem Textfeld, unterhalb der
 Formatierungsleiste von Jira. Beim Inline-Bearbeiten baut Jira den Feldblock neu
-auf - die Leiste wandert mit und verschwindet zusammen mit dem Feld.
+auf - die Leiste wandert mit und verschwindet zusammen mit dem Feld. Sie kommt
+auch nach, wenn ein anfangs zu kleines oder verdecktes Feld gross genug wird -
+ohne dass das Ticket neu geladen werden muss.
 
 **Wichtig:** Jira zeigt Wiki-Markup nur an, wenn das jeweilige Feld den
 *Wiki Style Renderer* benutzt. Steht das Feld auf *Default Text Renderer*,
@@ -410,7 +442,9 @@ Ist in Jira Server / Data Center der Rich-Text-Editor eingeschaltet
 (`jira.rte.enabled`), blendet Jira die Textarea aus und legt einen
 TinyMCE-Editor darueber. Ein solcher Editor wuerde `h1. Titel` woertlich
 anzeigen, statt es als Ueberschrift zu setzen. Dasselbe gilt fuer den Editor
-von Jira Cloud. Dafuer gibt es zwei Wege, die sich kombinieren lassen:
+von Jira Cloud. Dafuer gibt es zwei Wege, die sich kombinieren lassen. Dieselben
+Einstellungen gelten auch fuer *In Jira einfuegen* aus dem
+Symbolleisten-Popup:
 
 ### Formatiert einfuegen (Voreinstellung)
 
@@ -434,11 +468,18 @@ Alternativ (Einstellung *Vorher auf den Markup-Modus umschalten*) sucht die
 Erweiterung den Umschalter des Feldes, klickt ihn, wartet bis die Textarea da
 ist, und fuegt dann Jira-Markup ein.
 
-Den Umschalter erkennt sie an bekannten Selektoren und andernfalls an der
-Beschriftung (*Markup*, *Quelltext*, *Bearbeitungsmodus*, *Visual*, *Source*
-...), weil Jira ihn je nach Version anders benennt. Wird keiner gefunden oder
-greift der Klick nicht, faellt die Erweiterung auf das formatierte Einfuegen
-zurueck - es geht also nichts verloren.
+Den Umschalter erkennt sie zuerst am Schaltflaechen-Selektor von Jira 9.12
+(`.editor-toggle-tabs li[data-mode="source"] button`, Beschriftung *Text*),
+dann an bekannten Selektoren aelterer Versionen und andernfalls an der
+Beschriftung (*Markup*, *Quelltext*, *Bearbeitungsmodus*, *klartext*,
+*plain text*, *text-modus* ...), weil Jira ihn je nach Version anders benennt.
+Wird keiner gefunden oder greift der Klick nicht, faellt die Erweiterung auf
+das formatierte Einfuegen zurueck - es geht also nichts verloren.
+
+Ein Klick auf *Text* ist eine **Nutzereinstellung** in Jira und gilt danach
+fuer alle Felder und alle Vorgaenge, bis wieder auf *Visual* umgestellt wird.
+Die Erweiterung schaltet bewusst nicht zurueck, weil der Rueckweg den gerade
+eingefuegten Text erneut durch die Umwandlung schicken wuerde.
 
 **Einschraenkung:** landet der Text dabei am Anfang des Feldes statt an der
 Cursorposition, liegt das am Umschalten selbst - die Schreibflaeche wechselt
@@ -455,19 +496,19 @@ sie waehrend des Tippens laufend mitgeschrieben (`selectionchange`, `mouseup`,
 `keyup`, `focusout`) und vor dem Einfuegen wiederhergestellt. Eine markierte
 Passage wird dabei ersetzt.
 
-Blockmakros wie `{code}` und `{panel}` deutet Jira nur am Zeilenanfang. Steht
-der Cursor mitten in einer Zeile, ruecken sie darum auf eine eigene Zeile, und
-der Text dahinter beginnt ebenfalls neu. Fliesstext wird weiterhin genau an der
-Cursorposition eingesetzt.
+Jira-Markup wie Ueberschriften, Listen, Tabellen, Blockzitate und Trennlinien
+deutet Jira nur am Zeilenanfang. Dasselbe gilt fuer Blockmakros wie `{code}`
+und `{panel}`. Steht der Cursor mitten in einer Zeile, ruecken sie darum auf
+eine eigene Zeile, und der Text dahinter beginnt ebenfalls neu. Einzeiliger
+Fliesstext wird weiterhin genau an der Cursorposition eingesetzt.
 
 Im Rich-Text-Editor gilt dasselbe, nur eine Ebene hoeher: dort braucht der
 Codeblock einen eigenen Block statt einer eigenen Zeile. Steht die Schreibmarke
-mitten in einem Absatz, legt die Erweiterung darum einen leeren Absatz davor
-und dahinter. Ohne diesen Trenner zieht der Editor den eingefuegten Block in
-den laufenden Absatz hinein - aus dem Codeblock wuerde eine Zeile mit
-geschweiften Klammern bzw. Text mit Code-Auszeichnung, aber kein Codeblock.
-Steht die Marke schon am Anfang oder am Ende ihres Absatzes, entfaellt der
-Trenner auf dieser Seite; im leeren Absatz kommt gar keiner dazu.
+mitten in einem Absatz, teilt die Erweiterung den Block an der Schreibmarke auf
+und setzt den Codeblock zwischen die beiden Teile - das verhindert, dass der
+Editor den eingefuegten Block in den laufenden Absatz hineinzieht. Misslang das
+Aufteilen, faellt die Erweiterung auf leere Absaetze davor und dahinter zurueck.
+Steht die Marke am Anfang oder am Ende ihres Absatzes, rueckt die Erweiterung die Schreibmarke nur vor bzw. hinter den Absatz und setzt gar keinen Trenner; im leeren Absatz greift die Rueckfallebene, dort kommt ebenfalls keiner dazu.
 
 Liegt der Fokus noch im Feld, gilt immer die aktuelle Auswahl - die gemerkte
 Position kommt nur zum Zug, wenn der Fokus das Feld verlassen hat. Im
@@ -488,7 +529,7 @@ Erreichbar ueber das Popup („Einstellungen") oder
   einfuegen oder Markdown durchreichen; dazu das Umschalten auf den
   Markup-Modus
 * Konvertierung: Codesprache uebernehmen, Hinweisbloecke als Panel, einfaches
-  HTML uebersetzen, geschweifte Klammern maskieren
+  HTML uebersetzen, Jira-Sonderzeichen maskieren
 * Eigene Jira-Adressen (Jira Server / Data Center)
 * OTRS-Link-Helfer an- und abschalten, Feldname der Kundenreferenz
 * Eigene Vorlagen anlegen, bearbeiten und loeschen (Titel, Markup,
@@ -576,7 +617,9 @@ convertBoth('# Titel');   // { jira: "h1. Titel", html: "<h1>Titel</h1>" }
 ```
 
 Beide Formate entstehen aus demselben Parser; die Ausgabe bestimmt ein
-Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`. Der
+Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`. Das
+HTML-Format liefert Codebloecke als `<pre class="code panel" data-language="code-...">`;
+im Rich-Text-Editor werden sie dadurch korrekt als echte Codebloecke eingefuegt. Der
 Code-Dialog nimmt genau diese Dialekte direkt (`dialects.jira.codeBlock`,
 `dialects.html.codeBlock`) und holt die Sprachliste aus `codeLanguages`, damit
 sie nur an einer Stelle gepflegt wird.

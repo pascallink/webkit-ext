@@ -1,11 +1,17 @@
 /**
  * Verdrahtung des OTRS-Link-Helfers in content.js: Panel-Button und
  * Feldleisten-Eintrag oeffnen den Dialog, ein vollstaendiger Durchlauf gegen
- * die AUI-Fixture endet mit Erfolgs- bzw. Warn-Toast, der Schalter
- * otrsHelper blendet beide Einstiegspunkte aus, ein Fehler im Ablauf zeigt
- * die Fehlermeldung. Scheitert der Ablauf erst nach dem Ueberschreiben der
- * Referenz, bleibt zusaetzlich zur Fehlermeldung die sticky Warnung mit dem
- * alten Feldwert stehen und der Dialog offen.
+ * den Nachbau von 9.12 (JIRA912) endet mit Erfolgs- bzw. Warn-Toast, der
+ * Schalter otrsHelper blendet beide Einstiegspunkte aus, ein Fehler im Ablauf
+ * zeigt die Fehlermeldung. Scheitert der Ablauf erst nach dem Ueberschreiben
+ * der Referenz, bleibt zusaetzlich zur Fehlermeldung die sticky Warnung mit
+ * dem alten Feldwert stehen und der Dialog offen.
+ * Laeuft gegen fixtures.JIRA912 (mock-jira-912-issue-view.html), nicht gegen
+ * die aeltere fixtures.OTRS (mock-jira-otrs.html): otrsflow.js/jiraui.js
+ * wurden fuer Issue #26 auf die echten 9.12.2-Selektoren umgestellt
+ * (#shifter-dialog, #modal-field-view, #wrap-labels, ui.submitForm() statt
+ * Button-Klick) - das aeltere OTRS-Fixture bildet die noch nicht nach und
+ * das JIRA912-Fixture ist bereits DOM-verifiziert (siehe otrsflow.test.js).
  * Aufruf: npm run test:otrs --prefix jira-markdown-converter
  */
 'use strict';
@@ -41,12 +47,11 @@ describe('OTRS-Link-Helfer - Verdrahtung im Content-Script', { skip: !hasPlaywri
     await page.close();
   });
 
-  test('vollstaendiger Durchlauf gegen die AUI-Fixture endet mit dem Erfolgstoast', async function () {
+  test('vollstaendiger Durchlauf gegen den Nachbau von 9.12 endet mit dem Erfolgstoast', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, fixtures.OTRS);
-    // Leeres Referenzfeld: nur der Erfolgstoast, keine zusaetzliche Warnung,
-    // die ihn ueberschreiben wuerde.
-    await page.evaluate(function () { window.__setCustomFieldValue(''); });
+    var page = await browserLib.newPage(browser, null, fixtures.JIRA912);
+    // customfield_10027 steht in der Fixture leer - nur der Erfolgstoast,
+    // keine zusaetzliche Warnung, die ihn ueberschreiben wuerde.
     await page.click('.jmd-fab');
     await page.click('.jmd-panel [data-action="otrs"]');
     await page.fill('#jmd-otrs-input', LINK);
@@ -62,8 +67,11 @@ describe('OTRS-Link-Helfer - Verdrahtung im Content-Script', { skip: !hasPlaywri
 
   test('belegtes Referenzfeld erzeugt zusaetzlich die Warnung samt altem Wert', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, fixtures.OTRS);
-    // Fixture-Standard: das Referenzfeld ist mit 'Alter Wert' vorbelegt.
+    var page = await browserLib.newPage(browser, null, fixtures.JIRA912);
+    // customfield_10027 startet leer in der Fixture - fuer diesen Fall vorbelegen.
+    await page.evaluate(function () {
+      document.getElementById('customfield_10027').value = 'Alter Wert';
+    });
     await page.click('.jmd-fab');
     await page.click('.jmd-panel [data-action="otrs"]');
     await page.fill('#jmd-otrs-input', LINK);
@@ -115,11 +123,21 @@ describe('OTRS-Link-Helfer - Verdrahtung im Content-Script', { skip: !hasPlaywri
 
   test('Fehler im Ablauf zeigt die Fehlermeldung als Fehler-Toast', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, fixtures.OTRS);
+    var page = await browserLib.newPage(browser, null, fixtures.JIRA912);
+    // Kuerzel 'l'/'.' in der Capture-Phase abfangen (wie otrsflow.test.js
+    // "ohne Shortcuts") und beide Fallback-Trigger fuer Labels entfernen -
+    // openLabelDialogFallback() findet dann keinen Weg mehr zum Dialog.
     await page.evaluate(function () {
-      window.__suppressShortcuts = true;
-      var trigger = document.getElementById('edit-labels');
-      if (trigger && trigger.parentNode) trigger.parentNode.removeChild(trigger);
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'l' || event.key === '.') {
+          event.stopImmediatePropagation();
+          event.preventDefault();
+        }
+      }, true);
+      var wrap = document.querySelector('#wrap-labels .labels-wrap');
+      if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap);
+      var editLabels = document.getElementById('edit-labels');
+      if (editLabels && editLabels.parentNode) editLabels.parentNode.removeChild(editLabels);
     });
     await page.click('.jmd-fab');
     await page.click('.jmd-panel [data-action="otrs"]');
@@ -136,18 +154,20 @@ describe('OTRS-Link-Helfer - Verdrahtung im Content-Script', { skip: !hasPlaywri
 
   test('Fehler nach dem Ueberschreiben der Referenz zeigt sticky Warnung und laesst den Dialog offen', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, fixtures.OTRS);
-    // Fixture-Standard: das Referenzfeld ist mit 'Alter Wert' vorbelegt.
-    // Klicks im Custom-Field-Dialog werden in der Capture-Phase abgefangen,
-    // bevor der Bubble-Listener der Fixture den Dialog entfernt - Kennzeichen
-    // (Schritt 1) und das Schreiben der Referenz (Schritt 2) laufen durch,
-    // das anschliessende waitForGone auf #customfield-dialog (Schritt 3)
-    // aber nicht.
+    var page = await browserLib.newPage(browser, null, fixtures.JIRA912);
+    // customfield_10027 vorbelegen wie otrsflow.test.js. submitForm() loest
+    // in 9.12 ein 'submit'-Ereignis aus (kein Button-Klick mehr) - das wird
+    // hier in der Capture-Phase abgefangen, bevor der Bubble-Handler der
+    // Fixture #modal-field-view schliesst und die Referenz speichert:
+    // Kennzeichen (Schritt 1) laeuft durch, das anschliessende waitForGone
+    // auf #modal-field-view (Schritt 2) aber nicht.
     await page.evaluate(function () {
-      document.addEventListener('click', function (event) {
+      document.getElementById('customfield_10027').value = 'Alter Wert';
+      document.addEventListener('submit', function (event) {
         var target = event.target;
-        if (target && target.closest && target.closest('#customfield-dialog')) {
+        if (target && target.closest && target.closest('#modal-field-view')) {
           event.stopImmediatePropagation();
+          event.preventDefault();
         }
       }, true);
     });

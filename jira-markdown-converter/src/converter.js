@@ -24,7 +24,9 @@
   var PLACEHOLDER_LINE_RE = new RegExp('^\\s*' + S + 'P\\d+' + S + '\\s*$');
 
   var DEFAULT_OPTIONS = {
-    // { und } im Fliesstext maskieren, damit Jira sie nicht als Makro liest.
+    // Jira-Sonderzeichen im Fliesstext maskieren: {} und [] immer (Makro-
+    // Kopf bzw. Kurzlink), dazu paarige Auszeichnungszeichen (- ~ ^ + und
+    // die Folge ??), damit Jira sie nicht als Markup liest.
     escapeBraces: true,
     // Sprach-Hint aus Fenced-Code-Bloecken uebernehmen ({code:java}).
     keepCodeLanguage: true,
@@ -113,15 +115,100 @@
     return value;
   }
 
+  // Zeichen, die Jira 9.12.2 im Fliesstext als Markup deutet:
+  //   {  }  Makro-Kopf/-Ende ({code}, {color}, ...) - wirkt schon einzeln.
+  //   [  ]  Kurzlink bzw. Referenz ([Text|url], [Text]) - wirkt schon einzeln.
+  //   -  -  Durchstreichung, nur paarig (-text-).
+  //   ~  ~  Tiefstellung, nur paarig (~text~).
+  //   ^  ^  Hochstellung, nur paarig (^text^).
+  //   +  +  Unterstreichung, nur paarig (+text+).
+  //   ?? ?? Zitat, nur paarig (??text??).
+  // {} und [] werden deshalb bedingungslos maskiert, die paarigen Zeichen
+  // nur, wenn ein echtes Paar erkennbar ist (siehe escapePairedMark) - ein
+  // einzelner Gedankenstrich oder ein Datum soll nicht ploetzlich rot werden.
+  // Im Zweifel wird maskiert: ein ueberfluessiger Backslash bleibt in Jira
+  // unsichtbar, ein fehlender faerbt den Text rot oder loest ungewolltes
+  // Markup aus.
+  // Ausnahmen von der bedingungslosen Klammer-Maskierung - Jira-eigene
+  // Kurzformen, die sonst ihre Funktion verlieren wuerden:
+  //   [~name]   Erwaehnung eines Benutzers.
+  //   [^datei]  Anhangverweis.
+  //   [#anker]  Ankerlink.
+  var JIRA_ESCAPE_CHARS = '{}[]-~^+';
+  var JIRA_LINK_FORM_RE = /\[[~^#][^\[\]\n]*\]/;
+  var JIRA_UNCONDITIONAL_ESCAPE_RE = new RegExp(
+    JIRA_LINK_FORM_RE.source + '|[{}\\[\\]]',
+    'g'
+  );
+  var JIRA_PAIRED_MARKERS = ['-', '~', '^', '+', '??'];
+
+  function isJiraEscapeChar(ch) {
+    return JIRA_ESCAPE_CHARS.indexOf(ch) !== -1;
+  }
+
+  function escapeRegExpLiteral(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  // Innerhalb einer Zeichenklasse [^...] brauchen \, ], ^ und - eine eigene
+  // Maskierung - anders als im Rest eines Regex-Musters.
+  function escapeRegExpClassChar(ch) {
+    return ch.replace(/[\\\]^-]/g, '\\$&');
+  }
+
+  function backslashEachChar(str) {
+    return str.replace(/[\s\S]/g, function (ch) {
+      return '\\' + ch;
+    });
+  }
+
+  /**
+   * Maskiert ein paariges Auszeichnungszeichen (oder die Folge '??'), aber
+   * nur bei einem echten Paar: oeffnendes Zeichen direkt vor einem
+   * Nicht-Leerzeichen, schliessendes Zeichen direkt hinter einem
+   * Nicht-Leerzeichen und vor Zeilenende, Leerraum oder Satzzeichen, kein
+   * Umbruch dazwischen. Das Innere darf das Markerzeichen selbst nicht
+   * enthalten - sonst wuerde bei 'C++ und C++' das erste Pluspaar bis zum
+   * zweiten durchgreifen, obwohl beide Vorkommen nur direkt aneinander-
+   * stehende, unpaarige C++-Zeichen sind.
+   */
+  function escapePairedMark(text, marker) {
+    var open = escapeRegExpLiteral(marker);
+    var innerExclude = escapeRegExpClassChar(marker.charAt(0));
+    var re = new RegExp(
+      open + '(?=\\S)([^' + innerExclude + '\\n]*?[^' + innerExclude + '\\s\\n])' + open +
+      '(?=$|[\\s.,;:!?)\\]}])',
+      'g'
+    );
+    return text.replace(re, function (match, inner) {
+      return backslashEachChar(marker) + inner + backslashEachChar(marker);
+    });
+  }
+
+  function escapePairedMarks(text) {
+    for (var i = 0; i < JIRA_PAIRED_MARKERS.length; i++) {
+      text = escapePairedMark(text, JIRA_PAIRED_MARKERS[i]);
+    }
+    return text;
+  }
+
   var JIRA_DIALECT = {
     name: 'jira',
     escapeLiteral: function (ch) {
-      return ch === '{' || ch === '}' ? '\\' + ch : ch;
+      return isJiraEscapeChar(ch) ? '\\' + ch : ch;
     },
     escapeText: function (text, options) {
       if (!options.escapeBraces) return text;
-      return text.replace(/[{}]/g, function (ch) {
-        return '\\' + ch;
+      // a) paarige Auszeichnungszeichen zuerst - sie pruefen auf
+      //    Nicht-Leerzeichen-Nachbarn, das duerfen die gleich danach
+      //    eingefuegten Backslashes vor {}/[] nicht durcheinanderbringen.
+      text = escapePairedMarks(text);
+      // b) danach die unbedingten Zeichen {}/[] - ausser bei den Jira-
+      //    Kurzformen [~...], [^...] und [#...] (siehe JIRA_LINK_FORM_RE),
+      //    die unveraendert bleiben muessen.
+      return text.replace(JIRA_UNCONDITIONAL_ESCAPE_RE, function (match) {
+        if (match.length > 1) return match;
+        return '\\' + match;
       });
     },
     mark: function (kind) {
@@ -147,14 +234,45 @@
     },
     hardBreak: '\\\\',
     htmlBreak: '\\\\',
+    // Fortsetzungsabsatz in einer Liste (Leerzeile, dann eingerueckter Text
+    // ohne Marker) haengt mit dem gleichen harten Umbruch wie '\\' am Zeilenende an.
+    itemBreak: '\\\\',
+    // '{{...}}' ist Jira-Monospace, aber Jira parst dessen Inhalt weiter:
+    // stecken darin geschweifte Klammern, entstehen verschachtelte oder
+    // unbalancierte Klammern (aus '{{key}}' wird '{{{{key}}}}'). Maskieren
+    // mit '\{' traegt in 9.12.2 nicht - Jira rendert die Maskierung dann
+    // woertlich mit ('{{<tt>key</tt>}}') statt sie zu entfernen. Einziger
+    // Ausweg: {noformat} als Block-Ersatz, der seinen Inhalt nicht weiter
+    // parst. Enthaelt der Text selbst schon '{noformat}', laesst sich
+    // nichts mehr retten - dann bleibt es bei der alten (kaputten) Form,
+    // statt ein zweites kaputtes Muster zu erzeugen.
     code: function (text) {
+      if (/[{}]/.test(text) && text.indexOf('{noformat}') === -1) {
+        return '{noformat}' + text + '{noformat}';
+      }
       return '{{' + text + '}}';
     },
     link: function (label, url) {
-      if (!label || label === url) return '[' + url + ']';
-      return '[' + label.replace(/\|/g, '\\|') + '|' + url + ']';
+      // Ein roher Strich in der URL wuerde als Attribut-/Label-Trenner
+      // gedeutet - nur die URL wird kodiert, die bestehende Strich-
+      // Maskierung im Label (siehe unten) bleibt unberuehrt.
+      var target = url.replace(/\|/g, '%7C');
+      if (!label || label === url) return '[' + target + ']';
+      // Ein schon maskierter Strich (Tabellenzelle, cellPipe) bleibt
+      // einfach maskiert; nur ein roher Strich wird neu maskiert. Der
+      // Trenner zwischen Label und Ziel bleibt davon unberuehrt.
+      return '[' + label.replace(/\\?\|/g, '\\|') + '|' + target + ']';
     },
+    // Azure DevOps legt Anhaenge unter einem relativen Pfad ab
+    // ('/.attachments/<guid>' bzw. './...') - der Host ist nur in ADO
+    // gueltig, in Jira waere so ein Pfad tot. '!name!' loest Jira erst nach
+    // dem manuellen Hochladen ueber den Dateinamen im Ticket auf, darum
+    // bleibt bei einem relativen Pfad nur der Dateiname stehen. Absolute
+    // URLs (mit Schema oder protokollrelativ '//host/...') bleiben unberuehrt.
     image: function (url) {
+      if (/^(?:\.\/|\/(?!\/))/.test(url)) {
+        return '!' + url.split('/').pop() + '!';
+      }
       return '!' + url + '!';
     },
     heading: function (level, text) {
@@ -184,6 +302,9 @@
       }
       return out.join('\n');
     },
+    // Jira 9.12.2 liest '\|' in einer Tabellenzelle als literalen Strich -
+    // ohne Maskierung wuerde er als Spaltentrenner gedeutet.
+    cellPipe: '\\|',
     list: function (items) {
       var out = [];
       for (var i = 0; i < items.length; i++) {
@@ -236,6 +357,8 @@
     // <br> wuerde eine Leerzeile erzeugen.
     hardBreak: '',
     htmlBreak: '<br>',
+    // Fortsetzungsabsatz in einer Liste bleibt im selben <li>, getrennt durch <br>.
+    itemBreak: '<br>',
     code: function (text) {
       return '<code>' + escapeHtml(text) + '</code>';
     },
@@ -259,12 +382,15 @@
     paragraph: function (lines) {
       return '<p>' + lines.join('<br>\n') + '</p>';
     },
+    // TinyMCE in 9.12 packt fremde <pre> aus, darum die Panel-Klassen -
+    // so uebernimmt der Editor den Codeblock unveraendert (siehe JIRA912-Fixture).
     codeBlock: function (language, body) {
-      var open = language ? '<pre><code class="language-' + escapeAttribute(language) + '">' : '<pre><code>';
-      return open + escapeHtml(body) + '</code></pre>';
+      var lang = language ? ' data-language="code-' + escapeAttribute(language) + '"' : '';
+      return '<pre class="code panel" style="border-width: 1px;"' + lang + '>' +
+        escapeHtml(body) + '\n</pre>';
     },
     preBlock: function (body) {
-      return '<pre>' + escapeHtml(body) + '</pre>';
+      return '<pre class="noformat panel" style="border-width: 1px;">' + escapeHtml(body) + '\n</pre>';
     },
     quote: function (inner, title) {
       var head = title ? '<p><strong>' + escapeHtml(title) + '</strong></p>\n' : '';
@@ -287,6 +413,8 @@
       out.push('</tbody>', '</table>');
       return out.join('');
     },
+    // Im HTML-<td> braucht ein Strich keine Maskierung.
+    cellPipe: '|',
     list: function (items) {
       var out = [];
       var open = [];      // 'ul' / 'ol' je Ebene
@@ -383,19 +511,20 @@
 
   /**
    * Dieselbe Vorlage als HTML - fuer den Rich-Text-Editor, der Wiki-Markup
-   * woertlich stehen lassen wuerde. Statt eines umlaufenden Rahmens traegt
-   * nur die linke Kante die Statusfarbe - modernere Jira-Panels blenden den
-   * vollen Rahmen ebenfalls aus.
+   * woertlich stehen lassen wuerde. Kein eigener Akzentbalken mehr: TinyMCE
+   * in 9.12 raeumt bei jedem div ein fremdes style-Attribut ab und akzeptiert
+   * nur diese Form, die es beim Speichern selbst wieder nach
+   * {panel:title=...|borderColor=...|bgColor=...} zurueckwandelt.
    */
   function panelHtml(template, body) {
     if (!template) return '';
     var border = panelColor(template.borderColor) || '#dfe1e6';
     var background = panelColor(template.bgColor) || '#f4f5f7';
-    var style = 'border-left: 4px solid ' + border + '; border-radius: 0 6px 6px 0;' +
-      ' background-color: ' + background + '; padding: 12px 16px; margin: 12px 0;';
+    var divStyle = 'background-color: ' + background + '; border-color: ' + border + '; border-width: 1px;';
     var title = panelTitle(template.title);
-    var head = title ? '<p><strong>' + escapeHtml(title) + '</strong></p>' : '';
-    return '<div style="' + escapeAttribute(style) + '">' + head +
+    var head = title ? '<panel-title style="' + escapeAttribute('border-bottom-width: 1px; border-bottom-color: ' +
+      border + '; background-color: ' + background + ';') + '">' + escapeHtml(title) + '</panel-title>' : '';
+    return '<div class="plain panel" style="' + escapeAttribute(divStyle) + '">' + head +
       '<p>' + escapeHtml(panelBody(template, body)) + '</p></div>';
   }
 
@@ -456,6 +585,19 @@
     return /^\s*$/.test(line);
   }
 
+  /**
+   * Liest den Wert eines HTML-Attributs aus einer Attribut-Zeichenkette
+   * (der Rest eines Tags nach dem Namen), einfache oder doppelte
+   * Anfuehrungszeichen. Kein voller HTML-Parser - reicht fuer die schlichten
+   * Tags, die Azure DevOps beim Kopieren erzeugt.
+   */
+  function attrValue(attrs, name) {
+    var re = new RegExp(name + '\\s*=\\s*"([^"]*)"|' + name + '\\s*=\\s*\'([^\']*)\'', 'i');
+    var match = re.exec(attrs || '');
+    if (!match) return '';
+    return match[1] !== undefined ? match[1] : match[2];
+  }
+
   function isHorizontalRule(line) {
     return /^ {0,3}([-*_])[ \t]*(?:\1[ \t]*){2,}$/.test(line);
   }
@@ -478,7 +620,9 @@
     for (var i = 0; i < row.length; i++) {
       var ch = row.charAt(i);
       if (ch === '\\' && row.charAt(i + 1) === '|') {
-        current += '|';
+        // Maskierter Strich bleibt maskiert - erst convertInline() (mit
+        // gesetztem ctx.inTableCell) entscheidet, was daraus wird.
+        current += '\\|';
         i++;
       } else if (ch === '|') {
         cells.push(current.trim());
@@ -500,8 +644,13 @@
     var ph = ctx.placeholders;
     var d = ctx.dialect;
 
-    // 1. Markdown-Escapes (\* \_ \# ...) sichern.
+    // 1. Markdown-Escapes (\* \_ \# ...) sichern. In einer Tabellenzelle
+    //    bleibt ein maskierter Strich als Trenner-Kennzeichen erhalten
+    //    (cellPipe) statt als roher Strich - sonst verschiebt splitTableRow()
+    //    beim naechsten Durchlauf die Spalten (Issue #94). Das gilt auch
+    //    innerhalb von {{...}}, da diese Ersetzung vor Schritt 2 laeuft.
     text = text.replace(/\\([\\`*_{}\[\]()#+\-.!|~>])/g, function (match, ch) {
+      if (ch === '|' && ctx.inTableCell) return ph.add(d.cellPipe);
       return ph.add(d.escapeLiteral(ch));
     });
 
@@ -532,10 +681,63 @@
         .replace(/<\/?(?:s|del|strike)>/gi, tag('strike'))
         .replace(/<\/?sub>/gi, tag('sub'))
         .replace(/<\/?sup>/gi, tag('sup'));
+
+      // Fremde Tags aus Azure DevOps (div, span, img, details, summary ...)
+      // nur im Jira-Dialekt aufloesen - der HTML-Dialekt maskiert rohes HTML
+      // bewusst, damit im Rich-Text-Editor kein fremdes Markup ausgefuehrt
+      // wird (siehe html.test.js, 'roher HTML-Text wird nicht durchgereicht').
+      if (d.name === 'jira') {
+        // <img src="..." ...> -> dieselbe Bild-Regel wie beim Markdown-Bild.
+        text = text.replace(/<img\b([^>]*)>/gi, function (match, attrs) {
+          var src = attrValue(attrs, 'src');
+          if (!src) return match;
+          return ph.add(d.image(src, attrValue(attrs, 'alt')));
+        });
+
+        // <span style="color:X">...</span> -> Jira-Farbmakro. Nur ein
+        // Farbwort oder #rrggbb/#rgb aus dem style-Attribut wird
+        // uebernommen - alles andere im Attribut wird stillschweigend
+        // verworfen, ein eigener CSS-Parser lohnt hier nicht. Nur die beiden
+        // Farbmarker gehen in einen Platzhalter, der Innentext bleibt roher
+        // Text im Fluss und laeuft dadurch noch durch die Schritte 4 bis 10
+        // (Links, Textauszeichnungen, escapeText).
+        text = text.replace(/<span\b([^>]*)>([\s\S]*?)<\/span>/gi, function (match, attrs, inner) {
+          var style = attrValue(attrs, 'style');
+          var color = /color\s*:\s*(#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?|[a-zA-Z]+)/.exec(style);
+          if (!color) return match;
+          return ph.add('{color:' + color[1] + '}') + inner + ph.add('{color}');
+        });
+
+        // Alles andere an Tags entfernen, Inhalt behalten - aber nur die
+        // Tags, die Azure DevOps beim Kopieren tatsaechlich liefert. Eine
+        // generische '<wort>'-Regel wuerde auch von Nutzern getippten Text
+        // wie '<Name>' oder 'List<String>' verschlucken (Issue #99), darum
+        // eine Positivliste statt eines allgemeinen Tag-Musters. Ein
+        // schliessendes Tag wird zu einem Leerzeichen, sonst liefen
+        // getrennte Elemente wie '<summary>Mehr</summary>Inhalt' zu einem
+        // Wort zusammen.
+        var adoTags = 'div|span|p|details|summary|table|thead|tbody|tr|th|td|ul|ol|li|font|img|a';
+        text = text.replace(new RegExp('<\\/(?:' + adoTags + ')\\s*>', 'gi'), ' ');
+        text = text.replace(new RegExp('<(?:' + adoTags + ')(?:\\s[^<>]*)?\\/?>', 'gi'), '');
+      }
     }
 
+    // 3b. Azure-DevOps-Erwaehnungen: ADO speichert eine @-Erwaehnung als
+    //     '@<GUID>' (Format 8-4-4-4-12), Jira loest diese GUID nicht auf.
+    //     Folgt direkt ein Name (Grossbuchstabe), bleibt '@Name' als
+    //     einfacher Text stehen; sonst faellt die Erwaehnung samt einem
+    //     folgenden Leerzeichen komplett weg. Nur diese GUID-Form ist
+    //     gemeint - ein normales '@' (E-Mail, "3 @ 5") bleibt unberuehrt.
+    var guidPart = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}';
+    text = text.replace(new RegExp('@<' + guidPart + '>[ \\t]+(?=[A-Z])', 'g'), '@');
+    text = text.replace(new RegExp('@<' + guidPart + '>[ \\t]?', 'g'), '');
+
     // 4. Bilder: ![alt](url) -> !url!
-    text = text.replace(/!\[([^\]]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?\s*\)/g, function (match, alt, url) {
+    // Azure DevOps haengt beim Kopieren ein Groessensuffix '=BreitexHoehe'
+    // an, die Hoehe ist dabei optional ('=300x' oder '=300x200') - Jira
+    // 9.12 kennt das nicht, darum wird es hier nur erkannt und verworfen,
+    // nicht gespeichert.
+    text = text.replace(/!\[([^\]]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?(?:\s+=\d+x\d*)?\s*\)/g, function (match, alt, url) {
       return ph.add(d.image(url, alt));
     });
 
@@ -565,7 +767,9 @@
       return ph.add(d.link('', url));
     });
     text = text.replace(/<([^@<>\s]+@[^@<>\s]+\.[^@<>\s]+)>/g, function (match, mail) {
-      return ph.add(d.link('', 'mailto:' + mail));
+      // Adresse vor dem Einsetzen als Label maskieren - sonst geht sie im
+      // HTML-Dialekt roh in HTML_DIALECT.link (label || escapeHtml(url)).
+      return ph.add(d.link(d.escapeText(mail, ctx.options), 'mailto:' + mail));
     });
 
     // 9. Textauszeichnungen. Die erzeugten Jira-Zeichen werden als Platzhalter
@@ -602,10 +806,13 @@
     //     erzeugtes Markup steckt in Platzhaltern und bleibt unberuehrt.
     text = d.escapeText(text, ctx.options);
 
-    // 11. Harter Umbruch: zwei Leerzeichen am Zeilenende.
-    if (d.hardBreak) {
-      text = text.replace(/[ \t]{2,}$/, function () { return ph.add(d.hardBreak); });
-    }
+    // 11. Harter Umbruch: zwei Leerzeichen oder ein Backslash am Zeilenende.
+    //     escapeText() (Schritt 10) fasst einen einzelnen Backslash nicht an
+    //     (kein Jira-Escape-Zeichen), darum darf die Ersetzung hier stehen
+    //     bleiben. Im HTML-Dialekt ist hardBreak leer - der Platzhalter loest
+    //     sich dann in nichts auf, der Backslash faellt weg, <br> kommt schon
+    //     aus paragraph().
+    text = text.replace(/(?:[ \t]{2,}|\\)$/, function () { return ph.add(d.hardBreak); });
 
     return ph.restore(text);
   }
@@ -616,7 +823,10 @@
     if (!hasScheme && /^www\./i.test(target)) target = 'http://' + target;
     if (!hasScheme && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(target)) target = 'mailto:' + target;
     var text = String(label == null ? '' : label).trim();
-    if (!text || text === url.trim()) {
+    // Nur kollabieren, wenn das Label dem tatsaechlichen Ziel entspricht -
+    // wurde erst hier ein Schema ergaenzt (mailto:, http:// bei www.), bleibt
+    // das Label sichtbar, sonst zeigte der Link nur noch die rohe URL an.
+    if (!text || text === target) {
       return ctx.dialect.link('', target);
     }
     // Das Label kann selbst Markup enthalten (z. B. **fett**).
@@ -724,100 +934,142 @@
     var i = 0;
 
     while (i < lines.length) {
+      var before = i;
       var line = lines[i];
 
-      // Platzhalter (Codeblock) unveraendert uebernehmen.
-      if (PLACEHOLDER_ONLY_RE.test(line.trim())) {
-        out.push(line.trim());
-        i++;
-        continue;
-      }
-
-      if (isBlank(line)) {
-        out.push('');
-        i++;
-        continue;
-      }
-
-      if (isHorizontalRule(line)) {
-        out.push(ctx.dialect.rule());
-        i++;
-        continue;
-      }
-
-      // ATX-Ueberschrift: # ... ###### -> h1. ... h6.
-      var heading = /^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
-      if (heading) {
-        out.push(ctx.dialect.heading(heading[1].length, convertInline(heading[2], ctx)));
-        i++;
-        continue;
-      }
-      var emptyHeading = /^ {0,3}(#{1,6})[ \t]*$/.exec(line);
-      if (emptyHeading) {
-        out.push(ctx.dialect.heading(emptyHeading[1].length, ''));
-        i++;
-        continue;
-      }
-
-      // Setext-Ueberschrift (Text mit === bzw. --- darunter).
-      var next = lines[i + 1];
-      if (next !== undefined && !isListStart(line)) {
-        if (/^ {0,3}={2,}\s*$/.test(next)) {
-          out.push(ctx.dialect.heading(1, convertInline(line.trim(), ctx)));
-          i += 2;
-          continue;
-        }
-        if (/^ {0,3}-{2,}\s*$/.test(next) && line.indexOf('|') === -1 && !/^ {0,3}>/.test(line)) {
-          out.push(ctx.dialect.heading(2, convertInline(line.trim(), ctx)));
-          i += 2;
-          continue;
-        }
-      }
-
-      // Tabelle
-      if (line.indexOf('|') !== -1 && lines[i + 1] !== undefined && isTableDelimiter(lines[i + 1])) {
-        var table = readTable(lines, i, ctx);
-        out.push(table.text);
-        i = table.next;
-        continue;
-      }
-
-      // Zitat / Alert
-      if (/^ {0,3}>/.test(line)) {
-        var quote = readQuote(lines, i, ctx);
-        out.push(quote.text);
-        i = quote.next;
-        continue;
-      }
-
-      // Listen
-      if (isListStart(line)) {
-        var list = readList(lines, i, ctx);
-        out.push(list.text);
-        i = list.next;
-        continue;
-      }
-
-      // Absatz
-      var paragraph = [];
-      while (i < lines.length && !isBlank(lines[i]) && !isHorizontalRule(lines[i]) &&
-             !/^ {0,3}#{1,6}(?:[ \t]|$)/.test(lines[i]) && !/^ {0,3}>/.test(lines[i]) &&
-             !isListStart(lines[i]) && !PLACEHOLDER_ONLY_RE.test(lines[i].trim())) {
-        var following = lines[i + 1];
-        if (following !== undefined && (/^ {0,3}={2,}\s*$/.test(following) ||
-            (/^ {0,3}-{2,}\s*$/.test(following) && lines[i].indexOf('|') === -1))) {
+      // Alle Zweige stehen in einem do-while(false)-Block: `break` verlaesst
+      // den Zweig, laesst aber immer die harte Sicherung danach laufen -
+      // damit kann kein Zweig (auch kein `i = xyz.next` aus Liste, Zitat
+      // oder Tabelle) an der Sicherung vorbei zurueck in die Schleife.
+      do {
+        // Platzhalter (Codeblock) unveraendert uebernehmen.
+        if (PLACEHOLDER_ONLY_RE.test(line.trim())) {
+          out.push(line.trim());
+          i++;
           break;
         }
-        if (lines[i].indexOf('|') !== -1 && following !== undefined && isTableDelimiter(following)) {
+
+        if (isBlank(line)) {
+          out.push('');
+          i++;
           break;
         }
-        paragraph.push(convertInline(lines[i], ctx));
-        i++;
-      }
-      if (paragraph.length) {
-        out.push(ctx.dialect.paragraph(paragraph));
-      } else {
-        // Sicherheitsnetz gegen Endlosschleifen.
+
+        if (isHorizontalRule(line)) {
+          out.push(ctx.dialect.rule());
+          i++;
+          break;
+        }
+
+        // Azure-DevOps-Inhaltsverzeichnis: Beim Kopieren aus dem Wiki
+        // landet die Zeile '[[_TOC_]]' im Markdown. Jira baut sein
+        // Inhaltsverzeichnis selbst (Makro {toc}), der Marker waere hier
+        // nur toter Text - Zeile ohne Ausgabe verwerfen, finish() raeumt
+        // die dadurch entstehende doppelte Leerzeile schon auf.
+        if (line.trim() === '[[_TOC_]]') {
+          i++;
+          break;
+        }
+
+        // Rohe HTML-Tabelle aus Azure DevOps: nur im Jira-Dialekt und nur
+        // bei aktivierter HTML-Umwandlung - sonst bleibt die Zeile Klartext
+        // und wird wie bisher escaped (siehe html.test.js). Passt das
+        // Muster nicht (verschachtelte Tabelle, colspan, kein Ende
+        // gefunden), faellt der Zweig durch und die Zeile laeuft weiter
+        // wie zuvor.
+        if (ctx.options.convertHtml && ctx.dialect.name === 'jira' && /^<table\b/i.test(line.trim())) {
+          var htmlTable = readHtmlTable(lines, i, ctx);
+          if (htmlTable) {
+            out.push(htmlTable.text);
+            i = htmlTable.next;
+            break;
+          }
+        }
+
+        // ATX-Ueberschrift: # ... ###### -> h1. ... h6.
+        var heading = /^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
+        if (heading) {
+          out.push(ctx.dialect.heading(heading[1].length, convertInline(heading[2], ctx)));
+          i++;
+          break;
+        }
+        var emptyHeading = /^ {0,3}(#{1,6})[ \t]*$/.exec(line);
+        if (emptyHeading) {
+          out.push(ctx.dialect.heading(emptyHeading[1].length, ''));
+          i++;
+          break;
+        }
+
+        // Setext-Ueberschrift (Text mit === bzw. --- darunter).
+        var next = lines[i + 1];
+        if (next !== undefined && !isListStart(line)) {
+          if (/^ {0,3}={2,}\s*$/.test(next)) {
+            out.push(ctx.dialect.heading(1, convertInline(line.trim(), ctx)));
+            i += 2;
+            break;
+          }
+          if (/^ {0,3}-{2,}\s*$/.test(next) && line.indexOf('|') === -1 && !/^ {0,3}>/.test(line)) {
+            out.push(ctx.dialect.heading(2, convertInline(line.trim(), ctx)));
+            i += 2;
+            break;
+          }
+        }
+
+        // Tabelle
+        if (line.indexOf('|') !== -1 && lines[i + 1] !== undefined && isTableDelimiter(lines[i + 1])) {
+          var table = readTable(lines, i, ctx);
+          out.push(table.text);
+          i = table.next;
+          break;
+        }
+
+        // Zitat / Alert
+        if (/^ {0,3}>/.test(line)) {
+          var quote = readQuote(lines, i, ctx);
+          out.push(quote.text);
+          i = quote.next;
+          break;
+        }
+
+        // Listen
+        if (isListStart(line)) {
+          var list = readList(lines, i, ctx);
+          out.push(list.text);
+          i = list.next;
+          break;
+        }
+
+        // Absatz
+        var paragraph = [];
+        while (i < lines.length && !isBlank(lines[i]) && !isHorizontalRule(lines[i]) &&
+               !/^ {0,3}#{1,6}(?:[ \t]|$)/.test(lines[i]) && !/^ {0,3}>/.test(lines[i]) &&
+               !isListStart(lines[i]) && !PLACEHOLDER_ONLY_RE.test(lines[i].trim())) {
+          var following = lines[i + 1];
+          if (following !== undefined && (/^ {0,3}={2,}\s*$/.test(following) ||
+              (/^ {0,3}-{2,}\s*$/.test(following) && lines[i].indexOf('|') === -1))) {
+            break;
+          }
+          if (lines[i].indexOf('|') !== -1 && following !== undefined && isTableDelimiter(following)) {
+            break;
+          }
+          paragraph.push(convertInline(lines[i], ctx));
+          i++;
+        }
+        if (paragraph.length) {
+          out.push(ctx.dialect.paragraph(paragraph));
+        } else {
+          // Sicherheitsnetz gegen Endlosschleifen.
+          out.push(ctx.dialect.paragraph([convertInline(lines[i], ctx)]));
+          i++;
+        }
+      } while (false);
+
+      // Harte Sicherung: bleibt i in einem Durchlauf stehen (etwa weil
+      // readList()/readQuote()/readTable() mit next === start zurueckkommen),
+      // wird die Zeile als Absatz uebernommen und i erhoeht - jeder Durchlauf
+      // erreicht diese Pruefung, unabhaengig vom Zweig (Issue #88, verhindert
+      // das mehrsekuendige Einfrieren des Tabs).
+      if (i === before) {
         out.push(ctx.dialect.paragraph([convertInline(lines[i], ctx)]));
         i++;
       }
@@ -828,7 +1080,10 @@
 
   function readTable(lines, start, ctx) {
     function cell(value) {
-      return convertInline(value, ctx) || ' ';
+      ctx.inTableCell = true;
+      var result = convertInline(value, ctx) || ' ';
+      ctx.inTableCell = false;
+      return result;
     }
 
     var header = splitTableRow(lines[start]).map(cell);
@@ -843,11 +1098,70 @@
     return { text: ctx.dialect.table(header, rows), next: i };
   }
 
+  /**
+   * Rohe HTML-Tabelle (<table><tr><th>...</th></tr>...</table>) aus Azure
+   * DevOps in eine Jira-Tabelle uebersetzen. Sammelt Zeilen bis '</table>'
+   * ein, zerlegt <tr> in Zeilen und <th>/<td> in Zellen - Zellinhalt laeuft
+   * je durch convertInline. Kein Parser fuer verschachtelte Tabellen oder
+   * colspan: kommt eines von beiden vor, oder fehlt das Ende, gibt es null
+   * zurueck und die Zeile laeuft wie gewohnt weiter.
+   */
+  function readHtmlTable(lines, start, ctx) {
+    var end = start;
+    while (end < lines.length && lines[end].indexOf('</table>') === -1) {
+      end++;
+    }
+    if (end >= lines.length) return null;
+
+    var html = lines.slice(start, end + 1).join('\n');
+    if ((html.match(/<table\b/gi) || []).length > 1) return null;
+    if (/colspan/i.test(html)) return null;
+
+    function cell(value) {
+      ctx.inTableCell = true;
+      var result = convertInline(value, ctx) || ' ';
+      ctx.inTableCell = false;
+      return result;
+    }
+
+    var rowRe = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+    var cellRe = /<(t[hd])\b[^>]*>([\s\S]*?)<\/\1>/gi;
+    var header = null;
+    var rows = [];
+    var rowMatch;
+    while ((rowMatch = rowRe.exec(html))) {
+      var cells = [];
+      var isHeader = true;
+      var cellMatch;
+      cellRe.lastIndex = 0;
+      while ((cellMatch = cellRe.exec(rowMatch[1]))) {
+        if (cellMatch[1].toLowerCase() !== 'th') isHeader = false;
+        cells.push(cell(cellMatch[2]));
+      }
+      if (!cells.length) continue;
+      if (header === null && isHeader) {
+        header = cells;
+      } else {
+        rows.push(cells);
+      }
+    }
+    if (header === null) header = rows.shift() || [];
+
+    return { text: ctx.dialect.table(header, rows), next: end + 1 };
+  }
+
   function readQuote(lines, start, ctx) {
     var body = [];
     var i = start;
     while (i < lines.length && /^ {0,3}>/.test(lines[i])) {
-      body.push(lines[i].replace(/^ {0,3}>[ \t]?/, ''));
+      // Verschachtelte Marker ('>>', '>>>' ...) komplett abstreifen, nicht nur
+      // eine Ebene - sonst sieht convertWith() weiter unten noch ein '>' und
+      // baut eine zweite Huelle um das Zitat (Issue #100).
+      var stripped = lines[i];
+      while (/^ {0,3}>/.test(stripped)) {
+        stripped = stripped.replace(/^ {0,3}>[ \t]?/, '');
+      }
+      body.push(stripped);
       i++;
     }
     // Lazy continuation: Folgezeilen ohne '>' gehoeren noch zum Zitat.
@@ -887,12 +1201,33 @@
         var lookahead = i + 1;
         while (lookahead < lines.length && isBlank(lines[lookahead])) lookahead++;
         if (lookahead >= lines.length) break;
-        if (!isListStart(lines[lookahead])) break;
-        i = lookahead;
-        continue;
+        if (isListStart(lines[lookahead])) {
+          i = lookahead;
+          continue;
+        }
+        // Ein eingerueckter Absatz ohne Marker (weniger als vier Leerzeichen,
+        // sonst greift protectIndentedCode()) ist eine Fortsetzung des letzten
+        // Eintrags - Codeblock-Platzhalter zaehlen ausdruecklich nicht dazu,
+        // die spalten die Liste weiterhin (siehe Punkt 7, Dokumentation folgt).
+        // Eroeffnet die Zeile dagegen selbst einen Block (Ueberschrift,
+        // Zitat, Tabellenzeile, Trenner), zaehlt sie nicht als Fortsetzung -
+        // sonst haengt der Block als literaler Text am Eintrag, statt dass
+        // convertBlocks() ihn als eigenen Block erkennt.
+        var next = lines[lookahead];
+        var paragraph = /^(\s+)(\S[\s\S]*)$/.exec(next);
+        var opensBlock = /^\s*#{1,6}[ \t]/.test(next) || /^\s*>/.test(next) ||
+          /^\s*\|/.test(next) || isHorizontalRule(next);
+        if (items.length && paragraph && indentWidth(paragraph[1]) < 4 &&
+          !PLACEHOLDER_LINE_RE.test(next) && !opensBlock) {
+          items[items.length - 1].content +=
+            ctx.dialect.itemBreak + convertInline(paragraph[2], ctx);
+          i = lookahead + 1;
+          continue;
+        }
+        break;
       }
 
-      var item = /^(\s*)([-*+]|\d+[.)])[ \t]+(.*)$/.exec(line);
+      var item = /^(\s*)([-*+]|\d+[.)])(?:[ \t]+(.*))?$/.exec(line);
       if (item && !isHorizontalRule(line)) {
         var indent = indentWidth(item[1]);
         var type = /^\d/.test(item[2]) ? '#' : '*';
@@ -912,7 +1247,7 @@
           return level.type;
         });
 
-        var content = item[3];
+        var content = item[3] || '';
         var task = /^\[([ xX])\][ \t]+(.*)$/.exec(content);
         var state = null;
         if (task) {
@@ -972,6 +1307,12 @@
           options[key] = userOptions[key];
         }
       }
+    }
+    // escapeJiraSyntax ist der sprechende Alias fuer escapeBraces (der
+    // Speicherschluessel in chrome.storage bleibt escapeBraces, damit
+    // gespeicherte Abwahlen nicht verlorengehen). Ist er gesetzt, gewinnt er.
+    if (userOptions && userOptions.escapeJiraSyntax !== undefined) {
+      options.escapeBraces = userOptions.escapeJiraSyntax;
     }
     return options;
   }
@@ -1036,7 +1377,38 @@
       /`[^`\n]+`/,
       /^ {0,3}>[ \t]?\S/m,
       /^\s*\|.*\|\s*$/m,
-      /~~[^~\n]+~~/
+      /~~[^~\n]+~~/,
+      // Setext-Ueberschrift: Textzeile direkt gefolgt von einer Unterstreichung
+      // aus '=' oder '-'. Das \S auf der Textzeile stellt sicher, dass ein
+      // '----'-Trenner nach einer Leerzeile nicht anschlaegt - eine Leerzeile
+      // hat kein \S, die Zeile davor ist dann nicht die direkte Vorgaengerin.
+      /^.*\S.*\n {0,3}(?:={2,}|-{2,})[ \t]*$/m
+    ];
+    for (var i = 0; i < patterns.length; i++) {
+      if (patterns[i].test(text)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Heuristik: Sieht der Text bereits nach fertigem Jira-Wiki-Markup aus?
+   * Damit laesst die Automatik echtes Jira-Markup beim Einfuegen stehen,
+   * statt es kaputt zu konvertieren (Issue #92).
+   *
+   * Bereits maskierte Makros (escapeText haengt vor jede Klammer einen
+   * Backslash, aus "{code}" wird "\{code\}") duerfen nicht anschlagen - der
+   * Text ist dann schon durch die Konvertierung gelaufen und kaputt. Die
+   * Makro- und Monospace-Muster verlangen deshalb, dass vor der oeffnenden
+   * Klammer kein Backslash steht.
+   */
+  function looksLikeJiraMarkup(text) {
+    if (!text) return false;
+    var patterns = [
+      /^h[1-6]\. \S/m,
+      /(^|[^\\])\{(?:code|noformat|panel|quote|color)(?::[^}\n]*)?\}/,
+      /^\s*\|\|/m,
+      /\[[^\]\n]+\|(?:https?|mailto):/,
+      /(^|[^\\])\{\{[^}\n]+\}\}/
     ];
     for (var i = 0; i < patterns.length; i++) {
       if (patterns[i].test(text)) return true;
@@ -1051,6 +1423,7 @@
     markdownToJira: convert,
     markdownToHtml: convertToHtml,
     looksLikeMarkdown: looksLikeMarkdown,
+    looksLikeJiraMarkup: looksLikeJiraMarkup,
     panelMarkup: panelMarkup,
     panelHtml: panelHtml,
     mapLanguage: mapLanguage,
