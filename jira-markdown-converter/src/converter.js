@@ -1061,6 +1061,32 @@
     return false;
   }
 
+  /**
+   * Heuristik: Sieht der Text bereits nach fertigem Jira-Wiki-Markup aus?
+   * Damit laesst die Automatik echtes Jira-Markup beim Einfuegen stehen,
+   * statt es kaputt zu konvertieren (Issue #92).
+   *
+   * Bereits maskierte Makros (escapeText haengt vor jede Klammer einen
+   * Backslash, aus "{code}" wird "\{code\}") duerfen nicht anschlagen - der
+   * Text ist dann schon durch die Konvertierung gelaufen und kaputt. Die
+   * Makro- und Monospace-Muster verlangen deshalb, dass vor der oeffnenden
+   * Klammer kein Backslash steht.
+   */
+  function looksLikeJiraMarkup(text) {
+    if (!text) return false;
+    var patterns = [
+      /^h[1-6]\. \S/m,
+      /(^|[^\\])\{(?:code|noformat|panel|quote|color)(?::[^}\n]*)?\}/,
+      /^\s*\|\|/m,
+      /\[[^\]\n]+\|(?:https?|mailto):/,
+      /(^|[^\\])\{\{[^}\n]+\}\}/
+    ];
+    for (var i = 0; i < patterns.length; i++) {
+      if (patterns[i].test(text)) return true;
+    }
+    return false;
+  }
+
   return {
     convert: convert,
     convertToHtml: convertToHtml,
@@ -1068,6 +1094,7 @@
     markdownToJira: convert,
     markdownToHtml: convertToHtml,
     looksLikeMarkdown: looksLikeMarkdown,
+    looksLikeJiraMarkup: looksLikeJiraMarkup,
     panelMarkup: panelMarkup,
     panelHtml: panelHtml,
     mapLanguage: mapLanguage,
