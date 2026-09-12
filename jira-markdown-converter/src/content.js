@@ -1438,8 +1438,12 @@
     }, true);
     // Jira fokussiert den Rahmen beim Oeffnen selbst, noch bevor dieser
     // Wachposten haengt - der focusin ist dann laengst durch (Issue #107).
-    // Steht der Fokus schon im Rahmen, sofort einfrieren.
-    if (frame.ownerDocument.activeElement === frame || doc.activeElement === body) {
+    // Nur ein wirklich fokussierter Rahmen friert hier sofort ein; ein
+    // Dokument ohne fokussiertes Element meldet laut DOM ebenfalls
+    // activeElement === body, das ist keine Fokuspruefung. Der Fokuswechsel
+    // auf einen (noch) nicht fokussierten Rahmen kommt danach ueber
+    // lockFrameFromEvent() am Fenster.
+    if (frame.ownerDocument.activeElement === frame) {
       target = field;
       EditLock.lock(field);
     }
@@ -1484,7 +1488,8 @@
    * kostet daher nichts. Der Debounce bleibt fuer alles andere unveraendert.
    */
   function onMutations(records) {
-    for (var i = 0; i < records.length; i++) {
+    var scanned = false;
+    for (var i = 0; i < records.length && !scanned; i++) {
       var added = records[i].addedNodes;
       for (var j = 0; j < added.length; j++) {
         var node = added[j];
@@ -1497,6 +1502,7 @@
           } catch (error) {
             /* Jira baut viel um - Fehler hier nie hochblubbern lassen */
           }
+          scanned = true;
           break;
         }
       }
