@@ -168,7 +168,8 @@ describe('OTRS-Link-Helfer - Verdrahtung im Content-Script', { skip: !hasPlaywri
         dialogOpen: !!document.querySelector('.jmd-dialog--open')
       };
     });
-    assert.strictEqual(state.text, 'Achtung: Kundenreferenz wurde ueberschrieben. Vorheriger Wert: Alter Wert');
+    assert.match(state.text, /Kunden Referenz konnte nicht gesetzt werden/);
+    assert.match(state.text, /Vorheriger Wert: Alter Wert/);
     assert.strictEqual(state.closeHidden, false, 'Warnung braucht eine Schliessen-Schaltflaeche');
     assert.strictEqual(state.dialogOpen, true, 'OTRS-Dialog haette nach dem Fehler offen bleiben muessen');
     await page.close();
