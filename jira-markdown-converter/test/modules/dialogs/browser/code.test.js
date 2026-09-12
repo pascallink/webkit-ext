@@ -214,6 +214,12 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
   });
 
   test('Einfuegen an der gemerkten Position im Rich-Text-Editor', async function () {
+    // Die Marke stand am Ende von Absatz "a" - fuer ein Blockmakro rueckt
+    // splitBlockAtCaret die Selektion darum auf die Blockgrenze direkt
+    // dahinter, statt sie im Text von "a" zu belassen (Issue #108: sonst
+    // haengt das Blockmakro im umgebenden Absatz fest). Die wiederhergestellte
+    // Position bleibt trotzdem pruefbar: die Selektion muss direkt hinter
+    // Absatz "a" stehen, nicht etwa vor "b" oder ganz woanders.
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, RTE);
     await page.evaluate(function () {
@@ -233,7 +239,15 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     await page.waitForFunction(function () {
       return window.__pastes.length === 1;
     }, null, { timeout: 4000 });
-    assert.strictEqual(await page.evaluate(function () { return window.__caretParagraph; }), 'a');
+    var precedingId = await page.evaluate(function () {
+      var doc = document.querySelector('#description_ifr').contentDocument;
+      var selection = doc.defaultView.getSelection();
+      if (!selection.rangeCount) return null;
+      var range = selection.getRangeAt(0);
+      var before = range.startContainer.childNodes[range.startOffset - 1];
+      return before && before.id ? before.id : null;
+    });
+    assert.strictEqual(precedingId, 'a');
     await page.close();
   });
 

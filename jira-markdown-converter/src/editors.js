@@ -571,8 +571,9 @@
   var BLOCK_TAGS = /^(?:P|DIV|LI|TD|TH|PRE|BLOCKQUOTE|H[1-6]|SECTION|ARTICLE|BODY|DD|DT|FIGCAPTION)$/;
 
   // Leerer Absatz als Trenner: er sorgt dafuer, dass der Editor den Block
-  // wirklich als Block uebernimmt, verschwindet beim Einfuegen aber im
-  // umgebenden Absatz.
+  // wirklich als Block uebernimmt, bleibt aber als leerer Absatz im Editor
+  // stehen. Nur noch die Rueckfallebene, wenn splitBlockAtCaret() nicht
+  // greift (siehe asOwnBlocks()).
   var BLOCK_SEPARATOR = '<p></p>';
 
   /** Der Block (Absatz, Listenpunkt, Zelle ...), in dem dieser Knoten steckt. */
@@ -618,19 +619,88 @@
   }
 
   /**
-   * Blockmakros im Rich-Text-Editor: steht die Marke mitten in einem Absatz,
-   * zieht der Editor den eingefuegten Block in diesen Absatz hinein - aus dem
-   * Codeblock wird dann eine Zeile mit geschweiften Klammern bzw. Text mit
-   * Code-Auszeichnung. Ein leerer Absatz davor und dahinter schliesst den
-   * Block ab, damit er als eigener Block ankommt.
+   * Loest die Marke aus ihrem Block, damit ein Blockmakro als eigenstaendiges
+   * Element ankommt statt in fremden Inhalt eingemischt zu werden - ganz ohne
+   * Trenner-Absatz:
+   *   - steht sie mitten im Block (Text davor und dahinter), wird der Block
+   *     an dieser Stelle echt geteilt: der Teil nach der Marke wandert in ein
+   *     neues Element hinter dem Block, die Selektion landet auf der neuen
+   *     Blockgrenze;
+   *   - steht sie schon am Blockanfang bzw. -ende, genuegt es, die Selektion
+   *     vor bzw. hinter den Block zu ruecken - ohne den Block selbst
+   *     anzufassen. Sonst haengt ein direkt am Rand eingefuegtes Element
+   *     (z. B. <pre> vor "Referenz" in einer Ueberschrift) im umgebenden
+   *     Element fest, statt daneben zu stehen (siehe JIRA912-Fixture).
+   * Ist der Block ohnehin leer, bleibt die Marke unangetastet - dafuer reicht
+   * die alte Rueckfallebene mit BLOCK_SEPARATOR. Schlaegt die Auswertung fehl
+   * (kein Bereich, kein eindeutiger Block ...), faellt der Aufrufer ebenfalls
+   * auf BLOCK_SEPARATOR zurueck.
+   */
+  function splitBlockAtCaret(surface) {
+    try {
+      var doc = surface.ownerDocument;
+      var view = doc.defaultView;
+      var selection = view && view.getSelection();
+      if (!selection || !selection.rangeCount) return false;
+      var range = selection.getRangeAt(0);
+      if (!range.collapsed) return false;
+      if (!surface.contains(range.startContainer)) return false;
+
+      var block = blockAround(range.startContainer, surface);
+      if (block === surface || !block.parentNode) return false;
+
+      var before = doc.createRange();
+      before.selectNodeContents(block);
+      before.setEnd(range.startContainer, range.startOffset);
+
+      var after = doc.createRange();
+      after.selectNodeContents(block);
+      after.setStart(range.startContainer, range.startOffset);
+
+      var beforeEmpty = !before.toString().trim();
+      var afterEmpty = !after.toString().trim();
+      var boundary = doc.createRange();
+
+      if (beforeEmpty && afterEmpty) {
+        return false;   // Block ist ohnehin leer - Rueckfallebene reicht
+      } else if (afterEmpty) {
+        boundary.setStartAfter(block);
+      } else if (beforeEmpty) {
+        boundary.setStartBefore(block);
+      } else {
+        var fragment = after.extractContents();
+        var next = block.cloneNode(false);
+        next.removeAttribute('id');
+        next.appendChild(fragment);
+        block.parentNode.insertBefore(next, block.nextSibling);
+        boundary.setStartAfter(block);
+      }
+      boundary.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(boundary);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Blockmakros im Rich-Text-Editor: steht die Marke mitten in fremdem
+   * Inhalt, zieht der Editor den eingefuegten Block sonst dort hinein - aus
+   * dem Codeblock wird dann eine Zeile mit geschweiften Klammern bzw. Text
+   * mit Code-Auszeichnung, oder er haengt in einer Ueberschrift fest. Darum
+   * loest splitBlockAtCaret die Marke zuerst aus ihrem Block - der Block
+   * kommt so ohne Trenner-Absaetze an. Nur wenn das misslingt, greift die
+   * alte Rueckfallebene mit BLOCK_SEPARATOR.
    */
   function asOwnBlocks(surface, text, html) {
     var edges = blockEdges(surface);
+    var split = html ? splitBlockAtCaret(surface) : false;
     return {
       text: (edges.start ? '' : '\n') + text + (edges.end ? '' : '\n'),
-      html: html
-        ? (edges.start ? '' : BLOCK_SEPARATOR) + html + (edges.end ? '' : BLOCK_SEPARATOR)
-        : html
+      html: !html || split
+        ? html
+        : (edges.start ? '' : BLOCK_SEPARATOR) + html + (edges.end ? '' : BLOCK_SEPARATOR)
     };
   }
 
