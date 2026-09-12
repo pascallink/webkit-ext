@@ -3,8 +3,7 @@
 Browser-Erweiterung (Manifest V3, Chrome/Edge), die die Jira-Ticket-Bearbeitung
 um Markdown-Support, Formatierungsvorlagen und Code-Bloecke erweitert -
 darunter die Umwandlung von aus Azure DevOps kopiertem Markdown in
-Jira-Wiki-Markup, direkt im Jira-Ticket. Smart-Link-Parsing ist fuer eine
-kommende Version geplant.
+Jira-Wiki-Markup, direkt im Jira-Ticket.
 
 Aus `# Titel` wird `h1. Titel`, aus `**fett**` wird `*fett*`, aus einer
 Markdown-Tabelle wird eine Jira-Tabelle.
@@ -44,6 +43,9 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    * *Schloss* – zeigt an, dass das Feld im Bearbeitungsmodus festgehalten
      wird, und gibt es auf Klick wieder frei. Das Festhalten passiert von
      selbst, laesst sich in den Einstellungen aber abschalten.
+   * *OTRS* – oeffnet den Dialog fuer einen OTRS-Verweis, traegt ihn nach
+     Absenden in Label, Kunden Referenz und Web-Link ein. Laesst sich in
+     den Einstellungen abschalten.
 
    Die Beschriftungen sind kurz gehalten, damit die Leiste in eine Zeile
    passt; was ein Button genau tut, steht in seinem Tooltip.
@@ -52,7 +54,7 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    *Ins Ticket einfuegen*, *Feld ersetzen*, *Markup kopieren* oder
    *Formatiert kopieren* (fuer den Rich-Text-Editor). Ueber
    *Feld waehlen* laesst sich das Zielfeld per Klick bestimmen; *Code
-   einfuegen* und *Panel aus Vorlage* gibt es auch hier.
+   einfuegen*, *OTRS-Link* und *Panel aus Vorlage* gibt es auch hier.
 3. **Dialog "Code einfuegen"** – Sprache aus der Liste der von Jira
    unterstuetzten Sprachen waehlen, Code eintippen, fertigen Codeblock an der
    Cursorposition einsetzen. Zu erreichen ueber die Buttonleiste am Feld und
@@ -213,9 +215,9 @@ Zwei Einschraenkungen gehoeren dazu:
 
 ## OTRS-Link einpflegen
 
-Der Knopf *OTRS-Link einpflegen* - im Panel und in der Buttonleiste am Feld -
-oeffnet einen kleinen Dialog fuer OTRS-Verweise. Verstanden werden drei
-Eingabeformen: ein Markdown-Link (`[Titel](URL)`), ein HTML-Anker
+Der Dialog *OTRS-Link einpflegen* laesst sich oeffnen ueber die Knoepfe
+*OTRS-Link* im Panel und *OTRS* in der Buttonleiste am Feld. Verstanden
+werden drei Eingabeformen: ein Markdown-Link (`[Titel](URL)`), ein HTML-Anker
 (`<a href="URL">Titel</a>`) oder blosser Text mit eingebetteter
 `http(s)://`-URL. Eine Live-Vorschau zeigt schon beim Tippen, was daraus wird.
 
@@ -232,10 +234,11 @@ War die "Kunden Referenz" bereits belegt, bleibt eine laenger stehende
 Warnung mit dem ueberschriebenen alten Wert sichtbar, bis sie von Hand
 geschlossen wird.
 
-Der Helfer laesst sich in den Einstellungen unter *OTRS-Link-Helfer anbieten*
-an- und abschalten; dort steht auch der Feldname der Kundenreferenz, falls
-die eigene Jira-Instanz ihn anders nennt. Wie die uebrige Automation setzt
-der Helfer ausschliesslich auf **Jira Server / Data Center 9.12 LTS** auf -
+Der Helfer laesst sich an- und abschalten: in den Einstellungen unter
+*OTRS-Link-Helfer anbieten* und im Popup unter *OTRS-Link-Helfer*. In den
+Einstellungen steht auch der Feldname der Kundenreferenz, falls die eigene
+Jira-Instanz ihn anders nennt. Wie die uebrige Automation setzt der Helfer
+ausschliesslich auf **Jira Server / Data Center 9.12 LTS** auf -
 er bedient die Formularfelder im AUI-Dialog der Instanz, nicht die
 ProseMirror-Oberflaeche von Jira Cloud.
 
@@ -487,6 +490,7 @@ Erreichbar ueber das Popup („Einstellungen") oder
 * Konvertierung: Codesprache uebernehmen, Hinweisbloecke als Panel, einfaches
   HTML uebersetzen, geschweifte Klammern maskieren
 * Eigene Jira-Adressen (Jira Server / Data Center)
+* OTRS-Link-Helfer an- und abschalten, Feldname der Kundenreferenz
 * Eigene Vorlagen anlegen, bearbeiten und loeschen (Titel, Markup,
   bis zu 5 Platzhalter)
 * Ein Probierfeld mit Sofortvorschau
