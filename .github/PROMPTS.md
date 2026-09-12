@@ -23,11 +23,11 @@ Datei: [`.github/PLAN.template.md`](PLAN.template.md).
 
 ## Stufe 1 - Review-Ergebnis (Opus)
 
-Eingabe: Diff gegen `main`, PR-Titel, PR-Beschreibung.
+Eingabe: Diff gegen `main`, PR-Titel, PR-Beschreibung, Branch und Head-SHA.
 Ausgabe: Markdown-Fliesstext, kein JSON-Bericht.
 
 ```
-## Review PR #<nummer> - <APPROVED | CHANGES_REQUESTED>
+## Review PR #<nummer> (<branch> @ <head-sha>) - <APPROVED | CHANGES_REQUESTED>
 
 <Zwei bis drei Absaetze: was bricht, warum, und was daraus folgt. Datei- und
 Zeilenangaben inline als `datei.yml:18`. Keine Tabelle, keine Befundliste,
@@ -43,6 +43,8 @@ kein Wiederholen des Diffs.>
   und steuern das Routing der Stufe 2.
 - Keine Befunde heisst: kein Korrektur-Prompt, das Review endet nach der
   Empfehlung.
+- Branch und Head-SHA stehen in der Ueberschrift, damit jede Stufe 2 sie
+  erbt. Ohne diesen Anker korrigiert die Folge-Session auf irgendeinem Stand.
 
 ## Stufe 2 - Korrektur (Haiku oder Sonnet)
 
@@ -52,6 +54,8 @@ Zieldatei, jeweils mit Modellwahl als Ueberschrift davor
 
 ```
 task: apply_refactoring
+branch: <branch des PR, z. B. feature/issue-49-part-1>
+base_sha: <head-sha, auf dem das Review basiert>
 target_file: <pfad/zur/datei>
 
 Kontext: <zwei bis drei Saetze: was defekt ist und warum.>
@@ -61,14 +65,27 @@ Aufgaben:
 2. <konkrete Anweisung mit Zielzustand>
 
 Constraints:
+- Vor der ersten Aenderung `git fetch origin <branch>` und
+  `git checkout <branch>`. Kein neuer Branch, Push nur mit
+  `git push -u origin <branch>`.
+- Passt `target_file` auf diesem Branch nicht zum Kontext oben: abbrechen und
+  melden. Nichts nachbauen, nichts erfinden.
 - Deutsch ohne Umlaute in Kommentaren und UI-Texten.
 - Bestehende Struktur beibehalten, wenn nicht ausdruecklich anders verlangt.
 - Vor dem Commit `npm run lint --prefix <projekt>` und
   `npm test --prefix <projekt>`.
 - Nur die geaenderte Datei ausgeben, kein Fliesstext.
+- Abschluss melden: Branch, Commit-SHA, geaenderte Dateien, Testergebnis.
 ```
 
 - **Routing:** ausschliesslich `STYLE`/`MINOR` (Linter, Syntax, Formatierung,
   Umlaute, Doku- und Typ-Fixes) geht an Haiku. Alles andere - `BUG`,
   `SECURITY`, `PERFORMANCE`, Testanpassungen, gemischte Korrekturen - an Sonnet.
+- **Branch-Vorgabe schlaegt Default:** eine Cloud-Sitzung bekommt vom Harness
+  einen eigenen `claude/...`-Branch auf aktuellem `main`. Nennt der Prompt den
+  PR-Branch nicht, gewinnt diese Vorgabe - die Korrektur landet am PR vorbei,
+  im schlimmsten Fall auf einem Stand ohne die reviewte Datei.
+- **Ohne Rueckmeldung kein Abschluss:** Stufe 1 beobachtet nicht nach (siehe
+  Root-`CLAUDE.md`). Bleibt die Abschlussmeldung aus, gilt die Korrektur als
+  nicht geliefert, nicht als erledigt.
 - Repo-Regeln bleiben bindend, auch wenn der Prompt sie nicht wiederholt.
