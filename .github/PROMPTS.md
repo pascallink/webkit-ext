@@ -28,6 +28,62 @@ am Ende.
   einem eigenen Codeblock (drei Backticks, ohne Sprache), die Modellwahl als
   Ueberschrift davor. Nichts, was zum Prompt gehoert, steht ausserhalb.
 
+## Stufe 0 - Umsetzungsauftrag (Sonnet)
+
+Eingabe: ein Sub-Task aus dem Ausfuehrungsplan
+([`.github/PLAN.template.md`](PLAN.template.md)). Ausgabe ist genau dieser
+Block je Sub-Task, damit eine orchestrierende Sitzung ihn unveraendert an den
+`umsetzer` durchreichen kann.
+
+```
+task: implement_subtask
+branch: <branch des sub-tasks, z. B. feature/issue-17-part-5-otrs>
+base_sha: <head-sha des base-branches, auf dem der sub-task aufsetzt>
+projekt: <projektordner, z. B. jira-markdown-converter>
+modul: <testmodul, z. B. otrs>
+
+Ziel: <zwei bis drei Saetze: was danach geht, was vorher nicht ging.>
+
+Dateiebene:
+- Zu erstellen: <pfade, komma-getrennt, sonst "-">
+- Zu aendern: <pfade, komma-getrennt>
+
+Aufgaben:
+1. <konkrete Anweisung mit Zielzustand>
+2. <konkrete Anweisung mit Zielzustand>
+
+Definition of Done:
+- [ ] <pruefbares Kriterium, kein "sauber umgesetzt">
+- [ ] Neue und bestehende Tests laufen gruen.
+
+Constraints:
+- Vor der ersten Aenderung `git fetch origin <branch>` und
+  `git checkout <branch>`. Existiert der Branch noch nicht, von <base-branch>
+  anlegen. Kein anderer Branch, Push nur mit `git push -u origin <branch>`.
+- Deutsch ohne Umlaute in Kommentaren und UI-Texten.
+- Waehrend der Arbeit nur `npm run test:module <modul> --prefix <projekt>`.
+- Genau einmal vor dem finalen Commit `npm run lint --prefix <projekt>` und
+  `npm test --prefix <projekt>`.
+- Abschluss melden: Branch, Commit-SHA, geaenderte Dateien, Testergebnis und
+  was bewusst offen blieb.
+```
+
+- **Branch-Vorgabe schlaegt Default** - hier haerter als bei Stufe 2, weil der
+  Sub-Task in einem Stapel sitzt (PR 2 auf PR 1, PR 3 auf PR 2). Fehlt der
+  Branch im Block, nimmt eine Cloud-Sitzung ihren `claude/...`-Branch auf
+  `main`: die Arbeit landet neben dem PR, auf einem Stand ohne die Vorstufe.
+- **`base_sha` ist der Anker, nicht der Branchname.** Der Base-Branch bewegt
+  sich, waehrend der Stapel laeuft - der SHA sagt, worauf der Plan gerechnet
+  hat.
+- **Der Block steht fuer sich.** Der `umsetzer` startet kalt und sieht nur
+  diesen Text, nicht den uebrigen Plan. Was nicht drinsteht, existiert fuer ihn
+  nicht.
+- **Ein Sub-Task, ein Modul, ein Scope.** Passt der Auftrag nicht in einen
+  Commit-Scope aus der Root-`CLAUDE.md`, ist er zu gross geschnitten - teilen,
+  bevor er startet.
+- Repo- und Test-Kontext-Regeln bleiben bindend, auch wenn der Auftrag sie
+  nicht wiederholt.
+
 ## Stufe 1 - Review-Ergebnis (Opus)
 
 Eingabe: Diff gegen `main`, PR-Titel, PR-Beschreibung, Branch und Head-SHA.
@@ -105,10 +161,10 @@ das Frontmatter setzt Modell und Werkzeuge, der Rumpf die Rolle.
 
 | Stufe | Agent | Modell | Zustaendig fuer |
 | --- | --- | --- | --- |
-| Umsetzung | `umsetzer` | Sonnet | ein Subtask, ein Modul, ein Scope |
-| Review | `reviewer` | Opus | Stufe 1 plus 0 bis 2 Folge-Prompts, ohne Edit |
-| Korrektur | `korrektur-style` | Haiku | `STYLE`/`MINOR`, eine Datei, kein Verhalten |
-| Korrektur | `korrektur-logik` | Sonnet | alles andere, Testanpassung erlaubt |
+| 0 Umsetzung | `umsetzer` | Sonnet | ein Subtask, ein Modul, ein Scope |
+| 1 Review | `reviewer` | Opus | Stufe 1 plus 0 bis 2 Folge-Prompts, ohne Edit |
+| 2 Korrektur | `korrektur-style` | Haiku | `STYLE`/`MINOR`, eine Datei, kein Verhalten |
+| 2 Korrektur | `korrektur-logik` | Sonnet | alles andere, Testanpassung erlaubt |
 
 - **Diese Datei bleibt die Quelle der Formate.** Die Agenten wiederholen sie
   nicht, sie verweisen darauf - der `reviewer` liest sie zu Beginn seines Laufs.
@@ -120,8 +176,9 @@ das Frontmatter setzt Modell und Werkzeuge, der Rumpf die Rolle.
   `Edit`, die Korrektur-Agenten kein `Glob` - was ein Agent nicht hat, kann er
   auch nicht an Kontext verbrennen.
 - **Ein Agent startet kalt.** Er kennt die rufende Sitzung nicht, der Auftrag
-  muss vollstaendig sein. Deshalb stehen `branch` und `base_sha` im Stufe-2-
-  Block: ohne diesen Anker korrigiert der Agent auf irgendeinem Stand.
+  muss vollstaendig sein. Deshalb stehen `branch` und `base_sha` im Stufe-0-
+  wie im Stufe-2-Block: ohne diesen Anker arbeitet der Agent auf irgendeinem
+  Stand.
 - **Parallel nur getrennt.** Zwei Agenten gleichzeitig auf demselben Branch
   kollidieren im Arbeitsbaum - entweder nacheinander oder je in einem eigenen
   Worktree.
