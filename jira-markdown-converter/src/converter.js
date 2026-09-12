@@ -24,7 +24,9 @@
   var PLACEHOLDER_LINE_RE = new RegExp('^\\s*' + S + 'P\\d+' + S + '\\s*$');
 
   var DEFAULT_OPTIONS = {
-    // { und } im Fliesstext maskieren, damit Jira sie nicht als Makro liest.
+    // Jira-Sonderzeichen im Fliesstext maskieren: {} und [] immer (Makro-
+    // Kopf bzw. Kurzlink), dazu paarige Auszeichnungszeichen (- ~ ^ + und
+    // die Folge ??), damit Jira sie nicht als Markup liest.
     escapeBraces: true,
     // Sprach-Hint aus Fenced-Code-Bloecken uebernehmen ({code:java}).
     keepCodeLanguage: true,
@@ -113,15 +115,100 @@
     return value;
   }
 
+  // Zeichen, die Jira 9.12.2 im Fliesstext als Markup deutet:
+  //   {  }  Makro-Kopf/-Ende ({code}, {color}, ...) - wirkt schon einzeln.
+  //   [  ]  Kurzlink bzw. Referenz ([Text|url], [Text]) - wirkt schon einzeln.
+  //   -  -  Durchstreichung, nur paarig (-text-).
+  //   ~  ~  Tiefstellung, nur paarig (~text~).
+  //   ^  ^  Hochstellung, nur paarig (^text^).
+  //   +  +  Unterstreichung, nur paarig (+text+).
+  //   ?? ?? Zitat, nur paarig (??text??).
+  // {} und [] werden deshalb bedingungslos maskiert, die paarigen Zeichen
+  // nur, wenn ein echtes Paar erkennbar ist (siehe escapePairedMark) - ein
+  // einzelner Gedankenstrich oder ein Datum soll nicht ploetzlich rot werden.
+  // Im Zweifel wird maskiert: ein ueberfluessiger Backslash bleibt in Jira
+  // unsichtbar, ein fehlender faerbt den Text rot oder loest ungewolltes
+  // Markup aus.
+  // Ausnahmen von der bedingungslosen Klammer-Maskierung - Jira-eigene
+  // Kurzformen, die sonst ihre Funktion verlieren wuerden:
+  //   [~name]   Erwaehnung eines Benutzers.
+  //   [^datei]  Anhangverweis.
+  //   [#anker]  Ankerlink.
+  var JIRA_ESCAPE_CHARS = '{}[]-~^+';
+  var JIRA_LINK_FORM_RE = /\[[~^#][^\[\]\n]*\]/;
+  var JIRA_UNCONDITIONAL_ESCAPE_RE = new RegExp(
+    JIRA_LINK_FORM_RE.source + '|[{}\\[\\]]',
+    'g'
+  );
+  var JIRA_PAIRED_MARKERS = ['-', '~', '^', '+', '??'];
+
+  function isJiraEscapeChar(ch) {
+    return JIRA_ESCAPE_CHARS.indexOf(ch) !== -1;
+  }
+
+  function escapeRegExpLiteral(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  // Innerhalb einer Zeichenklasse [^...] brauchen \, ], ^ und - eine eigene
+  // Maskierung - anders als im Rest eines Regex-Musters.
+  function escapeRegExpClassChar(ch) {
+    return ch.replace(/[\\\]^-]/g, '\\$&');
+  }
+
+  function backslashEachChar(str) {
+    return str.replace(/[\s\S]/g, function (ch) {
+      return '\\' + ch;
+    });
+  }
+
+  /**
+   * Maskiert ein paariges Auszeichnungszeichen (oder die Folge '??'), aber
+   * nur bei einem echten Paar: oeffnendes Zeichen direkt vor einem
+   * Nicht-Leerzeichen, schliessendes Zeichen direkt hinter einem
+   * Nicht-Leerzeichen und vor Zeilenende, Leerraum oder Satzzeichen, kein
+   * Umbruch dazwischen. Das Innere darf das Markerzeichen selbst nicht
+   * enthalten - sonst wuerde bei 'C++ und C++' das erste Pluspaar bis zum
+   * zweiten durchgreifen, obwohl beide Vorkommen nur direkt aneinander-
+   * stehende, unpaarige C++-Zeichen sind.
+   */
+  function escapePairedMark(text, marker) {
+    var open = escapeRegExpLiteral(marker);
+    var innerExclude = escapeRegExpClassChar(marker.charAt(0));
+    var re = new RegExp(
+      open + '(?=\\S)([^' + innerExclude + '\\n]*?[^' + innerExclude + '\\s\\n])' + open +
+      '(?=$|[\\s.,;:!?)\\]}])',
+      'g'
+    );
+    return text.replace(re, function (match, inner) {
+      return backslashEachChar(marker) + inner + backslashEachChar(marker);
+    });
+  }
+
+  function escapePairedMarks(text) {
+    for (var i = 0; i < JIRA_PAIRED_MARKERS.length; i++) {
+      text = escapePairedMark(text, JIRA_PAIRED_MARKERS[i]);
+    }
+    return text;
+  }
+
   var JIRA_DIALECT = {
     name: 'jira',
     escapeLiteral: function (ch) {
-      return ch === '{' || ch === '}' ? '\\' + ch : ch;
+      return isJiraEscapeChar(ch) ? '\\' + ch : ch;
     },
     escapeText: function (text, options) {
       if (!options.escapeBraces) return text;
-      return text.replace(/[{}]/g, function (ch) {
-        return '\\' + ch;
+      // a) paarige Auszeichnungszeichen zuerst - sie pruefen auf
+      //    Nicht-Leerzeichen-Nachbarn, das duerfen die gleich danach
+      //    eingefuegten Backslashes vor {}/[] nicht durcheinanderbringen.
+      text = escapePairedMarks(text);
+      // b) danach die unbedingten Zeichen {}/[] - ausser bei den Jira-
+      //    Kurzformen [~...], [^...] und [#...] (siehe JIRA_LINK_FORM_RE),
+      //    die unveraendert bleiben muessen.
+      return text.replace(JIRA_UNCONDITIONAL_ESCAPE_RE, function (match) {
+        if (match.length > 1) return match;
+        return '\\' + match;
       });
     },
     mark: function (kind) {
@@ -993,6 +1080,12 @@
           options[key] = userOptions[key];
         }
       }
+    }
+    // escapeJiraSyntax ist der sprechende Alias fuer escapeBraces (der
+    // Speicherschluessel in chrome.storage bleibt escapeBraces, damit
+    // gespeicherte Abwahlen nicht verlorengehen). Ist er gesetzt, gewinnt er.
+    if (userOptions && userOptions.escapeJiraSyntax !== undefined) {
+      options.escapeBraces = userOptions.escapeJiraSyntax;
     }
     return options;
   }

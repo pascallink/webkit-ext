@@ -358,8 +358,9 @@ das Lesen der Zwischenablage funktioniert dort nicht - bitte Strg+V benutzen.
 
 Sprachnamen werden auf die von Jira unterstuetzten abgebildet (`js` →
 `javascript`, `yml` → `yaml`); unbekannte Sprachen fallen auf `{code}` zurueck.
-Inhalte von Code-Bloecken bleiben unangetastet, geschweifte Klammern im
-Fliesstext werden maskiert, damit Jira sie nicht als Makro liest.
+Inhalte von Code-Bloecken bleiben unangetastet, Sonderzeichen im Fliesstext
+werden maskiert (geschweifte Klammern, eckige Klammern und paarige
+Auszeichnungszeichen), damit Jira sie nicht als Markup liest.
 
 ## Jira Server / Data Center im Detail
 
@@ -464,7 +465,7 @@ Erreichbar ueber das Popup („Einstellungen") oder
   einfuegen oder Markdown durchreichen; dazu das Umschalten auf den
   Markup-Modus
 * Konvertierung: Codesprache uebernehmen, Hinweisbloecke als Panel, einfaches
-  HTML uebersetzen, geschweifte Klammern maskieren
+  HTML uebersetzen, Jira-Sonderzeichen maskieren
 * Eigene Jira-Adressen (Jira Server / Data Center)
 * Eigene Vorlagen anlegen, bearbeiten und loeschen (Titel, Markup,
   bis zu 5 Platzhalter)

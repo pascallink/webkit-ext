@@ -210,6 +210,55 @@ describe('Sonderfaelle', function () {
   });
 });
 
+describe('Jira-Sonderzeichen maskieren', function () {
+  test('eckige Klammern im Fliesstext', function () {
+    eq('[INFO] gestartet', '\\[INFO\\] gestartet');
+    eq('Liste [a] und [b]', 'Liste \\[a\\] und \\[b\\]');
+  });
+  test('Jira-eigene Klammerformen bleiben unveraendert', function () {
+    eq('Hallo [~pascal], bitte pruefen', 'Hallo [~pascal], bitte pruefen');
+    eq('Danke an [~jdoe] und [~asmith]!', 'Danke an [~jdoe] und [~asmith]!');
+    eq('Anhang [^bericht.pdf] beachten', 'Anhang [^bericht.pdf] beachten');
+    eq('Siehe [#anker] unten', 'Siehe [#anker] unten');
+    eq('[INFO] fuer [~pascal]', '\\[INFO\\] fuer [~pascal]');
+  });
+  test('paarige Auszeichnungszeichen', function () {
+    eq('Kosten -oder- mehr', 'Kosten \\-oder\\- mehr');
+    eq('Dauer ~30 ms~', 'Dauer \\~30 ms\\~');
+    eq('x^2^', 'x\\^2\\^');
+    eq('Text +wichtig+ Ende', 'Text \\+wichtig\\+ Ende');
+    eq('Status ??unklar?? offen', 'Status \\?\\?unklar\\?\\? offen');
+  });
+  test('Markdown-Escape bleibt maskiert', function () {
+    eq('\\[INFO\\]', '\\[INFO\\]');
+  });
+  test('unpaarige oder eingebettete Zeichen bleiben unveraendert', function () {
+    eq('-5 bis -1', '-5 bis -1');
+    eq('2024-01-01', '2024-01-01');
+    eq('Dauer ~30 ms bis ~50 ms', 'Dauer ~30 ms bis ~50 ms');
+    eq('5 * 3 * 2', '5 * 3 * 2');
+    eq('E-Mail-Adresse', 'E-Mail-Adresse');
+    eq('a - b', 'a - b');
+    eq('C++ und C++', 'C++ und C++');
+  });
+  test('bestehendes Markup bleibt unberuehrt', function () {
+    eq('[Doku](https://example.com)', '[Doku|https://example.com]');
+    eq('~~weg~~', '-weg-');
+    eq('![alt](u.png)', '!u.png!');
+    eq('```\n[a] -b- c^d^\n```', '{code}\n[a] -b- c^d^\n{code}');
+  });
+  test('escapeBraces schaltet auch die neuen Zeichen ab', function () {
+    assert.strictEqual(jira.convert('{a} [b] -c-', { escapeBraces: false }), '{a} [b] -c-');
+  });
+  test('escapeJiraSyntax ist ein Alias fuer escapeBraces', function () {
+    assert.strictEqual(jira.convert('{a} [b] -c-', { escapeJiraSyntax: false }), '{a} [b] -c-');
+  });
+  test('escapeJiraSyntax sticht escapeBraces', function () {
+    assert.strictEqual(jira.convert('{a} [b] -c-', { escapeBraces: false, escapeJiraSyntax: true }),
+      '\\{a\\} \\[b\\] \\-c\\-');
+  });
+});
+
 describe('Optionen', function () {
   test('escapeBraces abschaltbar', function () {
     assert.strictEqual(jira.convert('{x}', { escapeBraces: false }), '{x}');
@@ -219,7 +268,7 @@ describe('Optionen', function () {
   });
   test('convertAlerts abschaltbar', function () {
     assert.strictEqual(jira.convert('> [!NOTE]\n> Text', { convertAlerts: false }),
-      '{quote}\n[!NOTE]\nText\n{quote}');
+      '{quote}\n\\[!NOTE\\]\nText\n{quote}');
   });
 });
 
