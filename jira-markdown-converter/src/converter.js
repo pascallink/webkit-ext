@@ -256,7 +256,16 @@
       // Trenner zwischen Label und Ziel bleibt davon unberuehrt.
       return '[' + label.replace(/\\?\|/g, '\\|') + '|' + url + ']';
     },
+    // Azure DevOps legt Anhaenge unter einem relativen Pfad ab
+    // ('/.attachments/<guid>' bzw. './...') - der Host ist nur in ADO
+    // gueltig, in Jira waere so ein Pfad tot. '!name!' loest Jira erst nach
+    // dem manuellen Hochladen ueber den Dateinamen im Ticket auf, darum
+    // bleibt bei einem relativen Pfad nur der Dateiname stehen. Absolute
+    // URLs (mit Schema oder protokollrelativ '//host/...') bleiben unberuehrt.
     image: function (url) {
+      if (/^(?:\.\/|\/(?!\/))/.test(url)) {
+        return '!' + url.split('/').pop() + '!';
+      }
       return '!' + url + '!';
     },
     heading: function (level, text) {
@@ -653,7 +662,11 @@
     }
 
     // 4. Bilder: ![alt](url) -> !url!
-    text = text.replace(/!\[([^\]]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?\s*\)/g, function (match, alt, url) {
+    // Azure DevOps haengt beim Kopieren ein Groessensuffix '=BreitexHoehe'
+    // an, die Hoehe ist dabei optional ('=300x' oder '=300x200') - Jira
+    // 9.12 kennt das nicht, darum wird es hier nur erkannt und verworfen,
+    // nicht gespeichert.
+    text = text.replace(/!\[([^\]]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?(?:\s+=\d+x\d*)?\s*\)/g, function (match, alt, url) {
       return ph.add(d.image(url, alt));
     });
 

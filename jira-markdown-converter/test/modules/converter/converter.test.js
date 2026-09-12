@@ -94,6 +94,12 @@ describe('Links und Bilder', function () {
   test('Bild', function () {
     eq('![Screenshot](https://example.com/a.png)', '!https://example.com/a.png!');
   });
+  test('Bild aus Azure DevOps: Groessensuffix und Anhangspfad', function () {
+    eq('![a](https://x/a.png =300x)', '!https://x/a.png!');
+    eq('![a](https://x/a.png =300x200)', '!https://x/a.png!');
+    eq('![shot.png](/.attachments/shot-1.png =300x)', '!shot-1.png!');
+    eq('![shot.png](/.attachments/shot-1.png)', '!shot-1.png!');
+  });
   test('Autolink', function () {
     eq('<https://example.com>', '[https://example.com]');
   });
