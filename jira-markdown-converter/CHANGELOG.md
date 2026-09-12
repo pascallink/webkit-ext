@@ -9,6 +9,8 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Code-Dialog liefert im visuellen Modus einen echten Codeblock statt
+  Inline-Monospace (Issue #108).
 - Beim Einfuegen von bereits vorhandenem Jira-Markup wird nicht mehr
   konvertiert; Makros wie `{code}` bleiben heil (Issue #92).
 - Einfrieren sperrte die Navigation und Dialoge; nun bleiben Toolbar,

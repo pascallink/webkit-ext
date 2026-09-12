@@ -436,10 +436,10 @@ Cursorposition eingesetzt.
 
 Im Rich-Text-Editor gilt dasselbe, nur eine Ebene hoeher: dort braucht der
 Codeblock einen eigenen Block statt einer eigenen Zeile. Steht die Schreibmarke
-mitten in einem Absatz, legt die Erweiterung darum einen leeren Absatz davor
-und dahinter. Ohne diesen Trenner zieht der Editor den eingefuegten Block in
-den laufenden Absatz hinein - aus dem Codeblock wuerde eine Zeile mit
-geschweiften Klammern bzw. Text mit Code-Auszeichnung, aber kein Codeblock.
+mitten in einem Absatz, teilt die Erweiterung den Block an der Schreibmarke auf
+und setzt den Codeblock zwischen die beiden Teile - das verhindert, dass der
+Editor den eingefuegten Block in den laufenden Absatz hineinzieht. Misslang das
+Aufteilen, faellt die Erweiterung auf leere Absaetze davor und dahinter zurueck.
 Steht die Marke schon am Anfang oder am Ende ihres Absatzes, entfaellt der
 Trenner auf dieser Seite; im leeren Absatz kommt gar keiner dazu.
 
@@ -544,7 +544,9 @@ convertBoth('# Titel');   // { jira: "h1. Titel", html: "<h1>Titel</h1>" }
 ```
 
 Beide Formate entstehen aus demselben Parser; die Ausgabe bestimmt ein
-Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`. Der
+Dialekt-Objekt (`JIRA_DIALECT` / `HTML_DIALECT`) in `src/converter.js`. Das
+HTML-Format liefert Codebloecke als `<pre class="code panel" data-language="code-...">`;
+im Rich-Text-Editor werden sie dadurch korrekt als echte Codebloecke eingefuegt. Der
 Code-Dialog nimmt genau diese Dialekte direkt (`dialects.jira.codeBlock`,
 `dialects.html.codeBlock`) und holt die Sprachliste aus `codeLanguages`, damit
 sie nur an einer Stelle gepflegt wird.
