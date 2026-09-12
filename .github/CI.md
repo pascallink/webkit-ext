@@ -13,6 +13,7 @@ an der CI, nicht in jeder Sitzung.
 | `commitlint.yml` | Jeder PR | Prueft die Commit-Konvention |
 | `ai-build-checker.yml` | `workflow_run` nach rotem `Build Extensions` | Baut nichts selbst: analysiert das Log des fehlgeschlagenen Jobs und postet es als PR-Kommentar |
 | `haiku-pr-summary.yml` | PR `opened`/`reopened`/`ready_for_review` | Schreibt eine generierte Zusammenfassung in den PR-Body |
+| `cost-report.yml` | PR `closed` (gemergt), taeglich 0:00 UTC, `workflow_dispatch` | Verbucht Session-Kosten je gemergtem Branch bzw. erzeugt den Tagesreport - Details siehe "Kosten-Tracking" unten |
 
 `build-extension.yml` ruft je Projekt `npm test --prefix <projekt> --if-present`
 auf - seit der Modulaufteilung in Issue #55 ist das weiterhin der Gesamtlauf
@@ -111,6 +112,37 @@ Tags; die Warnung am Ende des Job-Logs nennt die Nachzuegler namentlich.
 Stand jetzt in Benutzung: `checkout@v5`, `setup-node@v5`,
 `softprops/action-gh-release@v2` (laeuft bereits auf Node 24). Fuer
 `upload-artifact` waere `v6` der erste taugliche Major - `v5` nicht.
+
+## Kosten-Tracking
+
+Jede Claude-Code-Session schreibt ihre eigenen Kosten mit: der Stop-Hook aus
+`.claude/settings.json` und der Git-Hook `.githooks/pre-commit` rufen beide
+`scripts/costs-update.mjs` auf, das Tokens aus dem Transcript gegen
+`stats/pricing.json` rechnet und `stats/costs.csv` plus `stats/tokens.csv`
+fortschreibt (Upsert je Branch/Session). Wird ein PR gemergt, summiert
+`cost-report.yml` (Job `aggregate`) die Zeilen des Branches ueber
+`scripts/costs-merge.mjs`, postet sie in PR und verlinktes Issue, ergaenzt
+den Changelog des beruehrten Projekts und verschiebt die Summen nach
+`stats/history.csv` und `stats/history-models.csv` - die Rohzeilen des
+Branches fallen danach aus `costs.csv`/`tokens.csv` heraus. Taeglich um
+Mitternacht UTC (Job `daily`, auch per `workflow_dispatch`) liest
+`scripts/costs-report.mjs` alle vier CSVs, raeumt verwaiste Branches auf
+(Remote-Branch weg oder aelter als 30 Tage, ebenfalls mit `reason=abandoned`
+in die Historie) und schreibt `stats/report.html` komplett neu.
+
+`stats/pricing.json` pflegt Pascal von Hand nach der oeffentlichen
+Preisseite von Anthropic, Stand und Quelle stehen im `_meta`-Feld der Datei.
+Alle Zahlen im Report sind Listenpreis-Schaetzungen wie `/usage` in der
+Claude-Code-CLI, keine tatsaechliche Rechnung - Rabatte, Prompt-Caching-
+Feinheiten und Rundungen der Abrechnung fehlen bewusst.
+
+Claude Code fragt beim ersten Start in diesem Repo einmalig nach Freigabe
+der Projekt-Hooks aus `.claude/settings.json` - ohne diese Freigabe laeuft
+der Stop-Hook nicht und `costs.csv` bleibt fuer Claude-Sessions leer. Der
+Git-Hook ist zusaetzlich noetig und nicht automatisch aktiv: einmalig
+`npm run hooks:install` ausfuehren (setzt `core.hooksPath` auf
+`.githooks`), danach schreibt auch ein Commit von Pascal selbst die
+Kosten fort.
 
 ## Hinweis fuer Claude
 
