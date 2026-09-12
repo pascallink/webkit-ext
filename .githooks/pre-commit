@@ -1,0 +1,8 @@
+#!/bin/sh
+# Haelt die Kosten-CSVs (stats/costs.csv, stats/tokens.csv) zum
+# Commit-Zeitpunkt frisch, egal ob Claude oder Pascal committet.
+# "|| exit 0" ist Absicht: die Kostenerfassung darf nie einen Commit
+# blockieren, auch wenn der Collector selbst fehlschlaegt.
+node "$(git rev-parse --show-toplevel)/scripts/costs-update.mjs" || exit 0
+git add stats/costs.csv 2>/dev/null || true
+git add stats/tokens.csv 2>/dev/null || true
