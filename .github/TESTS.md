@@ -34,6 +34,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `background` | `src/background.js` | 7 Node | #32 |
 | `package` | `manifest.json`, `docs/store/` | 31 Node + Guard | alle |
 | `mapping` *(reserviert)* | `src/mapping.js` *(geplant)* | - | **#32** |
+| `ext` | Erweiterung als Ganzes | 8 Browser | #104 |
 | `otrs` | `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | 16 Node + 28 Browser | #17 |
 
 `mapping` bekommt seinen Ordner erst mit dem jeweiligen Feature -
@@ -52,6 +53,7 @@ jira-markdown-converter/test/
     browser.js                 withBrowser, newPage, optionsPage, popupPage,
                                 SOURCES/STYLES aus manifest.json
     dom.js                     pasteInto, stubClipboard, setCaret, setRichCaret
+    extension.js               launchExtension, extensionCopy, serveFixtures
     fixtures.js                 CLOUD, SERVER, RTE, INLINE, ISSUE, OTRS,
                                 JIRA912 - Pfade
   fixtures/                    die 7 HTML-Mocks, unveraendert und schreibgeschuetzt
@@ -63,6 +65,7 @@ jira-markdown-converter/test/
     dialogs/      browser/{code,panel,placeholder}.test.js
     editlock/     browser/{inline,description,dialogs}.test.js
     options/      browser/templates.test.js
+    ext/          browser/{welt,storage,worker,popup,eingabe}.test.js
     otrs/         otrslink.test.js  browser/{jiraui,otrsflow,otrsdialog}.test.js
     popup/        browser/popup.test.js
     background/   background.test.js
@@ -232,3 +235,28 @@ Zwei Dinge daran sind Absicht:
 reserviert, existiert aber noch nicht: `src/mapping.js` ist geplant, nicht
 vorhanden. Der Testordner entsteht mit dem jeweiligen Feature, nach
 derselben Anleitung wie oben.
+
+## Ebene ext
+
+Das Modul `ext` laedt die Erweiterung als Ganzes in einen echten Browser und
+testet die Zusammenarbeit aller Komponenten - Content-Scripts, Service-Worker,
+Storage, Popup und Optionsseite - im echten Kontext. Quellen sind nicht einzelne
+`src/`-Dateien, sondern die komplette Extension.
+
+Start ueber `launchPersistentContext()` in `test/lib/extension.js`: Das
+Manifest wird in einen `fs.mkdtemp()`-Verzeichnis kopiert, dort mit den
+Hosts fuer die Test-Fixtures (`http://127.0.0.1:<port>/*`) ausgestattet und
+geladen. Der tatsaechliche Port wird nach dem `listen()` des Fixtures-Servers
+ausgelesen und nachtraegglich ins Manifest gepflegt - der Port muss vor dem
+`chromium.launchPersistentContext()` feststehen. Das Original-Manifest im
+Repo bleibt unveraendert, die Kopie wird im `after()` der Test-Datei
+geloescht.
+
+Fuer lokale Tests (mit echtem Edge statt Chromium) wird die Umgebungsvariable
+`PW_CHANNEL=msedge` gesetzt. `canRunExtension()` prueft Spielraum und
+Umgebung (Playwright installiert, Display vorhanden, Service-Worker sichtbar
+in 15 s) und ueberspringt die Tests grazioes mit klarer Meldung, anstatt rot
+zu werden.
+
+Weiterhin gilt: kein `npx playwright install`, die Version bleibt auf 1.56.0
+gepinnt (s. o.).
