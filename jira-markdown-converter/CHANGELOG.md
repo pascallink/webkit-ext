@@ -9,6 +9,7 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Strg+Z nach der Einfuege-Automatik loescht nicht mehr das ganze Feld (Issue #96).
 - Nach dem Code-Dialog steht der Cursor hinter dem Codeblock; das naechste
   Panel oder die naechste Vorlage landet dort und nicht mehr davor (Issue #95).
 - Ein mit `\|` maskierter senkrechter Strich bleibt in der
