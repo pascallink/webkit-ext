@@ -4,6 +4,7 @@
   "description": "Browser Erweiterungen",
   "main": "index.js",
   "scripts": {
+    "test": "node --test scripts/test.mjs",
     "lint:commits": "commitlint --from origin/main --to HEAD --verbose"
   },
   "repository": {

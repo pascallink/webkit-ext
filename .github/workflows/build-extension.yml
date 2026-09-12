@@ -52,6 +52,9 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.key }}
 
+      - name: Root-Skripte testen
+        run: npm test
+
       - name: Lint und Test je Erweiterung
         run: |
           set -eo pipefail
