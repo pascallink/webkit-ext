@@ -71,7 +71,8 @@ jobs:
             echo "Nichts zu verbuchen - kein Commit."
             exit 0
           fi
-          git commit -m "chore(repo): kosten des gemergten branches verbuchen [skip ci]"
+          bot_msg="chore(repo): kosten des gemergten branches verbuchen [skip ci]"
+          git commit -m "$bot_msg"
           for attempt in 1 2 3; do
             if git pull --rebase origin "$BASE_REF"; then
               # stats/costs.csv und stats/tokens.csv stehen in .gitattributes
@@ -97,7 +98,15 @@ jobs:
                 fi
               done
               if [ "$cleanup" -eq 1 ]; then
-                git commit --amend --no-edit
+                # Nur den eigenen Commit nachbessern. Haette der Rebase ihn
+                # verworfen ("patch contents already upstream"), stuende hier
+                # ein fremder Commit - den zu amenden wuerde fremde Historie
+                # umschreiben.
+                if [ "$(git log -1 --pretty=%s)" = "$bot_msg" ]; then
+                  git commit --amend --no-edit
+                else
+                  git commit -m "$bot_msg"
+                fi
               fi
               if git push origin "HEAD:$BASE_REF"; then
                 echo "Push im Versuch $attempt erfolgreich."
