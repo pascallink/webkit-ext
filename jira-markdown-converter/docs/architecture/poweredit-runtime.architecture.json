@@ -1,0 +1,463 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "PowerEdit for Jira - Laufzeitarchitektur",
+    "subtitle": "MV3-Erweiterung gegen Jira Server / Data Center 9.12 LTS",
+    "output": "docs/architecture/poweredit-runtime.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1290,
+      510
+    ],
+    "repository": {
+      "url": "https://github.com/pascallink/webkit-ext",
+      "provider": "github",
+      "revision": "c78f55a858c7a4598430c11eb1c59ae5f69a2d81"
+    },
+    "views": [
+      {
+        "id": "markdown-pfad",
+        "label": "Markdown-Umwandlung",
+        "focus": [
+          "background",
+          "content",
+          "converter",
+          "editors",
+          "jiraPage"
+        ],
+        "note": "Hauptpfad: Tastenkuerzel im Service-Worker bis in das Editorfeld der Jira-Seite."
+      },
+      {
+        "id": "einstellungen",
+        "label": "Einstellungen und Rechte",
+        "focus": [
+          "popup",
+          "content",
+          "settings",
+          "storage"
+        ],
+        "note": "Defaults, chrome.storage und die Hosts, die der Nutzer selbst nachtraegt."
+      },
+      {
+        "id": "dialoge",
+        "label": "Dialoge im Tab",
+        "focus": [
+          "dialogs",
+          "converter",
+          "editlock",
+          "editors"
+        ],
+        "note": "Code- und Vorlagendialog umgehen den Parser, editlock haelt das Feld offen."
+      },
+      {
+        "id": "otrs",
+        "label": "OTRS-Verknuepfung",
+        "focus": [
+          "otrs",
+          "jiraPage",
+          "editors"
+        ],
+        "note": "Verweis zerlegen, dann strikt sequenziell Label, Custom Field und Web-Link setzen."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "popup",
+      "type": "frontend",
+      "label": "Popup + Optionen",
+      "sublabel": "popup/, options/",
+      "tag": "Erweiterung",
+      "pos": [
+        40,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/popup/popup.js",
+          "label": "Popup"
+        },
+        {
+          "path": "jira-markdown-converter/options/options.js",
+          "label": "Optionsseite"
+        }
+      ]
+    },
+    {
+      "id": "background",
+      "type": "backend",
+      "label": "Service-Worker",
+      "sublabel": "Kuerzel, Kontextmenue, Hosts",
+      "tag": "Erweiterung",
+      "pos": [
+        40,
+        235
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/src/background.js",
+          "label": "background.js"
+        }
+      ]
+    },
+    {
+      "id": "storage",
+      "type": "database",
+      "label": "chrome.storage",
+      "sublabel": "sync + local",
+      "tag": "Browserprofil",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "converter",
+      "type": "backend",
+      "label": "converter.js",
+      "sublabel": "markdownToJira(), DOM-frei",
+      "tag": "Content-Script",
+      "pos": [
+        300,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/src/converter.js",
+          "label": "Kern der Umwandlung"
+        }
+      ]
+    },
+    {
+      "id": "content",
+      "type": "frontend",
+      "label": "content.js",
+      "sublabel": "Einstieg und Orchestrierung",
+      "tag": "Content-Script",
+      "pos": [
+        300,
+        235
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/src/content.js",
+          "label": "IIFE mit Ladeguard"
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "type": "backend",
+      "label": "settings.js",
+      "sublabel": "Defaults fuer alle Kontexte",
+      "tag": "geteilt",
+      "pos": [
+        300,
+        400
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/src/settings.js",
+          "label": "UMD-Modul"
+        }
+      ]
+    },
+    {
+      "id": "dialogs",
+      "type": "frontend",
+      "label": "Code- und Vorlagendialog",
+      "sublabel": "codedialog.js, templatedialog.js",
+      "tag": "Content-Script",
+      "pos": [
+        560,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/src/codedialog.js",
+          "label": "Codebloecke"
+        },
+        {
+          "path": "jira-markdown-converter/src/templatedialog.js",
+          "label": "Platzhalter"
+        }
+      ]
+    },
+    {
+      "id": "editors",
+      "type": "frontend",
+      "label": "editors.js",
+      "sublabel": "Felderkennung, Schreibzugriff",
+      "tag": "Content-Script",
+      "pos": [
+        560,
+        235
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/src/editors.js",
+          "label": "textarea und TinyMCE"
+        }
+      ]
+    },
+    {
+      "id": "editlock",
+      "type": "frontend",
+      "label": "editlock.js",
+      "sublabel": "haelt die Bearbeitung offen",
+      "tag": "Content-Script",
+      "pos": [
+        560,
+        400
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/src/editlock.js",
+          "label": "Feldwaechter"
+        }
+      ]
+    },
+    {
+      "id": "otrs",
+      "type": "backend",
+      "label": "OTRS-Verknuepfung",
+      "sublabel": "otrslink, otrsdialog, otrsflow, jiraui",
+      "tag": "Content-Script",
+      "pos": [
+        820,
+        400
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/src/otrsflow.js",
+          "label": "drei Schritte"
+        },
+        {
+          "path": "jira-markdown-converter/src/otrslink.js",
+          "label": "Verweis zerlegen"
+        },
+        {
+          "path": "jira-markdown-converter/src/jiraui.js",
+          "label": "AUI-Helfer"
+        }
+      ]
+    },
+    {
+      "id": "jiraPage",
+      "type": "external",
+      "label": "Jira Server / DC 9.12",
+      "sublabel": "fremdes Seiten-DOM, AUI",
+      "tag": "Atlassian",
+      "pos": [
+        1060,
+        147
+      ],
+      "size": [
+        200,
+        240
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "MV3-Erweiterungskontext - chrome.*-Rechte",
+      "wraps": [
+        "popup",
+        "background",
+        "storage"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Isolierte Welt - Content-Scripts, document_start, all_frames",
+      "wraps": [
+        "converter",
+        "content",
+        "settings",
+        "dialogs",
+        "editors",
+        "editlock",
+        "otrs"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Fremder Seitenkontext - Atlassian",
+      "wraps": [
+        "jiraPage"
+      ],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "from": "background",
+      "to": "content",
+      "label": "1 convert-selection",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        270,
+        313
+      ]
+    },
+    {
+      "from": "content",
+      "to": "converter",
+      "label": "2 markdownToJira()",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "content",
+      "to": "editors",
+      "label": "3 Jira-Markup",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        530,
+        313
+      ]
+    },
+    {
+      "from": "editors",
+      "to": "jiraPage",
+      "label": "4 textarea / TinyMCE",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "popup",
+      "to": "content",
+      "label": "insert-text, ping",
+      "variant": "dashed"
+    },
+    {
+      "from": "content",
+      "to": "settings",
+      "label": "Defaults lesen",
+      "variant": "dashed",
+      "route": "straight",
+      "labelAt": [
+        400,
+        313
+      ]
+    },
+    {
+      "from": "settings",
+      "to": "storage",
+      "label": "sync + local",
+      "variant": "security",
+      "route": "straight",
+      "labelAt": [
+        270,
+        386
+      ]
+    },
+    {
+      "from": "dialogs",
+      "to": "converter",
+      "label": "Vorschau",
+      "variant": "dashed",
+      "route": "straight"
+    },
+    {
+      "from": "editlock",
+      "to": "editors",
+      "label": "Feld-Handles",
+      "variant": "dashed",
+      "route": "straight"
+    },
+    {
+      "from": "otrs",
+      "to": "jiraPage",
+      "label": "Label, Feld, Web-Link",
+      "labelAt": [
+        1085,
+        455
+      ],
+      "fromSide": "right",
+      "toSide": "bottom",
+      "via": [
+        [
+          1160,
+          432
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Ausfuehrungskontexte",
+      "items": [
+        "Service-Worker haelt Tastenkuerzel, Kontextmenue und dynamisch registrierte Hosts",
+        "Elf Content-Scripts laden bei document_start in fester Reihenfolge, settings.js zuerst und content.js zuletzt",
+        "content.js startet Dialoge, editlock und den OTRS-Ablauf und verdrahtet alle Module ueber window"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Vertrauensgrenzen",
+      "items": [
+        "host_permissions nur https://*.atlassian.net/*, weitere Hosts kommen als optional_host_permissions dazu",
+        "Kein fetch und kein XMLHttpRequest - gearbeitet wird ausschliesslich auf dem DOM der offenen Seite",
+        "Leere catch-Bloecke sind Absicht, Jira baut das DOM zur Laufzeit staendig um"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Modulregeln",
+      "items": [
+        "ES5 ohne Bundler und ohne Runtime-Deps, jedes Modul als UMD mit module.exports und Global",
+        "converter.js bleibt DOM-frei und laeuft per importScripts auch im Service-Worker und in den Node-Tests",
+        "Nur die Editoren von 9.12 LTS: textarea im Wiki-Feld und TinyMCE-Rahmen, ProseMirror ist ausser Scope"
+      ]
+    }
+  ]
+}
