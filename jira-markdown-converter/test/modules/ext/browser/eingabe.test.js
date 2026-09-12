@@ -50,6 +50,32 @@ function watchForUnexpectedDialogs(page) {
   return seen;
 }
 
+/**
+ * Probiert reload() in kurzen Schritten, bis er ohne beforeunload-Dialog
+ * durchlaeuft - der Zielzustand (Sperre abgegeben) laesst sich hier nicht
+ * ueber das DOM ablesen: das Feld reisst seine eigene Feldleiste beim
+ * Abbrechen synchron mit sich aus dem DOM, lange bevor EditLock.cleanup()
+ * die Sperre tatsaechlich freigibt. Ein kurzer Reload-Versuch prueft darum
+ * direkt den echten Vorgang. Loest ein Versuch einen Dialog aus, war die
+ * Sperre noch aktiv - der Eintrag dafuer im `dialogs`-Log zaehlt nicht als
+ * Fehlschlag der Pruefung und wird wieder entfernt, der naechste Versuch
+ * startet. Erst ein durchlaufender Reload gilt, dessen Ergebnis der
+ * Aufrufer per `dialogs`-Assertion prueft.
+ */
+async function reloadWhenUnlocked(page, dialogs, timeoutMs) {
+  var deadline = Date.now() + timeoutMs;
+  for (;;) {
+    var before = dialogs.length;
+    try {
+      await page.reload({ timeout: 300 });
+      return;
+    } catch (error) {
+      if (dialogs.length === before || Date.now() >= deadline) throw error;
+      dialogs.length = before;
+    }
+  }
+}
+
 describe('Echte Eingabe: Zwischenablage, Tastatur, Dialoge', function () {
   var readyPromise = extLib.canRunExtension();
   var ready = null;
@@ -153,15 +179,19 @@ describe('Echte Eingabe: Zwischenablage, Tastatur, Dialoge', function () {
     }, null, { timeout: LOCK_TIMEOUT });
 
     // Das Entfernen aus dem DOM ist sofort da, die Sperre faellt erst mit dem
-    // naechsten Scan (scheduleScan()-Debounce, 400 ms, content.js) - ohne
-    // diese Wartezeit haengt hier tatsaechlich ein beforeunload-Dialog:
-    // per Reload sofort nach dem Klick sieht EditLock das entfernte Feld
-    // noch als gesperrt.
-    await fixturePage.waitForTimeout(700);
-
-    // Ohne die abgegebene Sperre wuerde EditLock.onBeforeUnload() hier einen
-    // "Seite verlassen?"-Dialog anstossen und den Reload haengen lassen.
-    await fixturePage.reload();
+    // naechsten Scan (scheduleScan()-Debounce, 400 ms, content.js). Jira
+    // ersetzt beim Abbrechen das ganze Formular synchron mit dem Klick und
+    // reisst die eigene Feldleiste (in genau diesem Formular verankert)
+    // gleich mit aus dem DOM - lange bevor EditLock.cleanup() beim naechsten
+    // Scan die Sperre tatsaechlich freigibt. Ein Selektor auf die Leiste
+    // zeigt darum nur, dass Jira aufgeraeumt hat, nicht dass die Sperre weg
+    // ist - kein DOM-Signal bleibt stehen, an dem sich der richtige
+    // Zeitpunkt ablesen liesse. Gewartet wird darum auf den eigentlichen
+    // Zielzustand direkt: ein
+    // Reload versucht es in kurzen Schritten, bis er ohne beforeunload-Dialog
+    // durchlaeuft (Sperre wirklich abgegeben) - der Watcher unten sieht nur
+    // den letzten, tatsaechlich sauberen Versuch.
+    await reloadWhenUnlocked(fixturePage, dialogs, LOCK_TIMEOUT);
     await fixturePage.waitForSelector('.jmd-fab', { timeout: WAIT_TIMEOUT });
 
     assert.deepStrictEqual(dialogs, [], 'unerwarteter Dialog beim Wegnavigieren nach dem Abbrechen');
