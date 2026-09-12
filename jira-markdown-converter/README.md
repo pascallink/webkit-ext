@@ -390,7 +390,9 @@ eingefuegt.
 
 Die Buttonleiste erscheint direkt ueber dem Textfeld, unterhalb der
 Formatierungsleiste von Jira. Beim Inline-Bearbeiten baut Jira den Feldblock neu
-auf - die Leiste wandert mit und verschwindet zusammen mit dem Feld.
+auf - die Leiste wandert mit und verschwindet zusammen mit dem Feld. Sie kommt
+auch nach, wenn ein anfangs zu kleines oder verdecktes Feld gross genug wird -
+ohne dass das Ticket neu geladen werden muss.
 
 **Wichtig:** Jira zeigt Wiki-Markup nur an, wenn das jeweilige Feld den
 *Wiki Style Renderer* benutzt. Steht das Feld auf *Default Text Renderer*,

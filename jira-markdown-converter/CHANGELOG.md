@@ -15,6 +15,9 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Die Buttonleiste erscheint jetzt auch an Feldern, die beim ersten Scan noch zu
+  klein oder verdeckt waren (Dialog *Vorgang bearbeiten*, Reiter *Vorschau*,
+  eingeklapptes Kommentarfeld) - Issue #101.
 - Erweiterung nistet sich nicht mehr auf fremden Seiten ein.
 - Feldleisten, schwebender Button und Einfrieren nur noch auf erkannten
   Jira-Instanzen; das Kuerzel oeffnet ueberall das Panel ohne Leisten.
