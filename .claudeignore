@@ -110,3 +110,11 @@ extensions.txt
 .git/
 **/.idea/
 **/.vscode/
+
+# --- Archify: Renderer-Innereien und erzeugte Diagramme ---
+.claude/skills/archify/assets/
+.claude/skills/archify/renderers/
+.claude/skills/archify/delta/
+.claude/skills/archify/bin/
+**/docs/architecture/*.html
+**/docs/architecture/*.visual-check.*
