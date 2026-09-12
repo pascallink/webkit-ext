@@ -402,7 +402,9 @@
     '  <textarea id="jmd-input" class="jmd-textarea" rows="7" spellcheck="false"',
     '            placeholder="Markdown hier einfuegen (Strg+V) ..."></textarea>',
     '  <div class="jmd-row">',
-    '    <button type="button" class="jmd-btn" data-action="from-clipboard">Aus Zwischenablage</button>',
+    '    <button type="button" class="jmd-btn" data-action="from-clipboard"',
+    '            title="Markdown aus der Zwischenablage lesen - auf http-Seiten stattdessen Strg+V">',
+    '      Aus Zwischenablage</button>',
     '    <button type="button" class="jmd-btn" data-action="from-field">Aus Zielfeld</button>',
     '    <button type="button" class="jmd-btn" data-action="clear">Leeren</button>',
     '  </div>',
@@ -500,6 +502,10 @@
         break;
       case 'from-clipboard':
         readClipboard().then(function (text) {
+          if (text === null) {
+            toast('Auf http-Seiten bitte Strg+V benutzen.', true);
+            return;
+          }
           if (!text) {
             toast('Zwischenablage ist leer oder nicht lesbar.', true);
             return;
@@ -661,14 +667,48 @@
       }
     }
     if (!write) {
+      if (fallbackToLegacyRich(html, text)) return;
       copyText(html, 'HTML als Text kopiert.');
       return;
     }
     write.then(function () {
       toast('Formatiert kopiert.');
     }, function () {
+      if (fallbackToLegacyRich(html, text)) return;
       copyText(html, 'HTML als Text kopiert.');
     });
+  }
+
+  /**
+   * Legacy-Rueckfall nur, wenn navigator.clipboard.writeText selbst fehlt -
+   * reine http-Instanzen kennen navigator.clipboard ueberhaupt nicht. Ist
+   * writeText vorhanden (nur write/ClipboardItem fehlt), bleibt der alte Weg
+   * ueber copyText()/writeText die bessere Wahl als das veraltete
+   * execCommand. Rueckgabe true heisst: erledigt, kein weiterer Rueckfall.
+   */
+  function fallbackToLegacyRich(html, text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return false;
+    if (!copyRichViaCommand(html, text)) return false;
+    toast('Formatiert kopiert.');
+    return true;
+  }
+
+  /**
+   * Rueckfall fuer copyRich() ohne navigator.clipboard.write: ein einmaliger
+   * copy-Listener belegt das Ereignis mit text/html und text/plain, bevor
+   * copyViaCommand() ueber das alte execCommand kopiert. Ohne Zwischenablage
+   * ueberhaupt (Listener greift nicht) liefert copyViaCommand() false.
+   */
+  function copyRichViaCommand(html, text) {
+    var listener = function (event) {
+      event.clipboardData.setData('text/html', html);
+      event.clipboardData.setData('text/plain', text);
+      event.preventDefault();
+    };
+    document.addEventListener('copy', listener);
+    var success = copyViaCommand(text);
+    document.removeEventListener('copy', listener);
+    return success;
   }
 
   function refreshPreview() {
@@ -1182,11 +1222,16 @@
     pasteButton.type = 'button';
     pasteButton.className = 'jmd-fieldbar__btn';
     pasteButton.textContent = 'Einfuegen';
-    pasteButton.title = 'Markdown aus der Zwischenablage umgewandelt an der Cursorposition einfuegen';
+    pasteButton.title = 'Markdown aus der Zwischenablage umgewandelt an der Cursorposition einfuegen'
+      + ' - auf http-Seiten stattdessen Strg+V';
     pasteButton.addEventListener('click', function (event) {
       event.preventDefault();
       target = field;
       readClipboard().then(function (text) {
+        if (text === null) {
+          toast('Auf http-Seiten bitte Strg+V benutzen.', true);
+          return;
+        }
         if (!text) {
           toast('Zwischenablage ist leer oder nicht lesbar.', true);
           return;
@@ -1302,8 +1347,12 @@
    * ------------------------------------------------------------------ */
 
   function readClipboard() {
+    // Fehlt die Clipboard-API komplett (z. B. auf http-Seiten), gibt es
+    // keinen Lesezugriff - das liefert null, damit die Aufrufer auf Strg+V
+    // verweisen koennen. Eine tatsaechlich leere Zwischenablage liefert
+    // weiterhin '', das bleibt die alte Meldung.
     if (!navigator.clipboard || !navigator.clipboard.readText) {
-      return Promise.resolve('');
+      return Promise.resolve(null);
     }
     return navigator.clipboard.readText().catch(function () {
       return '';
@@ -1319,11 +1368,44 @@
       navigator.clipboard.writeText(text).then(function () {
         toast(message || 'Jira-Markup kopiert.');
       }, function () {
-        toast('Kopieren nicht moeglich.', true);
+        copyTextFallback(text, message);
       });
       return;
     }
-    toast('Kopieren nicht moeglich.', true);
+    copyTextFallback(text, message);
+  }
+
+  /** Meldet copyViaCommand() ueber denselben Toast wie den Erfolgspfad. */
+  function copyTextFallback(text, message) {
+    if (copyViaCommand(text)) {
+      toast(message || 'Jira-Markup kopiert.');
+    } else {
+      toast('Kopieren nicht moeglich.', true);
+    }
+  }
+
+  /**
+   * Rueckfall ohne Clipboard-API (reine http-Jira-Instanzen kennen
+   * navigator.clipboard nicht): verstecktes Textarea befuellen, markieren,
+   * mit dem alten execCommand kopieren, Knoten wieder entfernen.
+   */
+  function copyViaCommand(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.top = '-1000px';
+    area.style.left = '-1000px';
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    var success = false;
+    try {
+      success = document.execCommand('copy');
+    } catch (error) {
+      success = false;
+    }
+    document.body.removeChild(area);
+    return success;
   }
 
   function toast(message, isError) {

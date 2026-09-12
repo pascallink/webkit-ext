@@ -12,6 +12,7 @@ var test = nodeTest.test;
 var browserLib = require('../../../lib/browser');
 var fixtures = require('../../../lib/fixtures');
 var stubClipboard = require('../../../lib/dom').stubClipboard;
+var stubLegacyClipboard = require('../../../lib/dom').stubLegacyClipboard;
 
 var SERVER = fixtures.SERVER;
 var RTE = fixtures.RTE;
@@ -332,6 +333,33 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     }, null, { timeout: 4000 });
     assert.deepStrictEqual(await page.evaluate(function () { return window.__copied[0]; }),
       { kind: 'text', text: '<pre class="code panel" style="border-width: 1px;">a &lt; b\n</pre>' });
+    await page.close();
+  });
+
+  test('Kopieren im Dialog ohne Clipboard-API', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await stubLegacyClipboard(page);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.selectOption('#jmd-code-language', 'sql');
+    await page.fill('#jmd-code-input', 'select 1;');
+    await page.click('.jmd-dialog [data-code-action="copy-jira"]');
+    await page.waitForFunction(function () {
+      return window.__copied.length === 1;
+    }, null, { timeout: 4000 });
+    assert.deepStrictEqual(await page.evaluate(function () { return window.__copied[0]; }),
+      { kind: 'text', text: '{code:sql}\nselect 1;\n{code}' });
+
+    await page.click('.jmd-dialog [data-code-action="copy-html"]');
+    await page.waitForFunction(function () {
+      return window.__copied.length === 2;
+    }, null, { timeout: 4000 });
+    var copied = await page.evaluate(function () { return window.__copied[1]; });
+    assert.strictEqual(copied.kind, 'html', 'nicht ueber execCommand als html kopiert');
+    assert.strictEqual(copied.html,
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-sql">' +
+      'select 1;\n</pre>');
+    assert.strictEqual(copied.text, '{code:sql}\nselect 1;\n{code}');
     await page.close();
   });
 

@@ -9,6 +9,9 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Auf `http://`-Instanzen kopieren Panel, Feldleiste und Code-Dialog wieder;
+  Einfuegen verweist dort jetzt auf Strg+V statt eine leere Zwischenablage zu
+  melden (Issue #106).
 - Panel-Vorlagen im visuellen Modus kommen jetzt als echtes Panel an statt als
   fetter Titel mit Absatz (Issue #109).
 - Code-Dialog liefert im visuellen Modus einen echten Codeblock statt
