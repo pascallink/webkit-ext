@@ -239,7 +239,10 @@
     },
     link: function (label, url) {
       if (!label || label === url) return '[' + url + ']';
-      return '[' + label.replace(/\|/g, '\\|') + '|' + url + ']';
+      // Ein schon maskierter Strich (Tabellenzelle, cellPipe) bleibt
+      // einfach maskiert; nur ein roher Strich wird neu maskiert. Der
+      // Trenner zwischen Label und Ziel bleibt davon unberuehrt.
+      return '[' + label.replace(/\\?\|/g, '\\|') + '|' + url + ']';
     },
     image: function (url) {
       return '!' + url + '!';
@@ -271,6 +274,9 @@
       }
       return out.join('\n');
     },
+    // Jira 9.12.2 liest '\|' in einer Tabellenzelle als literalen Strich -
+    // ohne Maskierung wuerde er als Spaltentrenner gedeutet.
+    cellPipe: '\\|',
     list: function (items) {
       var out = [];
       for (var i = 0; i < items.length; i++) {
@@ -377,6 +383,8 @@
       out.push('</tbody>', '</table>');
       return out.join('');
     },
+    // Im HTML-<td> braucht ein Strich keine Maskierung.
+    cellPipe: '|',
     list: function (items) {
       var out = [];
       var open = [];      // 'ul' / 'ol' je Ebene
@@ -569,7 +577,9 @@
     for (var i = 0; i < row.length; i++) {
       var ch = row.charAt(i);
       if (ch === '\\' && row.charAt(i + 1) === '|') {
-        current += '|';
+        // Maskierter Strich bleibt maskiert - erst convertInline() (mit
+        // gesetztem ctx.inTableCell) entscheidet, was daraus wird.
+        current += '\\|';
         i++;
       } else if (ch === '|') {
         cells.push(current.trim());
@@ -591,8 +601,13 @@
     var ph = ctx.placeholders;
     var d = ctx.dialect;
 
-    // 1. Markdown-Escapes (\* \_ \# ...) sichern.
+    // 1. Markdown-Escapes (\* \_ \# ...) sichern. In einer Tabellenzelle
+    //    bleibt ein maskierter Strich als Trenner-Kennzeichen erhalten
+    //    (cellPipe) statt als roher Strich - sonst verschiebt splitTableRow()
+    //    beim naechsten Durchlauf die Spalten (Issue #94). Das gilt auch
+    //    innerhalb von {{...}}, da diese Ersetzung vor Schritt 2 laeuft.
     text = text.replace(/\\([\\`*_{}\[\]()#+\-.!|~>])/g, function (match, ch) {
+      if (ch === '|' && ctx.inTableCell) return ph.add(d.cellPipe);
       return ph.add(d.escapeLiteral(ch));
     });
 
@@ -936,7 +951,10 @@
 
   function readTable(lines, start, ctx) {
     function cell(value) {
-      return convertInline(value, ctx) || ' ';
+      ctx.inTableCell = true;
+      var result = convertInline(value, ctx) || ' ';
+      ctx.inTableCell = false;
+      return result;
     }
 
     var header = splitTableRow(lines[start]).map(cell);

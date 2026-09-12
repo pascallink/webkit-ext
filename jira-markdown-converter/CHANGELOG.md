@@ -9,6 +9,8 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Ein mit `\|` maskierter senkrechter Strich bleibt in der
+  Tabellenzelle stehen, statt die Spalten zu verschieben (Issue #94).
 - Sonderzeichen im Fliesstext werden maskiert, damit Jira sie nicht als
   Markup liest (Issue #93).
 - Auf `http://`-Instanzen kopieren Panel, Feldleiste und Code-Dialog wieder;

@@ -360,7 +360,9 @@ Sprachnamen werden auf die von Jira unterstuetzten abgebildet (`js` →
 `javascript`, `yml` → `yaml`); unbekannte Sprachen fallen auf `{code}` zurueck.
 Inhalte von Code-Bloecken bleiben unangetastet, Sonderzeichen im Fliesstext
 werden maskiert (geschweifte Klammern, eckige Klammern und paarige
-Auszeichnungszeichen), damit Jira sie nicht als Markup liest.
+Auszeichnungszeichen), damit Jira sie nicht als Markup liest. `\|` in einer
+Tabellenzelle kommt als literaler Strich an; ein roher Strich in
+Inline-Code trennt die Zelle wie in GitHub-Markdown.
 
 ## Jira Server / Data Center im Detail
 

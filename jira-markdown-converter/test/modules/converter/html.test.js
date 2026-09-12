@@ -79,6 +79,12 @@ describe('HTML fuer den Rich-Text-Editor', function () {
       '<table><thead><tr><th>A</th><th>B</th></tr></thead>' +
       '<tbody><tr><td>1</td><td>2</td></tr></tbody></table>');
   });
+  test('Tabellenzelle mit maskiertem Strich', function () {
+    // HTML-Dialekt braucht keine Maskierung im <td> - bleibt unveraendert.
+    html('| A | B |\n| --- | --- |\n| Regex | a\\|b |',
+      '<table><thead><tr><th>A</th><th>B</th></tr></thead>' +
+      '<tbody><tr><td>Regex</td><td>a|b</td></tr></tbody></table>');
+  });
   test('Zitat', function () {
     html('> Zitat', '<blockquote>\n<p>Zitat</p>\n</blockquote>');
   });
