@@ -129,9 +129,12 @@ function num(value) {
  *
  * costs.csv: Dedupe auf (branch, session_id), juengstes updated_at gewinnt.
  * tokens.csv fuehrt kein updated_at; dort gewinnt bei doppeltem
- * (session_id, model) die teurere Zeile - Session-Kosten wachsen monoton,
- * also ist das die juengste. Gezaehlt werden nur Modellzeilen zu Sessions,
- * die costs.csv kennt, damit die Modellsummen die Gesamtsumme nicht sprengen.
+ * (session_id, model) die Zeile mit der hoechsten Token-Summe (input +
+ * output + cache_read + cache_write) - anders als cost_usd wachsen die
+ * Token-Zahlen unabhaengig von spaeteren Preiskorrekturen monoton, also ist
+ * das zuverlaessig die juengste Zeile. Bei Gleichstand bleibt die zuerst
+ * gelesene Zeile. Gezaehlt werden nur Modellzeilen zu Sessions, die
+ * costs.csv kennt, damit die Modellsummen die Gesamtsumme nicht sprengen.
  *
  * @param {string[][]} costsRows
  * @param {string[][]} tokensRows
@@ -154,7 +157,14 @@ export function aggregate(costsRows, tokensRows, branch) {
     if (!sessions.has(row[1])) continue;
     const key = `${row[1]}\u0000${row[2]}`;
     const previous = newest.get(key);
-    if (!previous || num(row[7]) > num(previous[7])) newest.set(key, row);
+    const tokenSum = num(row[3]) + num(row[4]) + num(row[5]) + num(row[6]);
+    if (!previous) {
+      newest.set(key, row);
+    } else {
+      const previousTokenSum =
+        num(previous[3]) + num(previous[4]) + num(previous[5]) + num(previous[6]);
+      if (tokenSum > previousTokenSum) newest.set(key, row);
+    }
   }
 
   const perModel = new Map();
@@ -465,20 +475,37 @@ async function postComment(repo, pr, block) {
 }
 
 async function patchDescriptions(repo, pr, prBody, block) {
-  const nextPrBody = gh.mergeIntoBody(prBody, block, COST_MARKER);
-  if (nextPrBody !== (prBody || '')) {
+  // Aktuellen PR-Body per API holen statt der Ereignis-Nutzlast zu vertrauen -
+  // sonst macht ein Re-Run zwischenzeitliche Body-Aenderungen rueckgaengig.
+  // Nur wenn der Abruf scheitert, faellt der Lauf auf PR_BODY zurueck.
+  let currentPrBody = prBody;
+  try {
+    const current = await gh.get(repo, pr, 'pulls');
+    currentPrBody = current.body || '';
+  } catch (err) {
+    warn(`PR #${pr} nicht lesbar, verwende Ereignis-Body (${err.message}).`);
+  }
+
+  const nextPrBody = gh.mergeIntoBody(currentPrBody, block, COST_MARKER);
+  if (nextPrBody !== (currentPrBody || '')) {
     await gh.patchBody(repo, pr, nextPrBody, 'pulls');
     log(`PR-Beschreibung #${pr} gepatcht.`);
   } else {
     log('PR-Beschreibung unveraendert.');
   }
 
+  // Die Verlinkung ("Closes #N") liest weiterhin die Ereignis-Nutzlast - die
+  // steht beim Merge fest und soll nicht von zwischenzeitlichen Body-Edits
+  // abhaengen.
+  const issueMarker = `${COST_MARKER}-pr-${pr}`;
   for (const issue of linkedIssues(prBody, pr)) {
     // Ein fehlgeschlagener Issue-Patch (etwa fehlendes issues:write) darf die
     // Verbuchung nicht kippen - der Kostenblock im PR steht dann trotzdem.
     try {
       const current = await gh.get(repo, issue, 'issues');
-      const nextBody = gh.mergeIntoBody(current.body, block, COST_MARKER);
+      // Eigener Marker je PR: mehrere Sub-Task-PRs auf dasselbe Issue duerfen
+      // sich nicht gegenseitig den Kostenblock ueberschreiben.
+      const nextBody = gh.mergeIntoBody(current.body, block, issueMarker);
       if (nextBody === (current.body || '')) {
         log(`Issue #${issue} unveraendert.`);
         continue;
