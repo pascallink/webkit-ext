@@ -117,6 +117,28 @@
     }
   }
 
+  /**
+   * Wie deliver(), aber fuer bereits fertiges Jira-Markup (Fremdaufrufer
+   * ueber die Nachricht insert-text, Feld text statt markdown - Issue #105).
+   * Das Markup geht nie durch convert() und nie als HTML in den Rich-Text-
+   * Editor: nur einfuegen, davor bei Bedarf auf den Markup-Modus umschalten.
+   */
+  function deliverMarkup(field, markup, mode) {
+    var where = mode === 'insert' ? insertModeFor(markup) : mode;
+
+    if (isPlainField(field)) {
+      return Promise.resolve(Editors.insert(field, markup, where) ? 'markup' : '');
+    }
+
+    var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
+      ? Editors.switchToMarkup(field)
+      : Promise.resolve(false);
+
+    return switching.then(function (switched) {
+      return Editors.insert(field, markup, where) ? (switched ? 'switched' : 'markup') : '';
+    });
+  }
+
   /** Rueckmeldung passend zu dem Weg, den deliver() genommen hat. */
   function insertMessage(how) {
     switch (how) {
@@ -1568,8 +1590,20 @@
           sendResponse({ ok: false, reason: 'no-target' });
           return;
         }
-        sendResponse({ ok: Editors.insert(field, message.text, message.mode || 'insert') });
-        break;
+        // markdown kommt vom eigenen Popup und laeuft ueber deliver() (Rich-
+        // Text-Einstellungen greifen), text ist fertiges Markup von einem
+        // Fremdaufrufer und geht direkt ueber deliverMarkup(). Beide Wege
+        // antworten asynchron - darum unten "return true", sonst schliesst
+        // Chrome den Nachrichtenkanal vor sendResponse.
+        var delivery = message.markdown != null
+          ? deliver(field, message.markdown, message.mode || 'insert')
+          : deliverMarkup(field, message.text, message.mode || 'insert');
+        delivery.then(function (how) {
+          sendResponse({ ok: !!how, how: how });
+        }, function () {
+          sendResponse({ ok: false, reason: 'error' });
+        });
+        return true;
       case 'convert-context-selection':
         handleContextSelection(message.text);
         sendResponse({ ok: true });
