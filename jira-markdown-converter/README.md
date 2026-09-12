@@ -34,6 +34,9 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    * *Einfuegen* – holt das Markdown aus der Zwischenablage, konvertiert es
      und fuegt es an der Cursorposition ein.
    * *Code* – oeffnet den Dialog fuer einen Codeblock.
+   * *OTRS* – oeffnet den Dialog fuer einen OTRS-Verweis, traegt ihn nach
+     Absenden in Label, Kunden Referenz und Web-Link ein. Laesst sich in
+     den Einstellungen abschalten.
    * *Panel* – stellt vier farbige Panels zur Auswahl und fuegt das gewaehlte
      an der Cursorposition ein.
    * *Vorlagen* – stellt die eigenen, in den Einstellungen angelegten
@@ -43,9 +46,6 @@ Auf Jira-Seiten kommen fuenf Bedienelemente dazu:
    * *Schloss* – zeigt an, dass das Feld im Bearbeitungsmodus festgehalten
      wird, und gibt es auf Klick wieder frei. Das Festhalten passiert von
      selbst, laesst sich in den Einstellungen aber abschalten.
-   * *OTRS* – oeffnet den Dialog fuer einen OTRS-Verweis, traegt ihn nach
-     Absenden in Label, Kunden Referenz und Web-Link ein. Laesst sich in
-     den Einstellungen abschalten.
 
    Die Beschriftungen sind kurz gehalten, damit die Leiste in eine Zeile
    passt; was ein Button genau tut, steht in seinem Tooltip.
