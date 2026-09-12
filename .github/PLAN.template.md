@@ -27,6 +27,62 @@ Erstelle einen detaillierten Ausführungsplan für Issue #[ISSUE_NUMBER]. Jeder 
   * [ ] Git Commit & Push auf den Branch ausgeführt.
 * **Umsetzungsauftrag (Stufe 0):** *(Nach der Stufe-0-Vorlage in [`.github/PROMPTS.md`](PROMPTS.md) - reiner Text in einem eigenen Codeblock, drei Backticks, ohne Sprache. `branch` und `base_branch` gehören in den Block selbst: der `umsetzer` startet kalt und sieht nur diesen Text, nicht den übrigen Plan.)*
 
+## Abschluss jeder Session: Review-Prompt fuer Opus
+
+Jeder Sub-Task endet nicht mit dem Push. Die umsetzende Session gibt zum
+Schluss **einen Review-Prompt zum Kopieren aus**, mit dem der PR an Opus
+weitergereicht wird. Der Auftrag an die Session lautet woertlich:
+
+> Erstelle einen Review-Prompt fuer Opus, der die Code-Aenderungen, deine
+> Designentscheidungen, potenzielle Edge Cases und 3-4 konkrete Pruefpunkte
+> fuer diesen PR zusammenfasst.
+
+Form der Ausgabe - ein einzelner Codeblock, sonst nichts drumherum:
+
+```text
+Review von PR "<Titel>" (Branch feature/issue-[ISSUE_NUMBER]-part-<X>, Base <Base>).
+Projekt: [Projektname], [Tech-Stack-Stichworte, z. B. Sprache/Framework/Deps].
+
+Aenderungen
+- <Datei>: <was und warum, ein Satz>
+- ...
+
+Designentscheidungen
+- <Entscheidung>: <Alternative, die verworfen wurde, und der Grund>
+- ...
+
+Edge Cases, die ich bedacht habe
+- <Fall> -> <Verhalten>
+- ...
+
+Bitte pruefe gezielt
+1. <konkreter Pruefpunkt mit Datei und Funktion>
+2. <...>
+3. <...>
+(4. <...>)
+
+Bekannte Luecken: <was bewusst offen blieb, oder "keine">
+```
+
+Regeln fuer diesen Prompt:
+
+* **Beruehrte Testmodule nennen.** Opus soll wissen, welche Module gelaufen
+  sind und welche bewusst zu blieben.
+* **Selbsttragend.** Opus sieht den Chatverlauf der Session nicht. Jede
+  Behauptung nennt Datei und Funktion.
+* **Pruefpunkte sind Fragen an den Code, keine Zusammenfassung.** Gut:
+  "raeumt `waitForElement` den MutationObserver auch im Timeout-Zweig ab?".
+  Schlecht: "bitte die neuen Tests anschauen".
+* **Ehrlich bei den Luecken.** Was nicht getestet ist, steht drin - erfundene
+  Sicherheit kostet die Runde.
+* Kein Selbstlob, keine Wiederholung des Plans, hoechstens 40 Zeilen.
+
+**Korrektur-Routing:** Opus entscheidet nach dem Review, ob und wie viele
+Korrektur-Prompts folgen - 0, 1 oder 2, je Prompt genau eine Zieldatei. Nur
+Triviales (Lint, Formatierung, Umlaute, Doku, Typos) geht an Haiku, alles mit
+Logik, Architektur oder Tests darin an Sonnet. Form und Ausgabeort dieser
+Korrektur-Prompts stehen im folgenden Abschnitt.
+
 **Format des PR-Review-Ergebnisses (Opus)**
 
 Das Review am Sessionende wird als kurzer Markdown-Fliesstext ausgegeben, nicht

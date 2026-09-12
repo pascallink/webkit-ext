@@ -1,13 +1,22 @@
 name: Cost Report
 
-# Verbucht die Session-Kosten eines gemergten Branches: Job Summary,
-# PR-Kommentar, Kostenblock in PR- und Issue-Beschreibung, Changelog-Zeile
-# je beruehrtem Projekt, Historie - und raeumt costs.csv/tokens.csv auf.
-# Die Logik steckt in scripts/costs-merge.mjs, nicht in diesem YAML.
+# Zwei unabhaengige Jobs:
+# - aggregate: verbucht die Session-Kosten eines gemergten Branches (Job
+#   Summary, PR-Kommentar, Kostenblock in PR- und Issue-Beschreibung,
+#   Changelog-Zeile je beruehrtem Projekt, Historie) und raeumt
+#   costs.csv/tokens.csv des Branches auf. Logik in scripts/costs-merge.mjs.
+# - daily: erzeugt taeglich den Tagesreport stats/report.html und raeumt
+#   verwaiste Branches auf (Remote weg oder aelter als 30 Tage). Logik in
+#   scripts/costs-report.mjs.
+# Beide Jobs pushen auf main, keiner davon baut den anderen aus - nichts in
+# diesem YAML rechnet selbst.
 
 on:
   pull_request:
     types: [closed]
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,7 +27,10 @@ permissions:
 
 jobs:
   aggregate:
-    if: github.event.pull_request.merged == true
+    # Nur bei einem gemergten PR - schedule und workflow_dispatch haben kein
+    # pull_request-Ereignis und wuerden sonst mit einem leeren Kontext
+    # laufen bzw. der Job liefe bei jedem Trigger doppelt mit.
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     # version-bump.yml pusht ebenfalls auf main - beide Workflows pushen auf
     # denselben Branch, deshalb dieselbe Gruppe main-push. Auf Job-Ebene
@@ -114,6 +126,67 @@ jobs:
               fi
             fi
             # Ein abgebrochener Rebase blockiert sonst den naechsten Versuch.
+            git rebase --abort 2>/dev/null || true
+            echo "Push-Versuch $attempt fehlgeschlagen - neuer Anlauf."
+            sleep $((attempt * 5))
+          done
+          echo "Push nach drei Versuchen fehlgeschlagen." >&2
+          exit 1
+
+  daily:
+    # Nicht bei einem PR-Event - der eigenstaendige Tagesreport laeuft nur
+    # per Zeitplan oder von Hand, unabhaengig vom Merge-Job oben.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: main-push
+      cancel-in-progress: false
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Tagesreport erzeugen und verwaiste Branches aufraeumen
+        run: node scripts/costs-report.mjs
+
+      # v5 laeuft laut .github/CI.md noch auf der Node-20-Runtime von
+      # actions/setup-node - fuer upload-artifact ist v6 der erste Major,
+      # der davon runter ist, deshalb hier bewusst v6 statt v5.
+      - name: Report als Artefakt ablegen
+        uses: actions/upload-artifact@v6
+        with:
+          name: cost-report
+          path: stats/report.html
+
+      - name: Commit und Push
+        run: |
+          set -eo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stats
+          if git diff --cached --quiet; then
+            echo "Nichts zu verbuchen - kein Commit."
+            exit 0
+          fi
+          bot_msg="chore(repo): kostenreport aktualisieren [skip ci]"
+          git commit -m "$bot_msg"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              echo "Push im Versuch $attempt erfolgreich."
+              exit 0
+            fi
+            # Holt ein Rebase-Konflikt (merge=union in .gitattributes) fremde
+            # Zeilen zurueck, die dieser Lauf schon geprunt hatte, wird hier
+            # bewusst nichts nachgebessert - anders als im Job aggregate.
+            # Der naechste Tageslauf sieht dieselben Zeilen wieder und prunt
+            # sie erneut; das ist einfacher als hier Logik zu duplizieren.
             git rebase --abort 2>/dev/null || true
             echo "Push-Versuch $attempt fehlgeschlagen - neuer Anlauf."
             sleep $((attempt * 5))
