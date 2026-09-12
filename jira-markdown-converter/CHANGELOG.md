@@ -9,6 +9,10 @@ festgehalten. Das Format orientiert sich an
 
 ### Geaendert
 
+- Die vier OTRS-Dateien (`otrslink`, `jiraui`, `otrsflow`, `otrsdialog`)
+  werden bis zu ihrer Verdrahtung nicht mehr auf jeder Jira-Seite geladen;
+  sie bleiben im Repo und fertig getestet, stehen aber nicht mehr in
+  `manifest.json` (Issue #103).
 - Aus Azure DevOps kopierte Bildgroessen, Anhangspfade, TOC-Marker,
   GUID-Erwaehnungen und fremde HTML-Tags landen nicht mehr roh im Ticket
   (Issue #99).
@@ -71,6 +75,54 @@ festgehalten. Das Format orientiert sich an
   die Liste zu beenden (Issue #100).
 - Setext-Ueberschriften (Titel mit Strichreihe darunter) werden als
   Ueberschriften erkannt (Issue #100).
+
+## [1.3.6] - 2026-09-11
+
+Nur interne Doku und Planung (Fehlersammlung, Testprotokoll, Nachbau der
+Jira-9.12-Instanz), keine nutzersichtbaren Aenderungen.
+
+## [1.3.5] - 2026-09-11
+
+### Hinzugefuegt
+
+- `JiraOtrsDialog`: Dialog "OTRS-Link einpflegen", nimmt einen OTRS-Verweis
+  in beliebigem Format entgegen und zeigt per `JiraOtrsLink` eine
+  Live-Vorschau der drei Zielwerte (Label, Kunden Referenz, Web-Link) - Teil
+  der OTRS-Anbindung aus Issue #17, noch nicht verdrahtet.
+
+## [1.3.4] - 2026-09-11
+
+Nur interne Planungsnotiz zum OTRS-Ablauf, keine nutzersichtbaren
+Aenderungen.
+
+## [1.3.3] - 2026-09-11
+
+### Hinzugefuegt
+
+- `JiraOtrsFlow`: traegt einen geparsten OTRS-Verweis strikt sequenziell in
+  drei Stellen des Jira-Vorgangs ein - Label, Custom Field "Kunden
+  Referenz", Web-Link im Dialog "Link" - mit Tastatur-Shortcut und
+  DOM-Fallback fuer Jira Server / Data Center 9.12 LTS (Issue #17, noch
+  nicht verdrahtet).
+
+## [1.3.2] - 2026-09-11
+
+### Geaendert
+
+- `playwright` als Entwicklungsabhaengigkeit exakt auf die Version des
+  vorinstallierten Chromium gepinnt statt auf einen Bereich - vermeidet
+  einen Versions-Mismatch beim Cloud-Sandbox-Setup.
+
+## [1.3.1] - 2026-09-11
+
+### Hinzugefuegt
+
+- `JiraOtrsLink`: zerlegt einen OTRS-Verweis (Markdown-Link, HTML-Anker oder
+  Rohtext mit eingebetteter URL) in Ticketnummer, Titel und URL - DOM-frei,
+  Grundlage der OTRS-Anbindung aus Issue #17.
+- `JiraUi`: generische DOM-Helfer gegen die klassische AUI-Oberflaeche von
+  Jira Server / Data Center - Warten auf Elemente per MutationObserver,
+  Werte setzen, Tastendruecke und Klicks nachbilden, ohne OTRS-Wissen.
 
 ## [1.3.0] - 2026-09-07
 

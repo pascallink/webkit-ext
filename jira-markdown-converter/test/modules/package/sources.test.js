@@ -224,3 +224,34 @@ describe('Quellcode', function () {
     });
   });
 });
+
+describe('Content-Script-Verdrahtung', function () {
+  test('jede Content-Datei wird ueber ihr Global referenziert', function () {
+    // src/content.js ist der Einstieg (IIFE ohne eigenen root.X = api-Export)
+    // und faellt darum aus der Pruefung selbst raus - als Sucheziel fuer die
+    // anderen Dateien zaehlt es aber mit, denn genau dort werden die Globale
+    // sonst per window.<Global> abgeholt.
+    var allFiles = manifest.content_scripts[0].js;
+    var globalPattern = /root\.([A-Za-z]+) = api/;
+    var missing = [];
+
+    allFiles.filter(function (file) {
+      return file !== 'src/content.js';
+    }).forEach(function (file) {
+      var source = fs.readFileSync(abs(file), 'utf8');
+      var match = globalPattern.exec(source);
+      if (!match) return;
+      var globalName = match[1];
+      var referencePattern = new RegExp('(window|self)\\.' + globalName + '\\b');
+      var referenced = allFiles.some(function (other) {
+        if (other === file) return false;
+        return referencePattern.test(fs.readFileSync(abs(other), 'utf8'));
+      });
+      if (!referenced) missing.push(file + ' (' + globalName + ')');
+    });
+
+    assert.deepStrictEqual(missing, [],
+      'Content-Datei wird von keiner anderen Content-Datei ueber ihr Global ' +
+      'referenziert (unverdrahtet): ' + missing.join(', '));
+  });
+});
