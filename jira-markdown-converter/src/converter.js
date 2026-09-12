@@ -661,6 +661,16 @@
         .replace(/<\/?sup>/gi, tag('sup'));
     }
 
+    // 3b. Azure-DevOps-Erwaehnungen: ADO speichert eine @-Erwaehnung als
+    //     '@<GUID>' (Format 8-4-4-4-12), Jira loest diese GUID nicht auf.
+    //     Folgt direkt ein Name (Grossbuchstabe), bleibt '@Name' als
+    //     einfacher Text stehen; sonst faellt die Erwaehnung samt einem
+    //     folgenden Leerzeichen komplett weg. Nur diese GUID-Form ist
+    //     gemeint - ein normales '@' (E-Mail, "3 @ 5") bleibt unberuehrt.
+    var guidPart = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}';
+    text = text.replace(new RegExp('@<' + guidPart + '>[ \\t]+(?=[A-Z])', 'g'), '@');
+    text = text.replace(new RegExp('@<' + guidPart + '>[ \\t]?', 'g'), '');
+
     // 4. Bilder: ![alt](url) -> !url!
     // Azure DevOps haengt beim Kopieren ein Groessensuffix '=BreitexHoehe'
     // an, die Hoehe ist dabei optional ('=300x' oder '=300x200') - Jira
@@ -878,6 +888,16 @@
 
         if (isHorizontalRule(line)) {
           out.push(ctx.dialect.rule());
+          i++;
+          break;
+        }
+
+        // Azure-DevOps-Inhaltsverzeichnis: Beim Kopieren aus dem Wiki
+        // landet die Zeile '[[_TOC_]]' im Markdown. Jira baut sein
+        // Inhaltsverzeichnis selbst (Makro {toc}), der Marker waere hier
+        // nur toter Text - Zeile ohne Ausgabe verwerfen, finish() raeumt
+        // die dadurch entstehende doppelte Leerzeile schon auf.
+        if (line.trim() === '[[_TOC_]]') {
           i++;
           break;
         }

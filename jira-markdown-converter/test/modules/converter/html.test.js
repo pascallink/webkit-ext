@@ -125,6 +125,10 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   test('leere Eingabe', function () {
     html('', '');
   });
+  test('Azure-DevOps-Marker verschwinden auch im HTML-Zweig', function () {
+    html('[[_TOC_]]', '');
+    html('Hallo @<9F4E1A2B-1111-2222-3333-444455556666> bitte', '<p>Hallo bitte</p>');
+  });
 });
 
 describe('Beide Formate auf einmal', function () {

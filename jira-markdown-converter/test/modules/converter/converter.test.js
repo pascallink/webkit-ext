@@ -120,6 +120,17 @@ describe('Links und Bilder', function () {
   });
 });
 
+describe('Azure-DevOps-Marker', function () {
+  test('TOC-Marker und GUID-Erwaehnungen verschwinden', function () {
+    eq('[[_TOC_]]', '');
+    eq('# Titel\n\n[[_TOC_]]\n\nText', 'h1. Titel\n\nText');
+    eq('Hallo @<9F4E1A2B-1111-2222-3333-444455556666> bitte', 'Hallo bitte');
+    eq('Danke @<11111111-2222-3333-4444-555555555555> Anna Meier', 'Danke @Anna Meier');
+    eq('Preis 3 @ 5 Euro', 'Preis 3 @ 5 Euro');
+    eq('a@b.de', 'a@b.de');
+  });
+});
+
 describe('Listen', function () {
   test('einfache Bulletliste', function () {
     eq('- a\n- b', '* a\n* b');
