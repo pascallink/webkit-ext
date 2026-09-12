@@ -15,10 +15,24 @@ var stubClipboard = require('../../../lib/dom').stubClipboard;
 
 var SERVER = fixtures.SERVER;
 var RTE = fixtures.RTE;
+var JIRA912 = fixtures.JIRA912;
 var CODE_BUTTON = '.jmd-fieldbar__btn:text-is("Code")';
 
 var hasPlaywright = browserLib.hasPlaywright();
 var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
+
+/**
+ * Beschreibungsfeld im JIRA912-Nachbau oeffnen, Jira wechselt sofort in den
+ * visuellen Modus. Nach dem Muster von openDescriptionVisual in
+ * test/modules/editlock/browser/visual.test.js - nur bis der Rahmen
+ * angehaengt ist warten, nicht auf die Feldleiste (die kommt separat aus dem
+ * 400-ms-Scan in content.js).
+ */
+async function openDescriptionVisual(page) {
+  await page.click('#description-val');
+  await page.waitForSelector('#description-val.active iframe.tox-edit-area__iframe',
+    { state: 'attached', timeout: 4000 });
+}
 
 describe('Code einfuegen', { skip: !hasPlaywright }, function () {
   test('Knopf an der Feldleiste oeffnet den Dialog', async function () {
@@ -179,7 +193,7 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
-  test('Rich-Text-Editor bekommt <pre><code> mit maskiertem Inhalt', async function () {
+  test('Rich-Text-Editor bekommt pre.code.panel mit maskiertem Inhalt', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, RTE);
     await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
@@ -191,14 +205,21 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     }, null, { timeout: 4000 });
     var pastes = await page.evaluate(function () { return window.__pastes; });
     assert.strictEqual(pastes[0].html,
-      '<pre><code class="language-html">&lt;b&gt;&amp;&lt;/b&gt;</code></pre>');
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-html">' +
+      '&lt;b&gt;&amp;&lt;/b&gt;\n</pre>');
     assert.strictEqual(pastes[0].text, '{code:html}\n<b>&</b>\n{code}');
-    var rendered = await page.frameLocator('#description_ifr').locator('pre code').textContent();
-    assert.strictEqual(rendered, '<b>&</b>');
+    var rendered = await page.frameLocator('#description_ifr').locator('pre').textContent();
+    assert.strictEqual(rendered, '<b>&</b>\n');
     await page.close();
   });
 
   test('Einfuegen an der gemerkten Position im Rich-Text-Editor', async function () {
+    // Die Marke stand am Ende von Absatz "a" - fuer ein Blockmakro rueckt
+    // splitBlockAtCaret die Selektion darum auf die Blockgrenze direkt
+    // dahinter, statt sie im Text von "a" zu belassen (Issue #108: sonst
+    // haengt das Blockmakro im umgebenden Absatz fest). Die wiederhergestellte
+    // Position bleibt trotzdem pruefbar: die Selektion muss direkt hinter
+    // Absatz "a" stehen, nicht etwa vor "b" oder ganz woanders.
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, RTE);
     await page.evaluate(function () {
@@ -218,7 +239,15 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     await page.waitForFunction(function () {
       return window.__pastes.length === 1;
     }, null, { timeout: 4000 });
-    assert.strictEqual(await page.evaluate(function () { return window.__caretParagraph; }), 'a');
+    var precedingId = await page.evaluate(function () {
+      var doc = document.querySelector('#description_ifr').contentDocument;
+      var selection = doc.defaultView.getSelection();
+      if (!selection.rangeCount) return null;
+      var range = selection.getRangeAt(0);
+      var before = range.startContainer.childNodes[range.startOffset - 1];
+      return before && before.id ? before.id : null;
+    });
+    assert.strictEqual(precedingId, 'a');
     await page.close();
   });
 
@@ -272,7 +301,8 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     var copied = await page.evaluate(function () { return window.__copied[0]; });
     assert.strictEqual(copied.kind, 'html', 'nicht als text/html kopiert');
     assert.strictEqual(copied.html,
-      '<pre><code class="language-html">&lt;b&gt;&amp;&lt;/b&gt;</code></pre>');
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-html">' +
+      '&lt;b&gt;&amp;&lt;/b&gt;\n</pre>');
     assert.strictEqual(copied.text, '{code:html}\n<b>&</b>\n{code}');
     assert.deepStrictEqual(await page.evaluate(function () { return window.__pastes; }), [],
       'Kopieren darf nichts einfuegen');
@@ -301,7 +331,7 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
       return window.__copied.length === 1;
     }, null, { timeout: 4000 });
     assert.deepStrictEqual(await page.evaluate(function () { return window.__copied[0]; }),
-      { kind: 'text', text: '<pre><code>a &lt; b</code></pre>' });
+      { kind: 'text', text: '<pre class="code panel" style="border-width: 1px;">a &lt; b\n</pre>' });
     await page.close();
   });
 
@@ -324,6 +354,37 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     await page.click('.jmd-dialog [data-code-action="insert"]');
     assert.ok(await page.locator('.jmd-dialog--open').count(), 'Dialog haette offen bleiben muessen');
     assert.strictEqual(await page.inputValue('#description'), '');
+    await page.close();
+  });
+});
+
+describe('Code im visuellen Modus (JIRA912)', { skip: !hasPlaywright }, function () {
+  test('Codeblock kommt als {code:java} im Wiki an', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, JIRA912);
+    await openDescriptionVisual(page);
+    // Feldleiste kommt erst mit dem 400-ms-Scan aus content.js.
+    await page.waitForSelector('.jmd-fieldbar', { timeout: 4000 });
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.selectOption('#jmd-code-language', 'java');
+    await page.fill('#jmd-code-input', 'int x = 1;\nreturn x;');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    // Umschalter auf Text, der Nachbau synct dabei aus dem Rahmen zurueck.
+    await page.click('.editor-toggle-tabs li[data-mode="source"] button');
+    var value = await page.inputValue('#description');
+    assert.ok(value.indexOf('{code:java}\nint x = 1;\nreturn x;\n{code}') !== -1,
+      'kein Codeblock im Wiki-Text angekommen: ' + value);
+    assert.ok(value.indexOf('{{') === -1,
+      'Codeblock kam als Inline-Monospace statt als Codeblock an: ' + value);
+    // Nebenbefund: keine Zeile darf nur aus einem geschuetzten Leerzeichen
+    // bestehen (Ueberbleibsel eines ausgepackten Blocks). Ohne rohe
+    // Anfuehrungszeichen im Regex-Literal, sonst desynct der Quote-Scanner
+    // aus package/isolation.test.js.
+    var strayProtectedSpace = value.split('\n').some(function (line) {
+      return /^ $/.test(line);
+    });
+    assert.strictEqual(strayProtectedSpace, false,
+      'eine Zeile besteht nur aus einem geschuetzten Leerzeichen: ' + value);
     await page.close();
   });
 });

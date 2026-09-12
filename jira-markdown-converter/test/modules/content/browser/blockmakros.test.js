@@ -93,9 +93,10 @@ describe('Blockmakros am Zeilenanfang', { skip: !hasPlaywright }, function () {
   });
 
   test('im Rich-Text-Editor bekommt der Codeblock einen eigenen Block', async function () {
-    // Ohne Trenner zieht ein ProseMirror-Editor den Codeblock in den Absatz,
-    // in dem die Marke steht - heraus kaeme Text mit Code-Auszeichnung statt
-    // eines Codeblocks.
+    // Die Marke steht mitten im Absatz - der Absatz wird darum an dieser
+    // Stelle echt geteilt, statt ihn mit leeren Trenner-Absaetzen einzurahmen.
+    // So kommt der Codeblock als eigenstaendiges Element an, ohne dass ein
+    // leerer Absatz im Editor zurueckbleibt.
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, RTE);
     await setRichCaret(page, '<p id="a">davor danach</p>', 'a', 6);
@@ -108,12 +109,23 @@ describe('Blockmakros am Zeilenanfang', { skip: !hasPlaywright }, function () {
     }, null, { timeout: 4000 });
     var paste = await page.evaluate(function () { return window.__pastes[0]; });
     assert.strictEqual(paste.html,
-      '<p></p><pre><code class="language-java">int a = 1;</code></pre><p></p>');
-    assert.strictEqual(paste.text, '\n{code:java}\nint a = 1;\n{code}\n');
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-java">int a = 1;\n</pre>');
+    assert.strictEqual(paste.text, '{code:java}\nint a = 1;\n{code}');
+    var hasEmptyParagraph = await page.evaluate(function () {
+      var doc = document.querySelector('#description_ifr').contentDocument;
+      var paragraphs = doc.body.querySelectorAll('p');
+      for (var i = 0; i < paragraphs.length; i++) {
+        if (!paragraphs[i].textContent.trim()) return true;
+      }
+      return false;
+    });
+    assert.strictEqual(hasEmptyParagraph, false, 'kein Absatz ohne Inhalt nach dem Einfuegen');
     await page.close();
   });
 
-  test('am Ende des Absatzes reicht ein Trenner davor', async function () {
+  test('am Ende des Absatzes braucht es keinen Trenner mehr', async function () {
+    // Die Marke steht schon am Blockende - die Selektion rueckt darum ohne
+    // Teilung hinter den Absatz, ein Trenner ist nicht mehr noetig.
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, RTE);
     await setRichCaret(page, '<p id="a">Fehlerbild:</p>', 'a', 11);
@@ -124,8 +136,8 @@ describe('Blockmakros am Zeilenanfang', { skip: !hasPlaywright }, function () {
       return window.__pastes.length === 1;
     }, null, { timeout: 4000 });
     var paste = await page.evaluate(function () { return window.__pastes[0]; });
-    assert.strictEqual(paste.html, '<p></p><pre><code>x</code></pre>');
-    assert.strictEqual(paste.text, '\n{code}\nx\n{code}');
+    assert.strictEqual(paste.html, '<pre class="code panel" style="border-width: 1px;">x\n</pre>');
+    assert.strictEqual(paste.text, '{code}\nx\n{code}');
     await page.close();
   });
 
@@ -140,12 +152,15 @@ describe('Blockmakros am Zeilenanfang', { skip: !hasPlaywright }, function () {
       return window.__pastes.length === 1;
     }, null, { timeout: 4000 });
     var paste = await page.evaluate(function () { return window.__pastes[0]; });
-    assert.strictEqual(paste.html, '<pre><code>x</code></pre>');
+    assert.strictEqual(paste.html, '<pre class="code panel" style="border-width: 1px;">x\n</pre>');
     assert.strictEqual(paste.text, '{code}\nx\n{code}');
     await page.close();
   });
 
   test('auch die Panel-Vorlage bekommt im Editor einen eigenen Block', async function () {
+    // Dieselbe Teilung wie beim Codeblock: die Marke steht mitten im Absatz,
+    // der darum echt geteilt wird - auch die Panel-Vorlage kommt so ohne
+    // Trenner-Absaetze an.
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, RTE);
     await setRichCaret(page, '<p id="a">davor danach</p>', 'a', 6);
@@ -155,9 +170,60 @@ describe('Blockmakros am Zeilenanfang', { skip: !hasPlaywright }, function () {
       return window.__pastes.length === 1;
     }, null, { timeout: 4000 });
     var paste = await page.evaluate(function () { return window.__pastes[0]; });
-    assert.ok(/^<p><\/p><table/.test(paste.html) || /^<p><\/p></.test(paste.html),
-      'kein Trenner vor dem Panel: ' + paste.html);
-    assert.ok(/<p><\/p>$/.test(paste.html), 'kein Trenner hinter dem Panel: ' + paste.html);
+    assert.ok(!/<p><\/p>/.test(paste.html), 'kein Trenner-Absatz im Panel-HTML: ' + paste.html);
+    assert.ok(/^<div /.test(paste.html), 'Panel beginnt direkt mit dem Rahmen: ' + paste.html);
+    await page.close();
+  });
+
+  test('mitten im Listenpunkt bleibt die Liste unveraendert lang', async function () {
+    // Listenpunkt ist kein sicher teilbarer Block - splitBlockAtCaret() muss
+    // hier auf die Rueckfallebene mit BLOCK_SEPARATOR ausweichen, sonst
+    // haengt der Klon einen zusaetzlichen Listenpunkt an.
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, RTE);
+    await setRichCaret(page, '<ul><li id="a">davor danach</li><li>zweiter Punkt</li></ul>', 'a', 6);
+    var itemsBefore = await page.evaluate(function () {
+      return document.querySelector('#description_ifr').contentDocument.querySelectorAll('li').length;
+    });
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.strictEqual(paste.html,
+      '<p></p><pre class="code panel" style="border-width: 1px;">x\n</pre><p></p>');
+    var itemsAfter = await page.evaluate(function () {
+      return document.querySelector('#description_ifr').contentDocument.querySelectorAll('li').length;
+    });
+    assert.strictEqual(itemsAfter, itemsBefore, 'kein zusaetzlicher Listenpunkt durch die Teilung');
+    await page.close();
+  });
+
+  test('mitten in einer Tabellenzelle bleibt die Zeile unveraendert lang', async function () {
+    // Tabellenzelle ist ebenfalls kein sicher teilbarer Block - sonst haengt
+    // der Klon eine zusaetzliche Zelle an die Tabellenzeile.
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, RTE);
+    await setRichCaret(page,
+      '<table><tr><td id="a">davor danach</td><td>zweite Zelle</td></tr></table>', 'a', 6);
+    var cellsBefore = await page.evaluate(function () {
+      return document.querySelector('#description_ifr').contentDocument.querySelectorAll('td').length;
+    });
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.strictEqual(paste.html,
+      '<p></p><pre class="code panel" style="border-width: 1px;">x\n</pre><p></p>');
+    var cellsAfter = await page.evaluate(function () {
+      return document.querySelector('#description_ifr').contentDocument.querySelectorAll('td').length;
+    });
+    assert.strictEqual(cellsAfter, cellsBefore, 'keine zusaetzliche Zelle durch die Teilung');
     await page.close();
   });
 

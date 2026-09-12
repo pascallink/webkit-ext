@@ -55,7 +55,8 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   });
   test('Codeblock mit Sprache', function () {
     html('```java\nif (a < b) {}\n```',
-      '<pre><code class="language-java">if (a &lt; b) {}</code></pre>');
+      '<pre class="code panel" style="border-width: 1px;" data-language="code-java">' +
+      'if (a &lt; b) {}\n</pre>');
   });
   test('Liste', function () {
     html('- a\n- b', '<ul><li>a</li><li>b</li></ul>');
@@ -129,7 +130,7 @@ describe('Beide Formate auf einmal', function () {
   test('Optionen wirken auf beide Formate', function () {
     var both = jira.convertBoth('```js\na\n```', { keepCodeLanguage: false });
     assert.strictEqual(both.jira, '{code}\na\n{code}');
-    assert.strictEqual(both.html, '<pre><code>a</code></pre>');
+    assert.strictEqual(both.html, '<pre class="code panel" style="border-width: 1px;">a\n</pre>');
   });
 });
 
