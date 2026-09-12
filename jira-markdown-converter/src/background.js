@@ -12,18 +12,17 @@ var Converter = self.JiraMarkdown;
 var CONTENT_SCRIPT_ID = 'jira-markdown-extra-hosts';
 var CONTENT_FILES = ['src/settings.js', 'src/converter.js', 'src/editors.js',
   'src/codedialog.js', 'src/templatedialog.js', 'src/editlock.js',
-  'src/otrslink.js', 'src/jiraui.js', 'src/otrsflow.js', 'src/otrsdialog.js',
   'src/content.js'];
-var CONTENT_CSS = ['src/content.css', 'src/codedialog.css', 'src/otrsdialog.css'];
+var CONTENT_CSS = ['src/content.css', 'src/codedialog.css'];
 
 // Fuer Seiten, die die Sondierung nicht als Jira erkennt: ohne Sperr-
-// Infrastruktur (editlock.js) und ohne die OTRS-Anbindung, die ohnehin nur
-// im Jira-Vorgang Sinn ergibt. content.js erkennt selbst per
-// window.__jiraMarkdownStandalone, dass es im schlanken Modus laeuft.
+// Infrastruktur (editlock.js), die ohnehin nur im Jira-Vorgang Sinn ergibt.
+// content.js erkennt selbst per window.__jiraMarkdownStandalone, dass es im
+// schlanken Modus laeuft. Die OTRS-Dateien (otrslink/jiraui/otrsflow/
+// otrsdialog) stehen nicht mehr in CONTENT_FILES - fertig, aber unverdrahtet
+// (#113), darum hier kein eigener Filter mehr dafuer noetig.
 var STANDALONE_FILES = CONTENT_FILES.filter(function (file) {
-  return file !== 'src/editlock.js' && file !== 'src/otrslink.js' &&
-    file !== 'src/jiraui.js' && file !== 'src/otrsflow.js' &&
-    file !== 'src/otrsdialog.js';
+  return file !== 'src/editlock.js';
 });
 
 /* -------------------------------------------------------------------- *
@@ -237,8 +236,8 @@ function injectFiles(tabId, message, files) {
  * (z. B. auf einem Host, der gerade erst freigegeben wurde). Antwortet der
  * Tab nicht, entscheidet die Jira-Sondierung ueber den Funktionsumfang:
  * auf Jira wie bisher CONTENT_FILES komplett, sonst STANDALONE_FILES ohne
- * Sperr-Infrastruktur und OTRS-Anbindung, dafuer erst das Standalone-Signal
- * in der isolierten Welt gesetzt.
+ * Sperr-Infrastruktur, dafuer erst das Standalone-Signal in der isolierten
+ * Welt gesetzt.
  */
 function sendToTab(tabId, message) {
   chrome.tabs.sendMessage(tabId, message, function () {

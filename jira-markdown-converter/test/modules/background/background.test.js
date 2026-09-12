@@ -125,9 +125,6 @@ describe('Injektion nach Seitenart', function () {
     var files = filesOf(stub, 'scripting.executeScript');
     assert.ok(files, 'keine Datei-Injektion protokolliert');
     assert.strictEqual(files.indexOf('src/editlock.js'), -1, 'editlock.js haette nicht injiziert werden duerfen');
-    ['src/otrslink.js', 'src/jiraui.js', 'src/otrsflow.js', 'src/otrsdialog.js'].forEach(function (file) {
-      assert.strictEqual(files.indexOf(file), -1, file + ' haette nicht injiziert werden duerfen');
-    });
     assert.notStrictEqual(files.indexOf('src/content.js'), -1, 'content.js fehlt in der Standalone-Liste');
     assert.notStrictEqual(files.indexOf('src/converter.js'), -1, 'converter.js fehlt in der Standalone-Liste');
   });
@@ -142,7 +139,6 @@ describe('Injektion nach Seitenart', function () {
     var files = filesOf(stub, 'scripting.executeScript');
     assert.ok(files, 'keine Datei-Injektion protokolliert');
     assert.notStrictEqual(files.indexOf('src/editlock.js'), -1, 'editlock.js fehlt auf der Jira-Seite');
-    assert.notStrictEqual(files.indexOf('src/otrsdialog.js'), -1, 'otrsdialog.js fehlt auf der Jira-Seite');
   });
 
   test('CONTENT_CSS wird in beiden Faellen eingespielt', function () {

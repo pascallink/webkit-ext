@@ -25,14 +25,11 @@ var manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf
 var SOURCES = manifest.content_scripts[0].js;
 var STYLES = manifest.content_scripts[0].css;
 
-// Zweite Liste fuer standalonePage(): wie SOURCES, aber ohne editlock.js und
-// die vier OTRS-Dateien - deckungsgleich mit STANDALONE_FILES in
-// src/background.js (dort spielt die Sondierung diese Dateien auf fremden
-// Seiten ein).
+// Zweite Liste fuer standalonePage(): wie SOURCES, aber ohne editlock.js -
+// deckungsgleich mit STANDALONE_FILES in src/background.js (dort spielt die
+// Sondierung diese Datei auf fremden Seiten nicht ein).
 var STANDALONE_SOURCES = SOURCES.filter(function (file) {
-  return file !== 'src/editlock.js' && file !== 'src/otrslink.js' &&
-    file !== 'src/jiraui.js' && file !== 'src/otrsflow.js' &&
-    file !== 'src/otrsdialog.js';
+  return file !== 'src/editlock.js';
 });
 
 function hasPlaywright() {
