@@ -724,100 +724,117 @@
     var i = 0;
 
     while (i < lines.length) {
+      var before = i;
       var line = lines[i];
 
-      // Platzhalter (Codeblock) unveraendert uebernehmen.
-      if (PLACEHOLDER_ONLY_RE.test(line.trim())) {
-        out.push(line.trim());
-        i++;
-        continue;
-      }
-
-      if (isBlank(line)) {
-        out.push('');
-        i++;
-        continue;
-      }
-
-      if (isHorizontalRule(line)) {
-        out.push(ctx.dialect.rule());
-        i++;
-        continue;
-      }
-
-      // ATX-Ueberschrift: # ... ###### -> h1. ... h6.
-      var heading = /^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
-      if (heading) {
-        out.push(ctx.dialect.heading(heading[1].length, convertInline(heading[2], ctx)));
-        i++;
-        continue;
-      }
-      var emptyHeading = /^ {0,3}(#{1,6})[ \t]*$/.exec(line);
-      if (emptyHeading) {
-        out.push(ctx.dialect.heading(emptyHeading[1].length, ''));
-        i++;
-        continue;
-      }
-
-      // Setext-Ueberschrift (Text mit === bzw. --- darunter).
-      var next = lines[i + 1];
-      if (next !== undefined && !isListStart(line)) {
-        if (/^ {0,3}={2,}\s*$/.test(next)) {
-          out.push(ctx.dialect.heading(1, convertInline(line.trim(), ctx)));
-          i += 2;
-          continue;
-        }
-        if (/^ {0,3}-{2,}\s*$/.test(next) && line.indexOf('|') === -1 && !/^ {0,3}>/.test(line)) {
-          out.push(ctx.dialect.heading(2, convertInline(line.trim(), ctx)));
-          i += 2;
-          continue;
-        }
-      }
-
-      // Tabelle
-      if (line.indexOf('|') !== -1 && lines[i + 1] !== undefined && isTableDelimiter(lines[i + 1])) {
-        var table = readTable(lines, i, ctx);
-        out.push(table.text);
-        i = table.next;
-        continue;
-      }
-
-      // Zitat / Alert
-      if (/^ {0,3}>/.test(line)) {
-        var quote = readQuote(lines, i, ctx);
-        out.push(quote.text);
-        i = quote.next;
-        continue;
-      }
-
-      // Listen
-      if (isListStart(line)) {
-        var list = readList(lines, i, ctx);
-        out.push(list.text);
-        i = list.next;
-        continue;
-      }
-
-      // Absatz
-      var paragraph = [];
-      while (i < lines.length && !isBlank(lines[i]) && !isHorizontalRule(lines[i]) &&
-             !/^ {0,3}#{1,6}(?:[ \t]|$)/.test(lines[i]) && !/^ {0,3}>/.test(lines[i]) &&
-             !isListStart(lines[i]) && !PLACEHOLDER_ONLY_RE.test(lines[i].trim())) {
-        var following = lines[i + 1];
-        if (following !== undefined && (/^ {0,3}={2,}\s*$/.test(following) ||
-            (/^ {0,3}-{2,}\s*$/.test(following) && lines[i].indexOf('|') === -1))) {
+      // Alle Zweige stehen in einem do-while(false)-Block: `break` verlaesst
+      // den Zweig, laesst aber immer die harte Sicherung danach laufen -
+      // damit kann kein Zweig (auch kein `i = xyz.next` aus Liste, Zitat
+      // oder Tabelle) an der Sicherung vorbei zurueck in die Schleife.
+      do {
+        // Platzhalter (Codeblock) unveraendert uebernehmen.
+        if (PLACEHOLDER_ONLY_RE.test(line.trim())) {
+          out.push(line.trim());
+          i++;
           break;
         }
-        if (lines[i].indexOf('|') !== -1 && following !== undefined && isTableDelimiter(following)) {
+
+        if (isBlank(line)) {
+          out.push('');
+          i++;
           break;
         }
-        paragraph.push(convertInline(lines[i], ctx));
-        i++;
-      }
-      if (paragraph.length) {
-        out.push(ctx.dialect.paragraph(paragraph));
-      } else {
-        // Sicherheitsnetz gegen Endlosschleifen.
+
+        if (isHorizontalRule(line)) {
+          out.push(ctx.dialect.rule());
+          i++;
+          break;
+        }
+
+        // ATX-Ueberschrift: # ... ###### -> h1. ... h6.
+        var heading = /^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
+        if (heading) {
+          out.push(ctx.dialect.heading(heading[1].length, convertInline(heading[2], ctx)));
+          i++;
+          break;
+        }
+        var emptyHeading = /^ {0,3}(#{1,6})[ \t]*$/.exec(line);
+        if (emptyHeading) {
+          out.push(ctx.dialect.heading(emptyHeading[1].length, ''));
+          i++;
+          break;
+        }
+
+        // Setext-Ueberschrift (Text mit === bzw. --- darunter).
+        var next = lines[i + 1];
+        if (next !== undefined && !isListStart(line)) {
+          if (/^ {0,3}={2,}\s*$/.test(next)) {
+            out.push(ctx.dialect.heading(1, convertInline(line.trim(), ctx)));
+            i += 2;
+            break;
+          }
+          if (/^ {0,3}-{2,}\s*$/.test(next) && line.indexOf('|') === -1 && !/^ {0,3}>/.test(line)) {
+            out.push(ctx.dialect.heading(2, convertInline(line.trim(), ctx)));
+            i += 2;
+            break;
+          }
+        }
+
+        // Tabelle
+        if (line.indexOf('|') !== -1 && lines[i + 1] !== undefined && isTableDelimiter(lines[i + 1])) {
+          var table = readTable(lines, i, ctx);
+          out.push(table.text);
+          i = table.next;
+          break;
+        }
+
+        // Zitat / Alert
+        if (/^ {0,3}>/.test(line)) {
+          var quote = readQuote(lines, i, ctx);
+          out.push(quote.text);
+          i = quote.next;
+          break;
+        }
+
+        // Listen
+        if (isListStart(line)) {
+          var list = readList(lines, i, ctx);
+          out.push(list.text);
+          i = list.next;
+          break;
+        }
+
+        // Absatz
+        var paragraph = [];
+        while (i < lines.length && !isBlank(lines[i]) && !isHorizontalRule(lines[i]) &&
+               !/^ {0,3}#{1,6}(?:[ \t]|$)/.test(lines[i]) && !/^ {0,3}>/.test(lines[i]) &&
+               !isListStart(lines[i]) && !PLACEHOLDER_ONLY_RE.test(lines[i].trim())) {
+          var following = lines[i + 1];
+          if (following !== undefined && (/^ {0,3}={2,}\s*$/.test(following) ||
+              (/^ {0,3}-{2,}\s*$/.test(following) && lines[i].indexOf('|') === -1))) {
+            break;
+          }
+          if (lines[i].indexOf('|') !== -1 && following !== undefined && isTableDelimiter(following)) {
+            break;
+          }
+          paragraph.push(convertInline(lines[i], ctx));
+          i++;
+        }
+        if (paragraph.length) {
+          out.push(ctx.dialect.paragraph(paragraph));
+        } else {
+          // Sicherheitsnetz gegen Endlosschleifen.
+          out.push(ctx.dialect.paragraph([convertInline(lines[i], ctx)]));
+          i++;
+        }
+      } while (false);
+
+      // Harte Sicherung: bleibt i in einem Durchlauf stehen (etwa weil
+      // readList()/readQuote()/readTable() mit next === start zurueckkommen),
+      // wird die Zeile als Absatz uebernommen und i erhoeht - jeder Durchlauf
+      // erreicht diese Pruefung, unabhaengig vom Zweig (Issue #88, verhindert
+      // das mehrsekuendige Einfrieren des Tabs).
+      if (i === before) {
         out.push(ctx.dialect.paragraph([convertInline(lines[i], ctx)]));
         i++;
       }
@@ -892,7 +909,7 @@
         continue;
       }
 
-      var item = /^(\s*)([-*+]|\d+[.)])[ \t]+(.*)$/.exec(line);
+      var item = /^(\s*)([-*+]|\d+[.)])(?:[ \t]+(.*))?$/.exec(line);
       if (item && !isHorizontalRule(line)) {
         var indent = indentWidth(item[1]);
         var type = /^\d/.test(item[2]) ? '#' : '*';
@@ -912,7 +929,7 @@
           return level.type;
         });
 
-        var content = item[3];
+        var content = item[3] || '';
         var task = /^\[([ xX])\][ \t]+(.*)$/.exec(content);
         var state = null;
         if (task) {

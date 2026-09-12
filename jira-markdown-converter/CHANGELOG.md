@@ -15,6 +15,10 @@ festgehalten. Das Format orientiert sich an
 - Bearbeiten-Dialog und Abbrechen werden vom Einfrieren nicht blockiert
   (Issue #90).
 - Label-Felder und andere kleine Auswahlfelder frieren nicht ein (Issue #111).
+- Tab friert nicht mehr ein, wenn eine Zeile nur aus einem Listenmarker
+  besteht (Issue #88).
+- Eingefuegter Text geht bei einem Fehler in der Umwandlung nicht mehr
+  verloren.
 
 ## [1.3.0] - 2026-09-07
 
