@@ -576,6 +576,19 @@
     return /^\s*$/.test(line);
   }
 
+  /**
+   * Liest den Wert eines HTML-Attributs aus einer Attribut-Zeichenkette
+   * (der Rest eines Tags nach dem Namen), einfache oder doppelte
+   * Anfuehrungszeichen. Kein voller HTML-Parser - reicht fuer die schlichten
+   * Tags, die Azure DevOps beim Kopieren erzeugt.
+   */
+  function attrValue(attrs, name) {
+    var re = new RegExp(name + '\\s*=\\s*"([^"]*)"|' + name + '\\s*=\\s*\'([^\']*)\'', 'i');
+    var match = re.exec(attrs || '');
+    if (!match) return '';
+    return match[1] !== undefined ? match[1] : match[2];
+  }
+
   function isHorizontalRule(line) {
     return /^ {0,3}([-*_])[ \t]*(?:\1[ \t]*){2,}$/.test(line);
   }
@@ -659,6 +672,37 @@
         .replace(/<\/?(?:s|del|strike)>/gi, tag('strike'))
         .replace(/<\/?sub>/gi, tag('sub'))
         .replace(/<\/?sup>/gi, tag('sup'));
+
+      // Fremde Tags aus Azure DevOps (div, span, img, details, summary ...)
+      // nur im Jira-Dialekt aufloesen - der HTML-Dialekt maskiert rohes HTML
+      // bewusst, damit im Rich-Text-Editor kein fremdes Markup ausgefuehrt
+      // wird (siehe html.test.js, 'roher HTML-Text wird nicht durchgereicht').
+      if (d.name === 'jira') {
+        // <img src="..." ...> -> dieselbe Bild-Regel wie beim Markdown-Bild.
+        text = text.replace(/<img\b([^>]*)>/gi, function (match, attrs) {
+          var src = attrValue(attrs, 'src');
+          if (!src) return match;
+          return ph.add(d.image(src, attrValue(attrs, 'alt')));
+        });
+
+        // <span style="color:X">...</span> -> Jira-Farbmakro. Nur ein
+        // Farbwort oder #rrggbb/#rgb aus dem style-Attribut wird
+        // uebernommen - alles andere im Attribut wird stillschweigend
+        // verworfen, ein eigener CSS-Parser lohnt hier nicht.
+        text = text.replace(/<span\b([^>]*)>([\s\S]*?)<\/span>/gi, function (match, attrs, inner) {
+          var style = attrValue(attrs, 'style');
+          var color = /color\s*:\s*(#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?|[a-zA-Z]+)/.exec(style);
+          if (!color) return match;
+          return ph.add('{color:' + color[1] + '}' + inner + '{color}');
+        });
+
+        // Alles andere an Tags entfernen, Inhalt behalten - Jira kennt kein
+        // <div>, <details> & Co. Ein schliessendes Tag wird zu einem
+        // Leerzeichen, sonst liefen getrennte Elemente wie
+        // '<summary>Mehr</summary>Inhalt' zu einem Wort zusammen.
+        text = text.replace(/<\/[a-zA-Z][\w-]*\s*>/g, ' ');
+        text = text.replace(/<[a-zA-Z][\w-]*(?:\s[^<>]*)?\/?>/g, '');
+      }
     }
 
     // 3b. Azure-DevOps-Erwaehnungen: ADO speichert eine @-Erwaehnung als
@@ -902,6 +946,21 @@
           break;
         }
 
+        // Rohe HTML-Tabelle aus Azure DevOps: nur im Jira-Dialekt und nur
+        // bei aktivierter HTML-Umwandlung - sonst bleibt die Zeile Klartext
+        // und wird wie bisher escaped (siehe html.test.js). Passt das
+        // Muster nicht (verschachtelte Tabelle, colspan, kein Ende
+        // gefunden), faellt der Zweig durch und die Zeile laeuft weiter
+        // wie zuvor.
+        if (ctx.options.convertHtml && ctx.dialect.name === 'jira' && /^<table\b/i.test(line.trim())) {
+          var htmlTable = readHtmlTable(lines, i, ctx);
+          if (htmlTable) {
+            out.push(htmlTable.text);
+            i = htmlTable.next;
+            break;
+          }
+        }
+
         // ATX-Ueberschrift: # ... ###### -> h1. ... h6.
         var heading = /^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
         if (heading) {
@@ -1012,6 +1071,58 @@
     }
 
     return { text: ctx.dialect.table(header, rows), next: i };
+  }
+
+  /**
+   * Rohe HTML-Tabelle (<table><tr><th>...</th></tr>...</table>) aus Azure
+   * DevOps in eine Jira-Tabelle uebersetzen. Sammelt Zeilen bis '</table>'
+   * ein, zerlegt <tr> in Zeilen und <th>/<td> in Zellen - Zellinhalt laeuft
+   * je durch convertInline. Kein Parser fuer verschachtelte Tabellen oder
+   * colspan: kommt eines von beiden vor, oder fehlt das Ende, gibt es null
+   * zurueck und die Zeile laeuft wie gewohnt weiter.
+   */
+  function readHtmlTable(lines, start, ctx) {
+    var end = start;
+    while (end < lines.length && lines[end].indexOf('</table>') === -1) {
+      end++;
+    }
+    if (end >= lines.length) return null;
+
+    var html = lines.slice(start, end + 1).join('\n');
+    if ((html.match(/<table\b/gi) || []).length > 1) return null;
+    if (/colspan/i.test(html)) return null;
+
+    function cell(value) {
+      ctx.inTableCell = true;
+      var result = convertInline(value, ctx) || ' ';
+      ctx.inTableCell = false;
+      return result;
+    }
+
+    var rowRe = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+    var cellRe = /<(t[hd])\b[^>]*>([\s\S]*?)<\/\1>/gi;
+    var header = null;
+    var rows = [];
+    var rowMatch;
+    while ((rowMatch = rowRe.exec(html))) {
+      var cells = [];
+      var isHeader = true;
+      var cellMatch;
+      cellRe.lastIndex = 0;
+      while ((cellMatch = cellRe.exec(rowMatch[1]))) {
+        if (cellMatch[1].toLowerCase() !== 'th') isHeader = false;
+        cells.push(cell(cellMatch[2]));
+      }
+      if (!cells.length) continue;
+      if (header === null && isHeader) {
+        header = cells;
+      } else {
+        rows.push(cells);
+      }
+    }
+    if (header === null) header = rows.shift() || [];
+
+    return { text: ctx.dialect.table(header, rows), next: end + 1 };
   }
 
   function readQuote(lines, start, ctx) {
