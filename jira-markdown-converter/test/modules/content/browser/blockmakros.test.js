@@ -298,6 +298,19 @@ describe('Konvertiertes Markdown mitten in der Zeile', { skip: !hasPlaywright },
     await page.close();
   });
 
+  test('Inline-Code bleibt an der Cursorposition', async function () {
+    // Inline-Code ist Fliesstext, kein Blockmakro - Issue #91 verlangt
+    // ausdruecklich, dass solcher Text an der Cursorposition bleibt.
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await page.fill('#description', 'Satz eins. Satz zwei.');
+    await setCaret(page, 11);
+    await pasteInto(page, '#description', '`npm test` ausfuehren');
+    assert.strictEqual(await page.inputValue('#description'),
+      'Satz eins. {{npm test}} ausfuehrenSatz zwei.');
+    await page.close();
+  });
+
   test('im Rich-Text-Editor bekommt die Ueberschrift einen eigenen Block', async function () {
     // Die Marke steht mitten im Absatz - eine Ueberschrift darf dort nicht
     // an Ort und Stelle landen, sondern muss den Absatz wie ein Blockmakro
