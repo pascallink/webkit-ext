@@ -330,6 +330,8 @@ auf der Jira-Seite gar nichts:
 
 `http` und `https` sind beide abgedeckt, ein Port spielt keine Rolle
 (`http://jira:8080/` funktioniert also ebenso wie `https://jira.firma.de/`).
+Auf `http://`-Adressen funktioniert das Kopieren ueber einen Rueckfall (ohne Clipboard-API);
+das Lesen der Zwischenablage funktioniert dort nicht - bitte Strg+V benutzen.
 
 ## Umwandlungstabelle
 
