@@ -17,6 +17,11 @@ var pasteInto = require('../../../lib/dom').pasteInto;
 var hasPlaywright = browserLib.hasPlaywright();
 var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
 
+// Das Undo-Kommando des Browsers haengt an unterschiedlichen Tasten: auf
+// macOS an Cmd+Z, auf Windows/Linux an Strg+Z. Nur die zur Plattform des
+// Testlaufs passende Taste loest den echten Undo-Stack der Textarea aus.
+var UNDO_KEY = process.platform === 'darwin' ? 'Meta+z' : 'Control+z';
+
 describe('Automatik beim Einfuegen', { skip: !hasPlaywright }, function () {
   test('Markdown wird beim Einfuegen in die Textarea umgewandelt', async function () {
     var browser = await browserPromise;
@@ -148,6 +153,33 @@ describe('Automatik beim Einfuegen', { skip: !hasPlaywright }, function () {
       return event.defaultPrevented;
     });
     assert.strictEqual(prevented, false);
+    await page.close();
+  });
+
+  test('Strg+Z nach der Automatik laesst das Getippte stehen', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await page.focus('#description');
+    await page.keyboard.type('Vorher ');
+    await pasteInto(page, '#description', '# Titel\n\n- a');
+    // Blockmakro auf eigener Zeile: da 'Vorher ' nicht mit Zeilenumbruch
+    // endet, schiebt insertIntoTextarea() vor dem Titel einen Umbruch ein.
+    assert.strictEqual(await page.inputValue('#description'), 'Vorher \nh1. Titel\n\n* a');
+    await page.keyboard.press(UNDO_KEY);
+    assert.strictEqual(await page.inputValue('#description'), 'Vorher ');
+    await page.close();
+  });
+
+  // insertIntoRich() ist wegen #107-#109 ausdruecklich eingefroren (siehe
+  // editors.js) - hier nur der Ist-Stand festgehalten: das synthetische
+  // paste-Event traegt bereits einen Undo-Eintrag, ein eigener Undo-Test
+  // dafuer bleibt fuer #96 ausser Scope.
+  test('Undo im Rich-Text-Editor bleibt wie gehabt', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await pasteInto(page, '.ProseMirror', '# Titel\n\n- eins');
+    var text = await page.textContent('.ProseMirror');
+    assert.ok(text.indexOf('h1. Titel') !== -1, 'Editor-Inhalt: ' + text);
     await page.close();
   });
 });
