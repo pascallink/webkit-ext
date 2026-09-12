@@ -4,6 +4,8 @@
  * JIRA912): der Nachbau fokussiert den Rahmen 50 ms nach dem Mounten, die
  * Instanz sofort - vor dem Fix zu #107 haengt EditLock.lock() erst am
  * 400-ms-Scan, der Fokus ist da laengst durch (Issue #107).
+ * Gegenprobe zur Sofortsperre: ein Rahmen, der neu verdrahtet wird, ohne den
+ * Fokus zu haben, darf nicht einfrieren (Issue #107).
  * Aufruf: npm run test:editlock --prefix jira-markdown-converter
  */
 'use strict';
@@ -83,6 +85,34 @@ describe('Einfrieren im visuellen Modus (JIRA912)', { skip: !hasPlaywright }, fu
     await page.waitForTimeout(100);
     assert.strictEqual(await page.evaluate(function () { return window.JiraEditLock.isActive(); }), false,
       'ohne Einfrieren haette isActive() false bleiben muessen');
+    await page.close();
+  });
+
+  test('ein Rahmen ohne Fokus friert nicht ein', async function () {
+    // Gegenprobe zur Sofortsperre (Issue #107): der Rahmen wird neu
+    // verdrahtet, waehrend der Fokus in der Zusammenfassung (hier: ein
+    // frisches Eingabefeld unter #details-module) steht - das darf nicht
+    // einfrieren.
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, JIRA912);
+    await openDescriptionVisual(page);
+    await page.evaluate(function () {
+      window.JiraEditLock.release();
+      var input = document.createElement('input');
+      input.type = 'text';
+      document.getElementById('details-module').appendChild(input);
+      input.focus();
+      var frame = document.querySelector('#description-val iframe.tox-edit-area__iframe');
+      delete frame.dataset.jmdWatched;
+      // Ein Knoten mit iframe loest den Sofortpfad des MutationObservers aus.
+      var trigger = document.createElement('div');
+      trigger.appendChild(document.createElement('iframe'));
+      document.body.appendChild(trigger);
+    });
+    await page.waitForTimeout(100);
+    assert.strictEqual(await page.evaluate(function () {
+      return window.JiraEditLock.isLocked(document.getElementById('description'));
+    }), false, 'ein neu verdrahteter, aber unfokussierter Rahmen ist eingefroren');
     await page.close();
   });
 });
