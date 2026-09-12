@@ -3,7 +3,9 @@
  * Feldleisten-Eintrag oeffnen den Dialog, ein vollstaendiger Durchlauf gegen
  * die AUI-Fixture endet mit Erfolgs- bzw. Warn-Toast, der Schalter
  * otrsHelper blendet beide Einstiegspunkte aus, ein Fehler im Ablauf zeigt
- * die Fehlermeldung.
+ * die Fehlermeldung. Scheitert der Ablauf erst nach dem Ueberschreiben der
+ * Referenz, bleibt zusaetzlich zur Fehlermeldung die sticky Warnung mit dem
+ * alten Feldwert stehen und der Dialog offen.
  * Aufruf: npm run test:otrs --prefix jira-markdown-converter
  */
 'use strict';
@@ -129,6 +131,46 @@ describe('OTRS-Link-Helfer - Verdrahtung im Content-Script', { skip: !hasPlaywri
     }, null, { timeout: 6000 });
     var text = await toastText(page);
     assert.ok(/Kennzeichen konnte nicht gesetzt werden/.test(text), 'Fehlermeldung: ' + text);
+    await page.close();
+  });
+
+  test('Fehler nach dem Ueberschreiben der Referenz zeigt sticky Warnung und laesst den Dialog offen', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, fixtures.OTRS);
+    // Fixture-Standard: das Referenzfeld ist mit 'Alter Wert' vorbelegt.
+    // Klicks im Custom-Field-Dialog werden in der Capture-Phase abgefangen,
+    // bevor der Bubble-Listener der Fixture den Dialog entfernt - Kennzeichen
+    // (Schritt 1) und das Schreiben der Referenz (Schritt 2) laufen durch,
+    // das anschliessende waitForGone auf #customfield-dialog (Schritt 3)
+    // aber nicht.
+    await page.evaluate(function () {
+      document.addEventListener('click', function (event) {
+        var target = event.target;
+        if (target && target.closest && target.closest('#customfield-dialog')) {
+          event.stopImmediatePropagation();
+        }
+      }, true);
+    });
+    await page.click('.jmd-fab');
+    await page.click('.jmd-panel [data-action="otrs"]');
+    await page.fill('#jmd-otrs-input', LINK);
+    await page.click('[data-otrs-action="submit"]');
+    await page.waitForFunction(function () {
+      var node = document.querySelector('.jmd-toast');
+      return !!node && node.classList.contains('jmd-toast--sticky');
+    }, null, { timeout: 9000 });
+
+    var state = await page.evaluate(function () {
+      var node = document.querySelector('.jmd-toast');
+      return {
+        text: node.querySelector('.jmd-toast__text').textContent,
+        closeHidden: node.querySelector('.jmd-toast__close').hidden,
+        dialogOpen: !!document.querySelector('.jmd-dialog--open')
+      };
+    });
+    assert.strictEqual(state.text, 'Achtung: Kundenreferenz wurde ueberschrieben. Vorheriger Wert: Alter Wert');
+    assert.strictEqual(state.closeHidden, false, 'Warnung braucht eine Schliessen-Schaltflaeche');
+    assert.strictEqual(state.dialogOpen, true, 'OTRS-Dialog haette nach dem Fehler offen bleiben muessen');
     await page.close();
   });
 });

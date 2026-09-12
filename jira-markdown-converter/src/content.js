@@ -636,7 +636,11 @@
    * previousReference nutzt den Fehlerzweig von toast() (isError: true) mit
    * langer Standzeit, weil sie sonst der direkt zuvor gezeigte Erfolgstoast
    * ueberschreiben wuerde, ohne dass der ueberschriebene alte Wert dem Nutzer
-   * aufgefallen ist - beide teilen sich denselben Toast-Knoten.
+   * aufgefallen ist - beide teilen sich denselben Toast-Knoten. Scheitert der
+   * Ablauf erst nach dem Ueberschreiben der Referenz, haengt otrsflow.js den
+   * alten Wert genauso an error.previousReference, deshalb zeigt der
+   * Fehlerzweig dieselbe sticky Warnung. runOtrsFlow() liefert dann `false`
+   * zurueck, damit der Dialog offen bleibt und die Eingabe nicht verloren geht.
    */
   function runOtrsFlow(parsed) {
     return OtrsFlow.run(parsed, { fieldName: settings.otrsFieldName }).then(function (result) {
@@ -647,6 +651,11 @@
       }
     }).catch(function (error) {
       toast(error.message, true);
+      if (error.previousReference) {
+        toast('Achtung: Kundenreferenz wurde ueberschrieben. Vorheriger Wert: ' + error.previousReference,
+          true, { sticky: true });
+      }
+      return false;
     });
   }
 
