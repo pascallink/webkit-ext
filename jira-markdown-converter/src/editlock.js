@@ -354,12 +354,33 @@
     return next;
   }
 
-  /** Ersetzt weggeraeumte Felder durch ihren Nachfolger, sonst fallen sie raus. */
+  /**
+   * Bedienbar ist ein Feld, wenn Editors.isUsable() das so sieht - Sichtbarkeit
+   * oder ein aktiver Rich-Text-Rahmen darueber. Ohne API (Node-Tests, kein
+   * window.JiraEditors) faellt das auf isConnected zurueck, die einzige
+   * damals pruefbare Auskunft.
+   */
+  function isUsable(field) {
+    var api = editors();
+    if (api && api.isUsable) return api.isUsable(field);
+    return !!(field && field.isConnected);
+  }
+
+  /**
+   * Ersetzt weggeraeumte Felder durch ihren Nachfolger, sonst fallen sie raus.
+   * Massstab ist Bedienbarkeit, nicht blosse DOM-Zugehoerigkeit: Jira 9.12.2
+   * entfernt das Formular beim Schliessen (isConnected wird false), andere
+   * Feldtypen und Add-ons verstecken es nur (display:none/hidden, isConnected
+   * bleibt true) - beides soll die Sperre abgeben, sonst haengt der
+   * Bearbeitungsmodus an einem Feld, das niemand mehr erreichen kann (Issue
+   * #89). successorOf() prueft api.isUsable(next) bereits selbst, ein
+   * versteckter Nachfolger faellt damit ebenfalls raus.
+   */
   function follow(list) {
     var kept = [];
     for (var i = 0; i < list.length; i++) {
       var field = list[i];
-      var live = field.isConnected ? field : successorOf(field);
+      var live = (field.isConnected && isUsable(field)) ? field : successorOf(field);
       if (live && indexIn(kept, live) === -1) kept.push(live);
     }
     return kept;
