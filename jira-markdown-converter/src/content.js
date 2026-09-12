@@ -402,7 +402,9 @@
     '  <textarea id="jmd-input" class="jmd-textarea" rows="7" spellcheck="false"',
     '            placeholder="Markdown hier einfuegen (Strg+V) ..."></textarea>',
     '  <div class="jmd-row">',
-    '    <button type="button" class="jmd-btn" data-action="from-clipboard">Aus Zwischenablage</button>',
+    '    <button type="button" class="jmd-btn" data-action="from-clipboard"',
+    '            title="Markdown aus der Zwischenablage lesen - auf http-Seiten stattdessen Strg+V">',
+    '      Aus Zwischenablage</button>',
     '    <button type="button" class="jmd-btn" data-action="from-field">Aus Zielfeld</button>',
     '    <button type="button" class="jmd-btn" data-action="clear">Leeren</button>',
     '  </div>',
@@ -500,6 +502,10 @@
         break;
       case 'from-clipboard':
         readClipboard().then(function (text) {
+          if (text === null) {
+            toast('Auf http-Seiten bitte Strg+V benutzen.', true);
+            return;
+          }
           if (!text) {
             toast('Zwischenablage ist leer oder nicht lesbar.', true);
             return;
@@ -1216,11 +1222,16 @@
     pasteButton.type = 'button';
     pasteButton.className = 'jmd-fieldbar__btn';
     pasteButton.textContent = 'Einfuegen';
-    pasteButton.title = 'Markdown aus der Zwischenablage umgewandelt an der Cursorposition einfuegen';
+    pasteButton.title = 'Markdown aus der Zwischenablage umgewandelt an der Cursorposition einfuegen'
+      + ' - auf http-Seiten stattdessen Strg+V';
     pasteButton.addEventListener('click', function (event) {
       event.preventDefault();
       target = field;
       readClipboard().then(function (text) {
+        if (text === null) {
+          toast('Auf http-Seiten bitte Strg+V benutzen.', true);
+          return;
+        }
         if (!text) {
           toast('Zwischenablage ist leer oder nicht lesbar.', true);
           return;
@@ -1336,8 +1347,12 @@
    * ------------------------------------------------------------------ */
 
   function readClipboard() {
+    // Fehlt die Clipboard-API komplett (z. B. auf http-Seiten), gibt es
+    // keinen Lesezugriff - das liefert null, damit die Aufrufer auf Strg+V
+    // verweisen koennen. Eine tatsaechlich leere Zwischenablage liefert
+    // weiterhin '', das bleibt die alte Meldung.
     if (!navigator.clipboard || !navigator.clipboard.readText) {
-      return Promise.resolve('');
+      return Promise.resolve(null);
     }
     return navigator.clipboard.readText().catch(function () {
       return '';

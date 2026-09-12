@@ -53,3 +53,44 @@ describe('Zwischenablage ohne Clipboard-API', { skip: !hasPlaywright }, function
     await page.close();
   });
 });
+
+describe('Lesen ohne Clipboard-API', { skip: !hasPlaywright }, function () {
+  test('Aus Zwischenablage verweist auf Strg+V', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, fixtures.SERVER);
+    await stubLegacyClipboard(page);
+    await page.click('.jmd-fab');
+    await page.click('.jmd-panel [data-action="from-clipboard"]');
+    var toastText = await page.textContent('.jmd-toast');
+    assert.strictEqual(toastText, 'Auf http-Seiten bitte Strg+V benutzen.');
+    await page.close();
+  });
+
+  test('Einfuegen in der Leiste verweist auf Strg+V', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, fixtures.SERVER);
+    await stubLegacyClipboard(page);
+    await page.locator('.jmd-fieldbar').first().getByText('Einfuegen', { exact: true }).click();
+    var toastText = await page.textContent('.jmd-toast');
+    assert.strictEqual(toastText, 'Auf http-Seiten bitte Strg+V benutzen.');
+    await page.close();
+  });
+
+  test('leere aber vorhandene Zwischenablage zeigt weiter die alte Meldung', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, fixtures.SERVER);
+    await page.evaluate(function () {
+      // Clipboard-API ist da, liefert aber nichts - anderer Fall als das
+      // komplett fehlende navigator.clipboard von stubLegacyClipboard().
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { readText: function () { return Promise.resolve(''); } }
+      });
+    });
+    await page.click('.jmd-fab');
+    await page.click('.jmd-panel [data-action="from-clipboard"]');
+    var toastText = await page.textContent('.jmd-toast');
+    assert.strictEqual(toastText, 'Zwischenablage ist leer oder nicht lesbar.');
+    await page.close();
+  });
+});
