@@ -256,7 +256,16 @@
       // Trenner zwischen Label und Ziel bleibt davon unberuehrt.
       return '[' + label.replace(/\\?\|/g, '\\|') + '|' + url + ']';
     },
+    // Azure DevOps legt Anhaenge unter einem relativen Pfad ab
+    // ('/.attachments/<guid>' bzw. './...') - der Host ist nur in ADO
+    // gueltig, in Jira waere so ein Pfad tot. '!name!' loest Jira erst nach
+    // dem manuellen Hochladen ueber den Dateinamen im Ticket auf, darum
+    // bleibt bei einem relativen Pfad nur der Dateiname stehen. Absolute
+    // URLs (mit Schema oder protokollrelativ '//host/...') bleiben unberuehrt.
     image: function (url) {
+      if (/^(?:\.\/|\/(?!\/))/.test(url)) {
+        return '!' + url.split('/').pop() + '!';
+      }
       return '!' + url + '!';
     },
     heading: function (level, text) {
@@ -567,6 +576,19 @@
     return /^\s*$/.test(line);
   }
 
+  /**
+   * Liest den Wert eines HTML-Attributs aus einer Attribut-Zeichenkette
+   * (der Rest eines Tags nach dem Namen), einfache oder doppelte
+   * Anfuehrungszeichen. Kein voller HTML-Parser - reicht fuer die schlichten
+   * Tags, die Azure DevOps beim Kopieren erzeugt.
+   */
+  function attrValue(attrs, name) {
+    var re = new RegExp(name + '\\s*=\\s*"([^"]*)"|' + name + '\\s*=\\s*\'([^\']*)\'', 'i');
+    var match = re.exec(attrs || '');
+    if (!match) return '';
+    return match[1] !== undefined ? match[1] : match[2];
+  }
+
   function isHorizontalRule(line) {
     return /^ {0,3}([-*_])[ \t]*(?:\1[ \t]*){2,}$/.test(line);
   }
@@ -650,10 +672,63 @@
         .replace(/<\/?(?:s|del|strike)>/gi, tag('strike'))
         .replace(/<\/?sub>/gi, tag('sub'))
         .replace(/<\/?sup>/gi, tag('sup'));
+
+      // Fremde Tags aus Azure DevOps (div, span, img, details, summary ...)
+      // nur im Jira-Dialekt aufloesen - der HTML-Dialekt maskiert rohes HTML
+      // bewusst, damit im Rich-Text-Editor kein fremdes Markup ausgefuehrt
+      // wird (siehe html.test.js, 'roher HTML-Text wird nicht durchgereicht').
+      if (d.name === 'jira') {
+        // <img src="..." ...> -> dieselbe Bild-Regel wie beim Markdown-Bild.
+        text = text.replace(/<img\b([^>]*)>/gi, function (match, attrs) {
+          var src = attrValue(attrs, 'src');
+          if (!src) return match;
+          return ph.add(d.image(src, attrValue(attrs, 'alt')));
+        });
+
+        // <span style="color:X">...</span> -> Jira-Farbmakro. Nur ein
+        // Farbwort oder #rrggbb/#rgb aus dem style-Attribut wird
+        // uebernommen - alles andere im Attribut wird stillschweigend
+        // verworfen, ein eigener CSS-Parser lohnt hier nicht. Nur die beiden
+        // Farbmarker gehen in einen Platzhalter, der Innentext bleibt roher
+        // Text im Fluss und laeuft dadurch noch durch die Schritte 4 bis 10
+        // (Links, Textauszeichnungen, escapeText).
+        text = text.replace(/<span\b([^>]*)>([\s\S]*?)<\/span>/gi, function (match, attrs, inner) {
+          var style = attrValue(attrs, 'style');
+          var color = /color\s*:\s*(#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?|[a-zA-Z]+)/.exec(style);
+          if (!color) return match;
+          return ph.add('{color:' + color[1] + '}') + inner + ph.add('{color}');
+        });
+
+        // Alles andere an Tags entfernen, Inhalt behalten - aber nur die
+        // Tags, die Azure DevOps beim Kopieren tatsaechlich liefert. Eine
+        // generische '<wort>'-Regel wuerde auch von Nutzern getippten Text
+        // wie '<Name>' oder 'List<String>' verschlucken (Issue #99), darum
+        // eine Positivliste statt eines allgemeinen Tag-Musters. Ein
+        // schliessendes Tag wird zu einem Leerzeichen, sonst liefen
+        // getrennte Elemente wie '<summary>Mehr</summary>Inhalt' zu einem
+        // Wort zusammen.
+        var adoTags = 'div|span|p|details|summary|table|thead|tbody|tr|th|td|ul|ol|li|font|img|a';
+        text = text.replace(new RegExp('<\\/(?:' + adoTags + ')\\s*>', 'gi'), ' ');
+        text = text.replace(new RegExp('<(?:' + adoTags + ')(?:\\s[^<>]*)?\\/?>', 'gi'), '');
+      }
     }
 
+    // 3b. Azure-DevOps-Erwaehnungen: ADO speichert eine @-Erwaehnung als
+    //     '@<GUID>' (Format 8-4-4-4-12), Jira loest diese GUID nicht auf.
+    //     Folgt direkt ein Name (Grossbuchstabe), bleibt '@Name' als
+    //     einfacher Text stehen; sonst faellt die Erwaehnung samt einem
+    //     folgenden Leerzeichen komplett weg. Nur diese GUID-Form ist
+    //     gemeint - ein normales '@' (E-Mail, "3 @ 5") bleibt unberuehrt.
+    var guidPart = '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}';
+    text = text.replace(new RegExp('@<' + guidPart + '>[ \\t]+(?=[A-Z])', 'g'), '@');
+    text = text.replace(new RegExp('@<' + guidPart + '>[ \\t]?', 'g'), '');
+
     // 4. Bilder: ![alt](url) -> !url!
-    text = text.replace(/!\[([^\]]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?\s*\)/g, function (match, alt, url) {
+    // Azure DevOps haengt beim Kopieren ein Groessensuffix '=BreitexHoehe'
+    // an, die Hoehe ist dabei optional ('=300x' oder '=300x200') - Jira
+    // 9.12 kennt das nicht, darum wird es hier nur erkannt und verworfen,
+    // nicht gespeichert.
+    text = text.replace(/!\[([^\]]*)\]\(\s*<?((?:[^()\s>]|\([^()\s]*\))+)>?(?:\s+"[^"]*")?(?:\s+=\d+x\d*)?\s*\)/g, function (match, alt, url) {
       return ph.add(d.image(url, alt));
     });
 
@@ -869,6 +944,31 @@
           break;
         }
 
+        // Azure-DevOps-Inhaltsverzeichnis: Beim Kopieren aus dem Wiki
+        // landet die Zeile '[[_TOC_]]' im Markdown. Jira baut sein
+        // Inhaltsverzeichnis selbst (Makro {toc}), der Marker waere hier
+        // nur toter Text - Zeile ohne Ausgabe verwerfen, finish() raeumt
+        // die dadurch entstehende doppelte Leerzeile schon auf.
+        if (line.trim() === '[[_TOC_]]') {
+          i++;
+          break;
+        }
+
+        // Rohe HTML-Tabelle aus Azure DevOps: nur im Jira-Dialekt und nur
+        // bei aktivierter HTML-Umwandlung - sonst bleibt die Zeile Klartext
+        // und wird wie bisher escaped (siehe html.test.js). Passt das
+        // Muster nicht (verschachtelte Tabelle, colspan, kein Ende
+        // gefunden), faellt der Zweig durch und die Zeile laeuft weiter
+        // wie zuvor.
+        if (ctx.options.convertHtml && ctx.dialect.name === 'jira' && /^<table\b/i.test(line.trim())) {
+          var htmlTable = readHtmlTable(lines, i, ctx);
+          if (htmlTable) {
+            out.push(htmlTable.text);
+            i = htmlTable.next;
+            break;
+          }
+        }
+
         // ATX-Ueberschrift: # ... ###### -> h1. ... h6.
         var heading = /^ {0,3}(#{1,6})[ \t]+(.*?)[ \t]*#*[ \t]*$/.exec(line);
         if (heading) {
@@ -979,6 +1079,58 @@
     }
 
     return { text: ctx.dialect.table(header, rows), next: i };
+  }
+
+  /**
+   * Rohe HTML-Tabelle (<table><tr><th>...</th></tr>...</table>) aus Azure
+   * DevOps in eine Jira-Tabelle uebersetzen. Sammelt Zeilen bis '</table>'
+   * ein, zerlegt <tr> in Zeilen und <th>/<td> in Zellen - Zellinhalt laeuft
+   * je durch convertInline. Kein Parser fuer verschachtelte Tabellen oder
+   * colspan: kommt eines von beiden vor, oder fehlt das Ende, gibt es null
+   * zurueck und die Zeile laeuft wie gewohnt weiter.
+   */
+  function readHtmlTable(lines, start, ctx) {
+    var end = start;
+    while (end < lines.length && lines[end].indexOf('</table>') === -1) {
+      end++;
+    }
+    if (end >= lines.length) return null;
+
+    var html = lines.slice(start, end + 1).join('\n');
+    if ((html.match(/<table\b/gi) || []).length > 1) return null;
+    if (/colspan/i.test(html)) return null;
+
+    function cell(value) {
+      ctx.inTableCell = true;
+      var result = convertInline(value, ctx) || ' ';
+      ctx.inTableCell = false;
+      return result;
+    }
+
+    var rowRe = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+    var cellRe = /<(t[hd])\b[^>]*>([\s\S]*?)<\/\1>/gi;
+    var header = null;
+    var rows = [];
+    var rowMatch;
+    while ((rowMatch = rowRe.exec(html))) {
+      var cells = [];
+      var isHeader = true;
+      var cellMatch;
+      cellRe.lastIndex = 0;
+      while ((cellMatch = cellRe.exec(rowMatch[1]))) {
+        if (cellMatch[1].toLowerCase() !== 'th') isHeader = false;
+        cells.push(cell(cellMatch[2]));
+      }
+      if (!cells.length) continue;
+      if (header === null && isHeader) {
+        header = cells;
+      } else {
+        rows.push(cells);
+      }
+    }
+    if (header === null) header = rows.shift() || [];
+
+    return { text: ctx.dialect.table(header, rows), next: end + 1 };
   }
 
   function readQuote(lines, start, ctx) {

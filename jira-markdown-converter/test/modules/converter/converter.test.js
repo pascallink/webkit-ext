@@ -94,6 +94,12 @@ describe('Links und Bilder', function () {
   test('Bild', function () {
     eq('![Screenshot](https://example.com/a.png)', '!https://example.com/a.png!');
   });
+  test('Bild aus Azure DevOps: Groessensuffix und Anhangspfad', function () {
+    eq('![a](https://x/a.png =300x)', '!https://x/a.png!');
+    eq('![a](https://x/a.png =300x200)', '!https://x/a.png!');
+    eq('![shot.png](/.attachments/shot-1.png =300x)', '!shot-1.png!');
+    eq('![shot.png](/.attachments/shot-1.png)', '!shot-1.png!');
+  });
   test('Autolink', function () {
     eq('<https://example.com>', '[https://example.com]');
   });
@@ -111,6 +117,17 @@ describe('Links und Bilder', function () {
   test('Link in Ueberschrift', function () {
     eq('## Siehe [PR 42](https://dev.azure.com/pr/42)',
       'h2. Siehe [PR 42|https://dev.azure.com/pr/42]');
+  });
+});
+
+describe('Azure-DevOps-Marker', function () {
+  test('TOC-Marker und GUID-Erwaehnungen verschwinden', function () {
+    eq('[[_TOC_]]', '');
+    eq('# Titel\n\n[[_TOC_]]\n\nText', 'h1. Titel\n\nText');
+    eq('Hallo @<9F4E1A2B-1111-2222-3333-444455556666> bitte', 'Hallo bitte');
+    eq('Danke @<11111111-2222-3333-4444-555555555555> Anna Meier', 'Danke @Anna Meier');
+    eq('Preis 3 @ 5 Euro', 'Preis 3 @ 5 Euro');
+    eq('a@b.de', 'a@b.de');
   });
 });
 

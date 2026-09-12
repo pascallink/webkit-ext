@@ -125,6 +125,36 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   test('leere Eingabe', function () {
     html('', '');
   });
+  test('Azure-DevOps-Marker verschwinden auch im HTML-Zweig', function () {
+    html('[[_TOC_]]', '');
+    html('Hallo @<9F4E1A2B-1111-2222-3333-444455556666> bitte', '<p>Hallo bitte</p>');
+  });
+});
+
+describe('Rohes HTML aus Azure DevOps', function () {
+  test('Fremde Tags werden aufgeloest, Inhalt bleibt', function () {
+    eq('<div><img src="https://x/a.png" width="200"><br/>Text <span style="color:red">rot</span></div>',
+      '!https://x/a.png!\\\\Text {color:red}rot{color}');
+    eq('<details><summary>Mehr</summary>Inhalt</details>', 'Mehr Inhalt');
+    eq('<table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table>',
+      '||a||b||\n|1|2|');
+    eq('<b>fett</b>', '*fett*');
+    eq('<code>x</code>', '{{x}}');
+    eq('a < b und 3 > 2', 'a < b und 3 > 2');
+  });
+  test('convertHtml:false laesst rohes HTML unangetastet stehen', function () {
+    var actual = jira.convert('<div><span style="color:red">rot</span></div>', { convertHtml: false });
+    assert.strictEqual(actual, '<div><span style="color:red">rot</span></div>');
+  });
+  test('Getippter Text in spitzen Klammern bleibt erhalten (Issue #99)', function () {
+    eq('Setze <Name> ein und ersetze <TICKET> durch die Nummer.',
+      'Setze <Name> ein und ersetze <TICKET> durch die Nummer.');
+    eq('Der Typ ist List<String>.', 'Der Typ ist List<String>.');
+  });
+  test('Markdown im Farb-Span wird weiter aufgeloest', function () {
+    eq('<span style="color:red">**fett**</span>', '{color:red}*fett*{color}');
+    eq('<span style="color:red">a [L](http://x) b</span>', '{color:red}a [L|http://x] b{color}');
+  });
 });
 
 describe('Beide Formate auf einmal', function () {
