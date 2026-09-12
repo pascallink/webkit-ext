@@ -250,11 +250,15 @@
       return '{{' + text + '}}';
     },
     link: function (label, url) {
-      if (!label || label === url) return '[' + url + ']';
+      // Ein roher Strich in der URL wuerde als Attribut-/Label-Trenner
+      // gedeutet - nur die URL wird kodiert, die bestehende Strich-
+      // Maskierung im Label (siehe unten) bleibt unberuehrt.
+      var target = url.replace(/\|/g, '%7C');
+      if (!label || label === url) return '[' + target + ']';
       // Ein schon maskierter Strich (Tabellenzelle, cellPipe) bleibt
       // einfach maskiert; nur ein roher Strich wird neu maskiert. Der
       // Trenner zwischen Label und Ziel bleibt davon unberuehrt.
-      return '[' + label.replace(/\\?\|/g, '\\|') + '|' + url + ']';
+      return '[' + label.replace(/\\?\|/g, '\\|') + '|' + target + ']';
     },
     // Azure DevOps legt Anhaenge unter einem relativen Pfad ab
     // ('/.attachments/<guid>' bzw. './...') - der Host ist nur in ADO
@@ -758,7 +762,7 @@
       return ph.add(d.link('', url));
     });
     text = text.replace(/<([^@<>\s]+@[^@<>\s]+\.[^@<>\s]+)>/g, function (match, mail) {
-      return ph.add(d.link('', 'mailto:' + mail));
+      return ph.add(d.link(mail, 'mailto:' + mail));
     });
 
     // 9. Textauszeichnungen. Die erzeugten Jira-Zeichen werden als Platzhalter
@@ -795,10 +799,13 @@
     //     erzeugtes Markup steckt in Platzhaltern und bleibt unberuehrt.
     text = d.escapeText(text, ctx.options);
 
-    // 11. Harter Umbruch: zwei Leerzeichen am Zeilenende.
-    if (d.hardBreak) {
-      text = text.replace(/[ \t]{2,}$/, function () { return ph.add(d.hardBreak); });
-    }
+    // 11. Harter Umbruch: zwei Leerzeichen oder ein Backslash am Zeilenende.
+    //     escapeText() (Schritt 10) fasst einen einzelnen Backslash nicht an
+    //     (kein Jira-Escape-Zeichen), darum darf die Ersetzung hier stehen
+    //     bleiben. Im HTML-Dialekt ist hardBreak leer - der Platzhalter loest
+    //     sich dann in nichts auf, der Backslash faellt weg, <br> kommt schon
+    //     aus paragraph().
+    text = text.replace(/(?:[ \t]{2,}|\\)$/, function () { return ph.add(d.hardBreak); });
 
     return ph.restore(text);
   }
@@ -809,7 +816,10 @@
     if (!hasScheme && /^www\./i.test(target)) target = 'http://' + target;
     if (!hasScheme && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(target)) target = 'mailto:' + target;
     var text = String(label == null ? '' : label).trim();
-    if (!text || text === url.trim()) {
+    // Nur kollabieren, wenn das Label dem tatsaechlichen Ziel entspricht -
+    // wurde erst hier ein Schema ergaenzt (mailto:, http:// bei www.), bleibt
+    // das Label sichtbar, sonst zeigte der Link nur noch die rohe URL an.
+    if (!text || text === target) {
       return ctx.dialect.link('', target);
     }
     // Das Label kann selbst Markup enthalten (z. B. **fett**).
@@ -1332,7 +1342,12 @@
       /`[^`\n]+`/,
       /^ {0,3}>[ \t]?\S/m,
       /^\s*\|.*\|\s*$/m,
-      /~~[^~\n]+~~/
+      /~~[^~\n]+~~/,
+      // Setext-Ueberschrift: Textzeile direkt gefolgt von einer Unterstreichung
+      // aus '=' oder '-'. Das \S auf der Textzeile stellt sicher, dass ein
+      // '----'-Trenner nach einer Leerzeile nicht anschlaegt - eine Leerzeile
+      // hat kein \S, die Zeile davor ist dann nicht die direkte Vorgaengerin.
+      /^.*\S.*\n {0,3}(?:={2,}|-{2,})[ \t]*$/m
     ];
     for (var i = 0; i < patterns.length; i++) {
       if (patterns[i].test(text)) return true;

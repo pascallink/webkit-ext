@@ -122,6 +122,12 @@ describe('HTML fuer den Rich-Text-Editor', function () {
   test('weiche Zeilenumbrueche werden zu <br>', function () {
     html('Zeile eins\nZeile zwei', '<p>Zeile eins<br>\nZeile zwei</p>');
   });
+  test('Backslash-Umbruch liefert <br> ohne Backslash', function () {
+    html('Zeile eins\\\nZeile zwei', '<p>Zeile eins<br>\nZeile zwei</p>');
+  });
+  test('E-Mail-Autolink behaelt die Adresse als sichtbaren Text', function () {
+    html('<max@x.de>', '<p><a href="mailto:max@x.de">max@x.de</a></p>');
+  });
   test('leere Eingabe', function () {
     html('', '');
   });

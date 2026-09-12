@@ -107,6 +107,10 @@ describe('Links und Bilder', function () {
     eq('[Mail](mailto:a@b.de)', '[Mail|mailto:a@b.de]');
     eq('[Mail](a@b.de)', '[Mail|mailto:a@b.de]');
   });
+  test('Autolink auf E-Mail behaelt die Adresse als Text', function () {
+    eq('<max@x.de>', '[max@x.de|mailto:max@x.de]');
+    eq('[a@b.de](a@b.de)', '[a@b.de|mailto:a@b.de]');
+  });
   test('Referenz-Link', function () {
     eq('Siehe [die Doku][doku].\n\n[doku]: https://example.com',
       'Siehe [die Doku|https://example.com].');
@@ -237,6 +241,12 @@ describe('Sonderfaelle', function () {
   test('HTML-Zeilenumbruch', function () {
     eq('Zeile eins<br>Zeile zwei', 'Zeile eins\\\\Zeile zwei');
   });
+  test('Backslash am Zeilenende ist ein harter Umbruch', function () {
+    eq('Zeile eins\\\nZeile zwei', 'Zeile eins\\\\\nZeile zwei');
+  });
+  test('Strich in der URL wird kodiert', function () {
+    eq('[a|b](https://x.de/?q=1|2)', '[a\\|b|https://x.de/?q=1%7C2]');
+  });
   test('mehrfache Leerzeilen werden reduziert', function () {
     eq('A\n\n\n\nB', 'A\n\nB');
   });
@@ -321,11 +331,16 @@ describe('Markdown-Erkennung', function () {
     assert.ok(jira.looksLikeMarkdown('**fett**'));
     assert.ok(jira.looksLikeMarkdown('[a](b)'));
     assert.ok(jira.looksLikeMarkdown('```\ncode\n```'));
+    assert.ok(jira.looksLikeMarkdown('Titel\n====='));
+    assert.ok(jira.looksLikeMarkdown('Titel\n-----'));
   });
   test('looksLikeMarkdown ignoriert Klartext', function () {
     assert.ok(!jira.looksLikeMarkdown('Ein normaler Satz ohne Markup.'));
     assert.ok(!jira.looksLikeMarkdown(''));
     assert.ok(!jira.looksLikeMarkdown(null));
+  });
+  test('looksLikeMarkdown erkennt keinen Trenner nach einer Leerzeile als Setext', function () {
+    assert.ok(!jira.looksLikeMarkdown('Ein Absatz.\n\n----\n'));
   });
 });
 
