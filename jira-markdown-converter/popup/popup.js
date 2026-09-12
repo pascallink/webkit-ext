@@ -9,6 +9,8 @@
   var status = document.getElementById('status');
   var toggle = document.getElementById('convertOnPaste');
   var toggleCard = document.getElementById('toggleCard');
+  var otrsToggle = document.getElementById('otrsHelper');
+  var otrsToggleCard = document.getElementById('otrsToggleCard');
   var settings = Settings.DEFAULTS;
 
   function say(message, isError) {
@@ -47,6 +49,25 @@
     showToggle();
     Settings.save(settings).then(function () {
       say(Settings.toggleState(settings).label + '.');
+    }, function () {
+      say('Einstellung konnte nicht gespeichert werden.', true);
+    });
+  });
+
+  /* ---------------------------------------------------------------- *
+   * Schalter fuer den OTRS-Link-Helfer
+   * ---------------------------------------------------------------- */
+
+  function showOtrsToggle() {
+    otrsToggle.checked = !!settings.otrsHelper;
+    otrsToggleCard.style.setProperty('--switch-color', settings.otrsHelper ? 'var(--on)' : 'var(--off)');
+  }
+
+  otrsToggle.addEventListener('change', function () {
+    settings.otrsHelper = otrsToggle.checked;
+    showOtrsToggle();
+    Settings.save(settings).then(function () {
+      say(settings.otrsHelper ? 'OTRS-Link-Helfer ist an.' : 'OTRS-Link-Helfer ist aus.');
     }, function () {
       say('Einstellung konnte nicht gespeichert werden.', true);
     });
@@ -166,6 +187,7 @@
   Settings.load().then(function (loaded) {
     settings = loaded;
     showToggle();
+    showOtrsToggle();
     refresh();
     input.focus();
     checkCurrentTab();
@@ -176,6 +198,7 @@
   Settings.onChange(function (next) {
     settings = next;
     showToggle();
+    showOtrsToggle();
     refresh();
   });
 })();

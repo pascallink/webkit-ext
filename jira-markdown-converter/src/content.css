@@ -271,6 +271,16 @@
   background: transparent;
 }
 
+/* OTRS-Link-Helfer: eigener Akzent, damit er sich vom Rest der Leiste abhebt. */
+.jmd-fieldbar__btn--otrs {
+  border-color: #0052cc;
+  color: #0052cc;
+}
+
+.jmd-fieldbar__btn--otrs:hover {
+  background: #deebff;
+}
+
 /*
  * Schalter fuer die Einfuege-Automatik: der Punkt traegt die Farbe aus
  * Settings.TOGGLE, den Zustand sagt die Beschriftung daneben.
@@ -387,6 +397,9 @@
   /* Ueber dem schwebenden Button, damit er nicht verdeckt wird. */
   bottom: 76px;
   z-index: 2147483001;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   max-width: 320px;
   padding: 10px 14px;
   border-radius: 3px;
@@ -402,10 +415,28 @@
 .jmd-toast--visible {
   opacity: 1;
   transform: translateY(0);
+  /* Sticky-Warnung soll sich schliessen lassen - dafuer muss sie klickbar sein. */
+  pointer-events: auto;
 }
 
 .jmd-toast--error {
   background: #de350b;
+}
+
+.jmd-toast__text {
+  flex: 1;
+}
+
+/* Nur bei einer sticky-Warnung sichtbar (Achtung: Kundenreferenz ueberschrieben). */
+.jmd-toast__close {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
 }
 
 /* Dunkles Jira-Theme ------------------------------------------------- */
@@ -443,6 +474,15 @@
     background: #09326c;
     border-color: #0052cc;
     color: #cce0ff;
+  }
+
+  .jmd-fieldbar__btn--otrs {
+    border-color: #4c9aff;
+    color: #4c9aff;
+  }
+
+  .jmd-fieldbar__btn--otrs:hover {
+    background: #09326c;
   }
 
   /* Auf dunklem Grund braucht der Punkt eine Kante, sonst verschwindet er. */

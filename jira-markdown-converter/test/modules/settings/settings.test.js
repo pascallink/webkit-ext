@@ -89,6 +89,18 @@ describe('Voreinstellungen', function () {
   test('kaputte extraHosts werden abgefangen', function () {
     assert.deepStrictEqual(Settings.withDefaults({ extraHosts: 'jira.firma.de' }).extraHosts, []);
   });
+  test('otrsHelper und otrsFieldName haben sinnvolle Standardwerte', function () {
+    var defaults = Settings.withDefaults(null);
+    assert.strictEqual(defaults.otrsHelper, true);
+    assert.strictEqual(defaults.otrsFieldName, 'Kunden Referenz');
+    assert.strictEqual(Settings.withDefaults({ otrsHelper: false }).otrsHelper, false);
+    assert.strictEqual(Settings.withDefaults({ otrsFieldName: 'Referenz' }).otrsFieldName, 'Referenz');
+  });
+  test('otrsFieldName faellt bei leerem oder ungueltigem Wert auf den Standard zurueck', function () {
+    assert.strictEqual(Settings.withDefaults({ otrsFieldName: '' }).otrsFieldName, 'Kunden Referenz');
+    assert.strictEqual(Settings.withDefaults({ otrsFieldName: '   ' }).otrsFieldName, 'Kunden Referenz');
+    assert.strictEqual(Settings.withDefaults({ otrsFieldName: 42 }).otrsFieldName, 'Kunden Referenz');
+  });
   test('Konverter-Optionen enthalten nur Konverter-Schluessel', function () {
     var options = Settings.converterOptions(Settings.withDefaults(null));
     assert.deepStrictEqual(Object.keys(options).sort(),

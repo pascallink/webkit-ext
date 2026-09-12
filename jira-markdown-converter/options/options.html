@@ -118,6 +118,30 @@
     </section>
 
     <section class="card">
+      <h2>OTRS-Link-Helfer</h2>
+      <p class="hint">
+        Nimmt einen OTRS-Verweis (Markdown-Link, HTML-Anker oder Text mit
+        eingebetteter URL) entgegen und pflegt ihn beim Absenden in Label,
+        Kundenreferenz und Web-Link des Vorgangs ein. Nur Jira Server / Data
+        Center.
+      </p>
+
+      <div class="toggle-card" id="otrsToggleCard">
+        <label class="switch">
+          <input type="checkbox" id="otrsHelper">
+          <span class="switch__track"><span class="switch__knob"></span></span>
+          <span class="switch__text">
+            <b>OTRS-Link-Helfer anbieten</b>
+            <small>Knopf im Panel und an der Feldleiste.</small>
+          </span>
+        </label>
+      </div>
+
+      <label class="label" for="otrsFieldName">Feldname der Kundenreferenz</label>
+      <input type="text" id="otrsFieldName" class="area">
+    </section>
+
+    <section class="card">
       <h2>Konvertierung</h2>
 
       <label class="check">

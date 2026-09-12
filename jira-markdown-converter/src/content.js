@@ -14,6 +14,8 @@
   var CodeDialog = window.JiraCodeDialog;
   var TemplateDialog = window.JiraTemplateDialog;
   var EditLock = window.JiraEditLock;
+  var OtrsFlow = window.JiraOtrsFlow;
+  var OtrsDialog = window.JiraOtrsDialog;
 
   var settings = Settings.DEFAULTS;
   var panel = null;
@@ -299,6 +301,14 @@
     }
   }
 
+  /** Blendet den OTRS-Knopf an allen Leisten ein oder aus - Schalter otrsHelper. */
+  function updateFieldbarOtrsButtons() {
+    var buttons = document.querySelectorAll('.jmd-fieldbar__btn--otrs');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].hidden = !settings.otrsHelper;
+    }
+  }
+
   /** Schreibt die Einstellung und zieht alle Oberflaechen nach. */
   function setConvertOnPaste(next) {
     settings = Settings.withDefaults(Object.assign({}, settings, { convertOnPaste: next }));
@@ -355,6 +365,7 @@
     '    <button type="button" class="jmd-btn" data-action="code">Code einfuegen</button>',
     '    <button type="button" class="jmd-btn" data-action="panel-template"',
     '            aria-haspopup="true" aria-expanded="false">Panel aus Vorlage</button>',
+    '    <button type="button" class="jmd-btn" data-action="otrs" title="OTRS-Link einpflegen">OTRS-Link</button>',
     '  </div>',
     '  <div class="jmd-options">',
     '    <label class="jmd-check"><input type="checkbox" data-option="switchToMarkup"> Rich-Text vorher auf Markup-Modus umschalten</label>',
@@ -476,6 +487,9 @@
         break;
       case 'code':
         openCodeDialog(null);
+        break;
+      case 'otrs':
+        openOtrsDialog(button);
         break;
       default:
         break;
@@ -603,6 +617,39 @@
     });
   }
 
+  /* ------------------------------------------------------------------ *
+   * OTRS-Link-Helfer
+   *
+   * Der Dialog kennt Jira nicht - er parst die Eingabe nur und reicht das
+   * Ergebnis ueber onSubmit an runOtrsFlow() weiter, das die drei Schritte
+   * (Label, Kunden Referenz, Web-Link) gegen die Jira-Seite ausfuehrt.
+   * ------------------------------------------------------------------ */
+
+  function openOtrsDialog(opener) {
+    OtrsDialog.open({
+      onSubmit: runOtrsFlow,
+      opener: opener
+    });
+  }
+
+  /**
+   * previousReference nutzt den Fehlerzweig von toast() (isError: true) mit
+   * langer Standzeit, weil sie sonst der direkt zuvor gezeigte Erfolgstoast
+   * ueberschreiben wuerde, ohne dass der ueberschriebene alte Wert dem Nutzer
+   * aufgefallen ist - beide teilen sich denselben Toast-Knoten.
+   */
+  function runOtrsFlow(parsed) {
+    return OtrsFlow.run(parsed, { fieldName: settings.otrsFieldName }).then(function (result) {
+      toast('OTRS Link im Ticket eingepflegt.');
+      if (result.previousReference) {
+        toast('Achtung: Kundenreferenz wurde ueberschrieben. Vorheriger Wert: ' + result.previousReference,
+          true, { sticky: true });
+      }
+    }).catch(function (error) {
+      toast(error.message, true);
+    });
+  }
+
   function refreshPreview() {
     if (!panel) return;
     var input = panel.querySelector('#jmd-input');
@@ -635,6 +682,9 @@
     if (card) card.style.setProperty('--jmd-switch-color', state.color);
     if (label) label.textContent = state.label;
     if (hint) hint.textContent = state.hint;
+
+    var otrsButton = panel.querySelector('[data-action="otrs"]');
+    if (otrsButton) otrsButton.hidden = !settings.otrsHelper;
 
     updateTargetLabel();
   }
@@ -1139,6 +1189,17 @@
       openCodeDialog(field);
     });
 
+    var otrsButton = document.createElement('button');
+    otrsButton.type = 'button';
+    otrsButton.className = 'jmd-fieldbar__btn jmd-fieldbar__btn--otrs';
+    otrsButton.textContent = 'OTRS';
+    otrsButton.title = 'OTRS-Verweis in Label, Kunden Referenz und Web-Link uebernehmen';
+    otrsButton.hidden = !settings.otrsHelper;
+    otrsButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      openOtrsDialog(otrsButton);
+    });
+
     var templateButton = document.createElement('button');
     templateButton.type = 'button';
     templateButton.className = 'jmd-fieldbar__btn';
@@ -1222,6 +1283,7 @@
     bar.appendChild(convertButton);
     bar.appendChild(pasteButton);
     bar.appendChild(codeButton);
+    bar.appendChild(otrsButton);
     bar.appendChild(templateButton);
     bar.appendChild(customButton);
     bar.appendChild(panelButton);
@@ -1258,22 +1320,53 @@
     toast('Kopieren nicht moeglich.', true);
   }
 
-  function toast(message, isError) {
+  /**
+   * options.sticky (z. B. die Warnung bei ueberschriebener Kundenreferenz):
+   * kein Ausblenden nach 2,6 Sekunden, stattdessen bleibt der Toast stehen,
+   * bis der Schliessen-Knopf ihn wegnimmt.
+   */
+  function toast(message, isError, options) {
+    var sticky = !!(options && options.sticky);
     if (!settings.showToast && !isError) return;
     var node = document.querySelector('.jmd-toast');
     if (!node) {
       node = document.createElement('div');
       node.className = 'jmd-toast';
       node.dataset.jmdUi = 'toast';
+      var text = document.createElement('span');
+      text.className = 'jmd-toast__text';
+      node.appendChild(text);
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'jmd-toast__close';
+      close.title = 'Schliessen';
+      close.setAttribute('aria-label', 'Schliessen');
+      close.textContent = 'x';
+      close.addEventListener('click', hideToast);
+      node.appendChild(close);
       document.body.appendChild(node);
     }
-    node.textContent = message;
+    node.querySelector('.jmd-toast__text').textContent = message;
+    node.querySelector('.jmd-toast__close').hidden = !sticky;
     node.classList.toggle('jmd-toast--error', !!isError);
+    node.classList.toggle('jmd-toast--sticky', sticky);
     node.classList.add('jmd-toast--visible');
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () {
-      node.classList.remove('jmd-toast--visible');
-    }, 2600);
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+      toastTimer = null;
+    }
+    if (!sticky) {
+      toastTimer = setTimeout(hideToast, 2600);
+    }
+  }
+
+  function hideToast() {
+    var node = document.querySelector('.jmd-toast');
+    if (node) node.classList.remove('jmd-toast--visible');
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+      toastTimer = null;
+    }
   }
 
   /* ------------------------------------------------------------------ *
@@ -1442,6 +1535,7 @@
       updateFab();
       updateFieldbarToggles();
       updateFieldbarTemplateButtons();
+      updateFieldbarOtrsButtons();
       // Ein offenes Vorlagenmenue kann durch eine Aenderung in einem
       // zweiten Tab veraltet sein (Vorlage geloescht/umbenannt).
       closeMenu();
