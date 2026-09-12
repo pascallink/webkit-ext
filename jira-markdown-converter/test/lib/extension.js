@@ -119,12 +119,23 @@ function extensionCopy(port) {
  * CHROMIUM_PATH (siehe test/lib/browser.js) geht vor - lokal zeigt es auf
  * das installierte Edge. Sonst channel: PW_CHANNEL oder 'chromium'.
  * Playwright erlaubt channel und executablePath nicht gleichzeitig.
+ *
+ * --headless=new erzwingt den neuen Headless-Modus: Erweiterungen (chrome.
+ * action u.a.) laufen dort vollstaendig, im alten Default-Headless-Modus
+ * von reinem Open-Source-Chromium (CI-Runner) bleibt z. B. chrome.action
+ * undefined, obwohl ein installiertes Edge (lokal) denselben Default schon
+ * ohne das Flag unterstuetzt - darum hier immer explizit setzen statt sich
+ * auf den Browser-Default zu verlassen.
  */
 function launchExtension(extDir) {
   var chromium = require('playwright').chromium;
   var profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jmd-profile-'));
   var options = {
-    args: ['--load-extension=' + extDir, '--disable-extensions-except=' + extDir],
+    args: [
+      '--load-extension=' + extDir,
+      '--disable-extensions-except=' + extDir,
+      '--headless=new'
+    ],
     ignoreDefaultArgs: ['--disable-extensions']
   };
   if (process.env.CHROMIUM_PATH) {
