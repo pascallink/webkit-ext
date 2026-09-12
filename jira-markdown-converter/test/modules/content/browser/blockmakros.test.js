@@ -239,3 +239,85 @@ describe('Blockmakros am Zeilenanfang', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 });
+
+/**
+ * Loest ein paste-Ereignis im Dokument des Rich-Text-Rahmens aus - anders
+ * als pasteInto() (Ziel im Hauptdokument), reicht ein Selektor im
+ * Hauptdokument hier nicht: die Marke aus setRichCaret() steckt im Rahmen.
+ */
+async function pasteIntoFrame(page, markdown) {
+  await page.evaluate(function (text) {
+    var doc = document.querySelector('#description_ifr').contentDocument;
+    var data = new DataTransfer();
+    data.setData('text/plain', text);
+    doc.body.dispatchEvent(new ClipboardEvent('paste', {
+      clipboardData: data,
+      bubbles: true,
+      cancelable: true
+    }));
+  }, markdown);
+}
+
+describe('Konvertiertes Markdown mitten in der Zeile', { skip: !hasPlaywright }, function () {
+  // Bisher bekommt jedes eingefuegte bzw. eingefuegt-konvertierte Markdown
+  // fest den Modus 'insert' - Blockmakros wie Ueberschrift, Liste oder
+  // Tabelle deutet Jira aber nur am Zeilenanfang. Steht die Marke mitten in
+  // einer Zeile, klebt das Markup bislang am umgebenden Text, statt auf
+  // eigene Zeilen zu ruecken (Issue #91).
+
+  test('Ueberschrift rueckt auf eine eigene Zeile', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await page.fill('#description', 'Satz eins. Satz zwei.');
+    await setCaret(page, 11);
+    await pasteInto(page, '#description', '## Neu');
+    assert.strictEqual(await page.inputValue('#description'),
+      'Satz eins. \nh2. Neu\nSatz zwei.');
+    await page.close();
+  });
+
+  test('Liste beginnt und endet auf eigenen Zeilen', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await page.fill('#description', 'Satz eins. Satz zwei.');
+    await setCaret(page, 11);
+    await pasteInto(page, '#description', '- a\n- b');
+    assert.strictEqual(await page.inputValue('#description'),
+      'Satz eins. \n* a\n* b\nSatz zwei.');
+    await page.close();
+  });
+
+  test('Tabelle rueckt auf eine eigene Zeile', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await page.fill('#description', 'Satz eins. Satz zwei.');
+    await setCaret(page, 11);
+    await pasteInto(page, '#description', '| a | b |\n| - | - |');
+    assert.strictEqual(await page.inputValue('#description'),
+      'Satz eins. \n||a||b||\nSatz zwei.');
+    await page.close();
+  });
+
+  test('im Rich-Text-Editor bekommt die Ueberschrift einen eigenen Block', async function () {
+    // Die Marke steht mitten im Absatz - eine Ueberschrift darf dort nicht
+    // an Ort und Stelle landen, sondern muss den Absatz wie ein Blockmakro
+    // aufteilen (siehe 'im Rich-Text-Editor bekommt der Codeblock einen
+    // eigenen Block' oben).
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, RTE);
+    await setRichCaret(page, '<p id="a">davor danach</p>', 'a', 6);
+    await pasteIntoFrame(page, '## Neu');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.strictEqual(paste.text, 'h2. Neu', 'keine angeklebten Reste im Markup');
+    var remainderOfA = await page.evaluate(function () {
+      var doc = document.querySelector('#description_ifr').contentDocument;
+      return doc.getElementById('a').textContent;
+    });
+    assert.strictEqual(remainderOfA, 'davor ',
+      'die Ueberschrift haengt noch im Absatz #a statt ihn zu teilen');
+    await page.close();
+  });
+});
