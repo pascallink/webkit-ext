@@ -570,6 +570,15 @@
   // Blockelemente, die im Rich-Text-Editor eine eigene Zeile bilden.
   var BLOCK_TAGS = /^(?:P|DIV|LI|TD|TH|PRE|BLOCKQUOTE|H[1-6]|SECTION|ARTICLE|BODY|DD|DT|FIGCAPTION)$/;
 
+  // Bloecke, deren echte Teilung gefahrlos ist: Absatz und Ueberschrift haben
+  // im Elterncontainer immer Platz fuer ein weiteres Geschwister. Bei LI, TD,
+  // TH, DD, DT wuerde der Klon aus splitBlockAtCaret() dagegen einen
+  // zusaetzlichen Listenpunkt bzw. eine zusaetzliche Zelle erzeugen, und die
+  // Blockgrenze laege in <ul>/<ol>/<tr>, wo ein Blockmakro keinen gueltigen
+  // Platz hat - fuer PRE, BLOCKQUOTE, DIV & Co. bleibt darum ebenfalls die
+  // Rueckfallebene mit BLOCK_SEPARATOR zustaendig.
+  var SPLITTABLE_BLOCK_TAGS = /^(?:P|H[1-6])$/;
+
   // Leerer Absatz als Trenner: er sorgt dafuer, dass der Editor den Block
   // wirklich als Block uebernimmt, bleibt aber als leerer Absatz im Editor
   // stehen. Nur noch die Rueckfallebene, wenn splitBlockAtCaret() nicht
@@ -633,8 +642,15 @@
    *     Element fest, statt daneben zu stehen (siehe JIRA912-Fixture).
    * Ist der Block ohnehin leer, bleibt die Marke unangetastet - dafuer reicht
    * die alte Rueckfallebene mit BLOCK_SEPARATOR. Schlaegt die Auswertung fehl
-   * (kein Bereich, kein eindeutiger Block ...), faellt der Aufrufer ebenfalls
-   * auf BLOCK_SEPARATOR zurueck.
+   * (kein Bereich, kein eindeutiger Block, Blocktyp nicht in
+   * SPLITTABLE_BLOCK_TAGS ...), faellt der Aufrufer ebenfalls auf
+   * BLOCK_SEPARATOR zurueck.
+   *
+   * Liefert bei Erfolg ein Objekt mit `undo` zurueck: steht sie mitten im
+   * Block, ist das die Funktion, die den echten Split wieder rueckgaengig
+   * macht (siehe insertIntoRich()); an den Blockraendern ist `undo` null,
+   * da dort nur die Selektion verschoben wurde, ohne das Dokument zu
+   * aendern.
    */
   function splitBlockAtCaret(surface) {
     try {
@@ -648,6 +664,7 @@
 
       var block = blockAround(range.startContainer, surface);
       if (block === surface || !block.parentNode) return false;
+      if (!SPLITTABLE_BLOCK_TAGS.test(block.tagName || '')) return false;
 
       var before = doc.createRange();
       before.selectNodeContents(block);
@@ -660,6 +677,7 @@
       var beforeEmpty = !before.toString().trim();
       var afterEmpty = !after.toString().trim();
       var boundary = doc.createRange();
+      var undo = null;
 
       if (beforeEmpty && afterEmpty) {
         return false;   // Block ist ohnehin leer - Rueckfallebene reicht
@@ -668,17 +686,28 @@
       } else if (beforeEmpty) {
         boundary.setStartBefore(block);
       } else {
+        // Die urspruengliche Marke merken, um den Split rueckgaengig machen
+        // zu koennen, wenn hinterher kein Einfuegeweg erfolgreich war.
+        var originalRange = range.cloneRange();
         var fragment = after.extractContents();
         var next = block.cloneNode(false);
         next.removeAttribute('id');
         next.appendChild(fragment);
         block.parentNode.insertBefore(next, block.nextSibling);
         boundary.setStartAfter(block);
+        undo = function () {
+          while (next.firstChild) {
+            block.appendChild(next.firstChild);
+          }
+          if (next.parentNode) next.parentNode.removeChild(next);
+          selection.removeAllRanges();
+          selection.addRange(originalRange);
+        };
       }
       boundary.collapse(true);
       selection.removeAllRanges();
       selection.addRange(boundary);
-      return true;
+      return { undo: undo };
     } catch (error) {
       return false;
     }
@@ -696,11 +725,16 @@
   function asOwnBlocks(surface, text, html) {
     var edges = blockEdges(surface);
     var split = html ? splitBlockAtCaret(surface) : false;
+    // Nach erfolgreichem Teilen steht die Marke bereits auf einer
+    // Blockgrenze - die zusaetzlichen \n aus edges braucht dann nur noch
+    // der Text-Zweig, wenn das Teilen nicht gegriffen hat.
+    var atBoundary = !!split;
     return {
-      text: (edges.start ? '' : '\n') + text + (edges.end ? '' : '\n'),
+      text: (atBoundary || edges.start ? '' : '\n') + text + (atBoundary || edges.end ? '' : '\n'),
       html: !html || split
         ? html
-        : (edges.start ? '' : BLOCK_SEPARATOR) + html + (edges.end ? '' : BLOCK_SEPARATOR)
+        : (edges.start ? '' : BLOCK_SEPARATOR) + html + (edges.end ? '' : BLOCK_SEPARATOR),
+      undoSplit: split && split.undo ? split.undo : null
     };
   }
 
@@ -753,6 +787,17 @@
       }
     } catch (error) {
       /* aufgeben */
+    }
+
+    // Kein Einfuegeweg war erfolgreich - einen vorab geteilten Block wieder
+    // zusammenfuehren, damit kein halb geteilter Block ohne Blockmakro
+    // zurueckbleibt.
+    if (payload.undoSplit) {
+      try {
+        payload.undoSplit();
+      } catch (error) {
+        /* aufgeben */
+      }
     }
     return false;
   }

@@ -110,7 +110,7 @@ describe('Blockmakros am Zeilenanfang', { skip: !hasPlaywright }, function () {
     var paste = await page.evaluate(function () { return window.__pastes[0]; });
     assert.strictEqual(paste.html,
       '<pre class="code panel" style="border-width: 1px;" data-language="code-java">int a = 1;\n</pre>');
-    assert.strictEqual(paste.text, '\n{code:java}\nint a = 1;\n{code}\n');
+    assert.strictEqual(paste.text, '{code:java}\nint a = 1;\n{code}');
     var hasEmptyParagraph = await page.evaluate(function () {
       var doc = document.querySelector('#description_ifr').contentDocument;
       var paragraphs = doc.body.querySelectorAll('p');
@@ -137,7 +137,7 @@ describe('Blockmakros am Zeilenanfang', { skip: !hasPlaywright }, function () {
     }, null, { timeout: 4000 });
     var paste = await page.evaluate(function () { return window.__pastes[0]; });
     assert.strictEqual(paste.html, '<pre class="code panel" style="border-width: 1px;">x\n</pre>');
-    assert.strictEqual(paste.text, '\n{code}\nx\n{code}');
+    assert.strictEqual(paste.text, '{code}\nx\n{code}');
     await page.close();
   });
 
@@ -172,6 +172,58 @@ describe('Blockmakros am Zeilenanfang', { skip: !hasPlaywright }, function () {
     var paste = await page.evaluate(function () { return window.__pastes[0]; });
     assert.ok(!/<p><\/p>/.test(paste.html), 'kein Trenner-Absatz im Panel-HTML: ' + paste.html);
     assert.ok(/^<div /.test(paste.html), 'Panel beginnt direkt mit dem Rahmen: ' + paste.html);
+    await page.close();
+  });
+
+  test('mitten im Listenpunkt bleibt die Liste unveraendert lang', async function () {
+    // Listenpunkt ist kein sicher teilbarer Block - splitBlockAtCaret() muss
+    // hier auf die Rueckfallebene mit BLOCK_SEPARATOR ausweichen, sonst
+    // haengt der Klon einen zusaetzlichen Listenpunkt an.
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, RTE);
+    await setRichCaret(page, '<ul><li id="a">davor danach</li><li>zweiter Punkt</li></ul>', 'a', 6);
+    var itemsBefore = await page.evaluate(function () {
+      return document.querySelector('#description_ifr').contentDocument.querySelectorAll('li').length;
+    });
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.strictEqual(paste.html,
+      '<p></p><pre class="code panel" style="border-width: 1px;">x\n</pre><p></p>');
+    var itemsAfter = await page.evaluate(function () {
+      return document.querySelector('#description_ifr').contentDocument.querySelectorAll('li').length;
+    });
+    assert.strictEqual(itemsAfter, itemsBefore, 'kein zusaetzlicher Listenpunkt durch die Teilung');
+    await page.close();
+  });
+
+  test('mitten in einer Tabellenzelle bleibt die Zeile unveraendert lang', async function () {
+    // Tabellenzelle ist ebenfalls kein sicher teilbarer Block - sonst haengt
+    // der Klon eine zusaetzliche Zelle an die Tabellenzeile.
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, RTE);
+    await setRichCaret(page,
+      '<table><tr><td id="a">davor danach</td><td>zweite Zelle</td></tr></table>', 'a', 6);
+    var cellsBefore = await page.evaluate(function () {
+      return document.querySelector('#description_ifr').contentDocument.querySelectorAll('td').length;
+    });
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    await page.waitForFunction(function () {
+      return window.__pastes.length === 1;
+    }, null, { timeout: 4000 });
+    var paste = await page.evaluate(function () { return window.__pastes[0]; });
+    assert.strictEqual(paste.html,
+      '<p></p><pre class="code panel" style="border-width: 1px;">x\n</pre><p></p>');
+    var cellsAfter = await page.evaluate(function () {
+      return document.querySelector('#description_ifr').contentDocument.querySelectorAll('td').length;
+    });
+    assert.strictEqual(cellsAfter, cellsBefore, 'keine zusaetzliche Zelle durch die Teilung');
     await page.close();
   });
 
