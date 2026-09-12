@@ -237,3 +237,27 @@ describe('Markdown-Erkennung', function () {
     assert.ok(!jira.looksLikeMarkdown(null));
   });
 });
+
+describe('Jira-Markup erkennen', function () {
+  test('looksLikeJiraMarkup erkennt Makros und Ueberschriften', function () {
+    assert.ok(jira.looksLikeJiraMarkup('h2. Titel'));
+    assert.ok(jira.looksLikeJiraMarkup('{code:java}\nx\n{code}'));
+    assert.ok(jira.looksLikeJiraMarkup('{noformat}'));
+    assert.ok(jira.looksLikeJiraMarkup('{panel:title=x}'));
+    assert.ok(jira.looksLikeJiraMarkup('{quote}'));
+    assert.ok(jira.looksLikeJiraMarkup('{color:#de350b}'));
+    assert.ok(jira.looksLikeJiraMarkup('||a||b||'));
+    assert.ok(jira.looksLikeJiraMarkup('[Text|https://example.org]'));
+    assert.ok(jira.looksLikeJiraMarkup('{{mono}}'));
+    // Mischfall aus dem Issue-Repro: looksLikeMarkdown() liefert dafuer
+    // ebenfalls true (wegen "* punkt"), looksLikeJiraMarkup() zusaetzlich.
+    assert.ok(jira.looksLikeJiraMarkup('h2. Titel\n* punkt\n{code:java}\nint x = 1;\n{code}'));
+    assert.ok(!jira.looksLikeJiraMarkup('# Titel'));
+    assert.ok(!jira.looksLikeJiraMarkup('- Punkt'));
+    assert.ok(!jira.looksLikeJiraMarkup('**fett**'));
+    assert.ok(!jira.looksLikeJiraMarkup('[a](b)'));
+    assert.ok(!jira.looksLikeJiraMarkup('Ein normaler Satz ohne Markup.'));
+    assert.ok(!jira.looksLikeJiraMarkup('\x27\x27'));
+    assert.ok(!jira.looksLikeJiraMarkup(null));
+  });
+});

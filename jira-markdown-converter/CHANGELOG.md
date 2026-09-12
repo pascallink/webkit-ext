@@ -9,6 +9,8 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Beim Einfuegen von bereits vorhandenem Jira-Markup wird nicht mehr
+  konvertiert; Makros wie `{code}` bleiben heil (Issue #92).
 - Einfrieren sperrte die Navigation und Dialoge; nun bleiben Toolbar,
   Bedienelemente ausserhalb des Feldes und Escape funktionieren normal
   (Issue #112).
