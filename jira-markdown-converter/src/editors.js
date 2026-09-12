@@ -541,6 +541,10 @@
     if (mode === 'replace' || start === null || start === undefined) {
       setTextareaValue(element, text);
       element.setSelectionRange(text.length, text.length);
+      // Sofort merken statt auf selectionchange zu warten - das kommt
+      // asynchron und sieht das Feld womoeglich schon unfokussiert (naechster
+      // Klick auf Panel oder Dialog).
+      rememberCaret(element);
       return true;
     }
 
@@ -551,6 +555,10 @@
     setTextareaValue(element, next);
     var caret = start + payload.length;
     element.setSelectionRange(caret, caret);
+    // Sofort merken statt auf selectionchange zu warten - das kommt
+    // asynchron und sieht das Feld womoeglich schon unfokussiert (naechster
+    // Klick auf Panel oder Dialog).
+    rememberCaret(element);
     return true;
   }
 
@@ -742,6 +750,10 @@
    * Fuegt Text in einen ProseMirror-Editor ein. Wir schicken ein synthetisches
    * paste-Event: der Editor verarbeitet es wie eine echte Einfuege-Aktion,
    * inklusive Undo-Historie.
+   *
+   * Merkt die Position hier bewusst nicht sofort wie insertIntoTextarea() das
+   * jetzt tut - der visuelle Rich-Text-Modus hat seinen eigenen Fehlerkreis
+   * (Issues #107-#109) und bleibt darum unveraendert.
    */
   function insertIntoRich(element, text, html, mode) {
     var live = surfaceHasFocus(element);

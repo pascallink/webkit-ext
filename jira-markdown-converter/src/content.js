@@ -601,6 +601,9 @@
     target = into;
     CodeDialog.open({
       target: Editors.describe(into),
+      // Fokus gehoert in die Schreibflaeche, nicht auf den Leisten-Knopf, der
+      // beim Oeffnen gerade den Fokus haelt.
+      opener: Editors.editingSurface(into),
       onEmpty: function () {
         toast('Bitte zuerst Code eingeben.', true);
       },

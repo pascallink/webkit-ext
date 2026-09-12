@@ -334,3 +334,24 @@ describe('Konvertiertes Markdown mitten in der Zeile', { skip: !hasPlaywright },
     await page.close();
   });
 });
+
+describe('Reihenfolge nach dem Code-Dialog', { skip: !hasPlaywright }, function () {
+  test('Panel nach dem Codeblock landet dahinter', async function () {
+    // Repro Issue #95: nach dem Code-Dialog war die gemerkte Cursorposition
+    // noch die von vor dem Codeblock, darum landete das Panel davor.
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await page.fill('#description', 'Zeile1\nZeile2');
+    await setCaret(page, 6);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    await page.locator('.jmd-fieldbar').first().getByText('Panel').click();
+    await page.click('.jmd-panelmenu__item[data-template="info"]');
+    assert.strictEqual(await page.inputValue('#description'),
+      'Zeile1\n{code}\nx\n{code}\n' +
+      '{panel:title=Info|borderColor=#0052cc|bgColor=#deebff}\n' +
+      'Hier die Information eintragen.\n{panel}\nZeile2');
+    await page.close();
+  });
+});

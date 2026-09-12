@@ -384,6 +384,29 @@ describe('Code einfuegen', { skip: !hasPlaywright }, function () {
     assert.strictEqual(await page.inputValue('#description'), '');
     await page.close();
   });
+
+  test('Nach dem Schliessen liegt der Fokus im Feld', async function () {
+    // Der Leisten-Knopf haelt den Fokus, waehrend der Dialog offen ist -
+    // ohne den Fix landet er beim Schliessen wieder dort statt im Feld.
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.fill('#jmd-code-input', 'x');
+    await page.click('.jmd-dialog [data-code-action="insert"]');
+    var focusedAfterInsert = await page.evaluate(function () { return document.activeElement.id; });
+    assert.strictEqual(focusedAfterInsert, 'description', 'Fokus nach dem Einfuegen nicht im Feld');
+    await page.close();
+  });
+
+  test('Auch nach Escape ohne Einfuegen liegt der Fokus im Feld', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER);
+    await page.locator('.jmd-fieldbar').first().locator(CODE_BUTTON).click();
+    await page.press('#jmd-code-input', 'Escape');
+    var focusedAfterEscape = await page.evaluate(function () { return document.activeElement.id; });
+    assert.strictEqual(focusedAfterEscape, 'description', 'Fokus nach Escape nicht im Feld');
+    await page.close();
+  });
 });
 
 describe('Code im visuellen Modus (JIRA912)', { skip: !hasPlaywright }, function () {
