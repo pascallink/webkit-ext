@@ -571,6 +571,18 @@
   font-size: 11px;
 }
 
+/* Kunden-Schluessel in der Leseansicht (Issue #32, Sub-Task 5) -------- */
+/* Dezenter Badge im Jira-Lesetext: nur inline, keine Groessen- oder
+   Positionsaenderung, damit sich der umgebende Text nicht verschiebt. */
+.jmd-customer-key {
+  display: inline;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: #deebff;
+  color: #0747a6;
+  font-size: 0.9em;
+}
+
 @media (prefers-color-scheme: dark) {
   .jmd-toggle-card {
     background: #22272b;
@@ -579,5 +591,10 @@
 
   .jmd-switch__text small {
     color: #9fadbc;
+  }
+
+  .jmd-customer-key {
+    background: rgba(76, 154, 255, 0.18);
+    color: #85b8ff;
   }
 }

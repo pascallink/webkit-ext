@@ -11,6 +11,13 @@ var Settings = require('../../src/settings.js');
 var CHROME_STUB = [
   'window.__settings = {};',
   'window.__local = {};',
+  // Registrierte storage.onChanged-Listener, damit ein Test einen Wechsel
+  // simulieren kann (chrome.storage.onChanged.trigger(changes, area)) -
+  // derselbe Vertrag wie listenerStub()/onChangedStub() im Node-seitigen
+  // Stub (test/lib/chrome-stub.js), dort schon mit trigger(). Ohne diesen
+  // Aufruf bleibt das Verhalten wie zuvor: Settings.onChange() registriert
+  // seinen Callback, er wird aber nie ausgeloest.
+  'window.__onChangedListeners = [];',
   'window.chrome = {',
   '  runtime: {',
   '    lastError: null,',
@@ -38,7 +45,12 @@ var CHROME_STUB = [
   '        if (cb) setTimeout(cb, 0);',
   '      }',
   '    },',
-  '    onChanged: { addListener: function () {} }',
+  '    onChanged: {',
+  '      addListener: function (fn) { window.__onChangedListeners.push(fn); },',
+  '      trigger: function (changes, area) {',
+  '        window.__onChangedListeners.forEach(function (fn) { fn(changes, area); });',
+  '      }',
+  '    }',
   '  },',
   // Nur fuer popup.js: checkCurrentTab() fragt beim Laden unbedingt den
   // aktiven Tab ab - ohne Stub wuerde chrome.tabs.query() sonst werfen.
