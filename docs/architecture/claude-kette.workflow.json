@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Claude-Kette - Plan, Sub-Task, Review",
+    "output": "docs/architecture/claude-kette.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "plan", "label": "Planung und Abnahme" },
+    { "id": "impl", "label": "umsetzer - Sonnet" },
+    { "id": "review", "label": "reviewer - Opus" },
+    { "id": "logik", "label": "korrektur-logik - Sonnet" },
+    { "id": "style", "label": "korrektur-style - Haiku" },
+    { "id": "opt", "label": "Offene Option", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "plan", "label": "Planen", "fromCol": 0, "toCol": 1 },
+    { "id": "build", "label": "Umsetzen und pruefen", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "fix", "label": "Korrigieren und abschliessen", "fromCol": 4, "toCol": 5 }
+  ],
+  "mainPath": ["issue", "planDoc", "subtask", "stage1", "checks"],
+  "nodes": [
+    { "id": "issue", "lane": "plan", "col": 0, "type": "external", "label": "Issue", "sublabel": "Auftrag von Pascal", "width": 136 },
+    { "id": "planDoc", "lane": "plan", "col": 1, "type": "frontend", "label": "Ausfuehrungsplan", "sublabel": "PLAN.template.md", "width": 136 },
+    { "id": "subtask", "lane": "impl", "col": 2, "type": "backend", "label": "Sub-Task", "sublabel": "ein Branch, ein PR", "width": 136 },
+    { "id": "stage1", "lane": "review", "col": 3, "type": "security", "label": "Stufe 1 Review", "sublabel": "Logik, MV3, Tests", "width": 136 },
+    { "id": "fixLogic", "lane": "logik", "col": 4, "type": "backend", "label": "korrektur-logik", "sublabel": "eine Zieldatei", "width": 136 },
+    { "id": "fixStyle", "lane": "style", "col": 4, "type": "backend", "label": "korrektur-style", "sublabel": "eine Zieldatei", "width": 136 },
+    { "id": "localLlm", "lane": "opt", "col": 4, "type": "security", "label": "lokales LLM", "sublabel": "heute nicht verdrahtet", "width": 136 },
+    { "id": "checks", "lane": "impl", "col": 5, "type": "backend", "label": "lint und test", "sublabel": "genau einmal", "width": 136 },
+    { "id": "pr", "lane": "plan", "col": 5, "type": "frontend", "label": "PR", "sublabel": "gruen nach main", "width": 136 }
+  ],
+  "edges": [
+    { "from": "issue", "to": "planDoc", "label": "zerlegen", "variant": "emphasis", "role": "main" },
+    { "from": "planDoc", "to": "subtask", "label": "Stufe 0", "variant": "emphasis", "role": "main" },
+    { "from": "subtask", "to": "stage1", "label": "Diff gegen main", "variant": "emphasis", "role": "main" },
+    { "from": "stage1", "to": "fixLogic", "label": "BUG, SECURITY", "variant": "emphasis", "role": "branch" },
+    { "from": "stage1", "to": "fixStyle", "label": "STYLE, MINOR", "variant": "default", "role": "branch" },
+    { "from": "stage1", "to": "localLlm", "label": "denkbar statt Haiku", "variant": "dashed", "role": "branch" },
+    { "from": "fixLogic", "to": "stage1", "label": "erneut pruefen", "variant": "dashed", "role": "return" },
+    { "from": "fixStyle", "to": "stage1", "label": "erneut pruefen", "variant": "dashed", "role": "return" },
+    { "from": "stage1", "to": "checks", "label": "APPROVED", "variant": "emphasis", "role": "main" },
+    { "from": "checks", "to": "pr", "label": "gruen", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Wer welche Stufe faehrt",
+      "items": [
+        "Stufe 0 ist der Umsetzungsauftrag aus dem Plan, Stufe 1 das Review, Stufe 2 die Korrektur - die Vorlagen stehen in .github/PROMPTS.md",
+        "Die Modellwahl steht im Frontmatter der Agenten unter .claude/agents/, nicht im Plan",
+        "Jede umsetzende Sitzung endet verpflichtend mit dem Review-Prompt fuer Opus"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Routing der Stufe 2",
+      "items": [
+        "0, 1 oder 2 Korrektur-Prompts, je Prompt genau eine Zieldatei",
+        "Nur STYLE und MINOR gehen an korrektur-style (Haiku), alles andere an korrektur-logik (Sonnet)",
+        "Status ist CHANGES_REQUESTED, sobald ein Befund CRITICAL oder MAJOR ist - ohne Befund endet das Review nach der Empfehlung"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Option und Abschluss",
+      "items": [
+        "Ein lokales LLM anstelle von Haiku ist eine offene Ueberlegung: im Repo gibt es dafuer weder Code noch Konfiguration",
+        "Vor dem finalen Commit laufen npm run lint und npm test je Projekt genau einmal",
+        "Nach dem Push endet die Arbeit - PR anlegen, Ergebnis melden, fertig"
+      ]
+    }
+  ]
+}

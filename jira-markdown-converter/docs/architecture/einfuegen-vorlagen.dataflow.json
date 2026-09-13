@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Vorlage, Panel und Codeblock einfuegen - Datenweg",
+    "output": "jira-markdown-converter/docs/architecture/einfuegen-vorlagen.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      780
+    ]
+  },
+  "stages": [
+    {
+      "label": "Quelle"
+    },
+    {
+      "label": "Dialog"
+    },
+    {
+      "label": "Aufbereitung"
+    },
+    {
+      "label": "Markup"
+    },
+    {
+      "label": "Zielfeld"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "storeLocal",
+      "type": "database",
+      "label": "chrome.storage",
+      "sublabel": "local, customTemplates",
+      "stage": 0,
+      "row": 0,
+      "width": 132,
+      "tag": "bis 50 Vorlagen"
+    },
+    {
+      "id": "panelDefs",
+      "type": "database",
+      "label": "PANEL_TEMPLATES",
+      "sublabel": "vier Vorgaben",
+      "stage": 0,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "codeTyped",
+      "type": "frontend",
+      "label": "Code-Eingabe",
+      "sublabel": "Text und Sprache",
+      "stage": 0,
+      "row": 3,
+      "width": 132
+    },
+    {
+      "id": "tplDialog",
+      "type": "frontend",
+      "label": "Vorlagendialog",
+      "sublabel": "bis 5 Platzhalter",
+      "stage": 1,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "codeDialog",
+      "type": "frontend",
+      "label": "Code-Dialog",
+      "sublabel": "Auswahlliste Sprache",
+      "stage": 1,
+      "row": 3,
+      "width": 132
+    },
+    {
+      "id": "fill",
+      "type": "backend",
+      "label": "fillPlaceholders()",
+      "sublabel": "escapeValue je Wert",
+      "stage": 2,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "panelBuild",
+      "type": "backend",
+      "label": "panelMarkup()",
+      "sublabel": "panelHtml() daneben",
+      "stage": 2,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "codeBuild",
+      "type": "backend",
+      "label": "codeBlock()",
+      "sublabel": "mapLanguage() davor",
+      "stage": 2,
+      "row": 3,
+      "width": 132
+    },
+    {
+      "id": "markup",
+      "type": "backend",
+      "label": "Markup-Ergebnis",
+      "sublabel": "jira und html",
+      "stage": 3,
+      "row": 1,
+      "width": 132,
+      "tag": "am Zeilenanfang"
+    },
+    {
+      "id": "field",
+      "type": "external",
+      "label": "Jira-Feld",
+      "sublabel": "textarea, TinyMCE",
+      "stage": 4,
+      "row": 1,
+      "width": 132,
+      "tag": "9.12 LTS"
+    }
+  ],
+  "flows": [
+    {
+      "from": "storeLocal",
+      "to": "tplDialog",
+      "label": "Vorlage",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "panelDefs",
+      "to": "panelBuild",
+      "label": "Titel, Farben",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "codeTyped",
+      "to": "codeDialog",
+      "label": "Rohcode",
+      "variant": "default",
+      "route": "straight"
+    },
+    {
+      "from": "tplDialog",
+      "to": "fill",
+      "label": "Werte",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "codeDialog",
+      "to": "codeBuild",
+      "label": "Sprachkennung",
+      "variant": "default",
+      "route": "straight"
+    },
+    {
+      "from": "fill",
+      "to": "markup",
+      "label": "Vorlage",
+      "variant": "emphasis",
+      "channelX": 612,
+      "route": "vertical-channel"
+    },
+    {
+      "from": "panelBuild",
+      "to": "markup",
+      "label": "Panel",
+      "variant": "emphasis",
+      "channelX": 634,
+      "route": "vertical-channel"
+    },
+    {
+      "from": "codeBuild",
+      "to": "markup",
+      "label": "Codeblock",
+      "variant": "default",
+      "channelX": 660,
+      "route": "vertical-channel",
+      "labelAt": [
+        672,
+        470
+      ]
+    },
+    {
+      "from": "markup",
+      "to": "field",
+      "label": "insert()",
+      "variant": "emphasis",
+      "labelAt": [
+        852,
+        228
+      ]
+    },
+    {
+      "from": "markup",
+      "to": "field",
+      "label": "formatiert",
+      "variant": "dashed",
+      "labelAt": [
+        852,
+        318
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Am Konverter vorbei",
+      "items": [
+        "Panel, eigene Vorlage und Codeblock laufen nie durch markdownToJira() - sie bauen das Markup direkt",
+        "Genutzt werden nur mapLanguage() und die Dialekte aus converter.js, damit Sprachliste und Ausgabe an einer Stelle gepflegt bleiben",
+        "insertModeFor() setzt block oder inline: {panel} und {code} deutet Jira nur am Zeilenanfang"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Platzhalter",
+      "items": [
+        "Eigene Vorlagen tragen bis zu 5 Platzhalter der Form ${Name}, der Dialog fragt sie vor dem Einfuegen ab",
+        "fillPlaceholders() maskiert jeden Wert - im Feld steht der maskierte Text, danach markiert focusPanelBody() den ersten Platzhalter"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Ablage und Grenzen",
+      "items": [
+        "customTemplates liegen in chrome.storage.local, nicht in sync: sync erlaubt nur 8192 Byte je Item",
+        "Grenzen aus settings.js: 50 Vorlagen, 5000 Zeichen Markup, 60 Zeichen Titel",
+        "Bleibt der Rich-Text-Editor aktiv und wird nicht umgeschaltet, kommt das Markup unformatiert an - die Erweiterung sagt das per Hinweis"
+      ]
+    }
+  ]
+}

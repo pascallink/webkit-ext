@@ -1,0 +1,395 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Claude-Landschaft - Hooks, Agenten, Skills, State",
+    "output": "docs/architecture/claude-landschaft.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1290,
+      600
+    ],
+    "repository": {
+      "url": "https://github.com/pascallink/webkit-ext",
+      "provider": "github",
+      "revision": "a9ae0864cee3cf57875006d5614a1da16a2464e5"
+    }
+  },
+  "components": [
+    {
+      "id": "settings",
+      "type": "security",
+      "label": ".claude/settings.json",
+      "sublabel": "SessionStart und Stop",
+      "tag": "einmalige Freigabe",
+      "pos": [
+        40,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": ".claude/settings.json",
+          "label": "Hook-Vertrag"
+        }
+      ]
+    },
+    {
+      "id": "sessionHook",
+      "type": "backend",
+      "label": "session-start.sh",
+      "sublabel": "nur in der Cloud aktiv",
+      "pos": [
+        40,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": ".claude/hooks/session-start.sh",
+          "label": "Startlogik"
+        }
+      ]
+    },
+    {
+      "id": "claudeMd",
+      "type": "frontend",
+      "label": "CLAUDE.md",
+      "sublabel": "Regeln je Ebene",
+      "pos": [
+        40,
+        450
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "CLAUDE.md",
+          "label": "Repo-Regeln"
+        },
+        {
+          "path": "jira-markdown-converter/CLAUDE.md",
+          "label": "Projektregeln"
+        }
+      ]
+    },
+    {
+      "id": "session",
+      "type": "backend",
+      "label": "Claude-Sitzung",
+      "sublabel": "Hauptsession im Container",
+      "pos": [
+        300,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "agents",
+      "type": "backend",
+      "label": ".claude/agents",
+      "sublabel": "vier Subagenten",
+      "tag": "Modell je Rolle",
+      "pos": [
+        560,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": ".claude/agents/umsetzer.md",
+          "label": "Sonnet"
+        },
+        {
+          "path": ".claude/agents/reviewer.md",
+          "label": "Opus"
+        },
+        {
+          "path": ".claude/agents/korrektur-style.md",
+          "label": "Haiku"
+        }
+      ]
+    },
+    {
+      "id": "skills",
+      "type": "frontend",
+      "label": ".claude/skills",
+      "sublabel": "archify, MIT",
+      "pos": [
+        560,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": ".claude/skills/archify/SKILL.md",
+          "label": "Diagramme"
+        }
+      ]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": ".claude/state/costs",
+      "sublabel": "ungetrackt, gepinnt",
+      "pos": [
+        560,
+        450
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": ".gitignore",
+          "label": "ausgeschlossen"
+        }
+      ]
+    },
+    {
+      "id": "preCommit",
+      "type": "security",
+      "label": ".githooks/pre-commit",
+      "sublabel": "core.hooksPath noetig",
+      "pos": [
+        820,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": ".githooks/pre-commit",
+          "label": "Flush beim Commit"
+        }
+      ]
+    },
+    {
+      "id": "costs",
+      "type": "backend",
+      "label": "costs-update.mjs",
+      "sublabel": "state und flush",
+      "pos": [
+        820,
+        450
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "scripts/costs-update.mjs",
+          "label": "Kostenrechner"
+        }
+      ]
+    },
+    {
+      "id": "repo",
+      "type": "database",
+      "label": "Arbeitsbaum",
+      "sublabel": "Quellen, Tests, stats/",
+      "pos": [
+        1060,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "docsArch",
+      "type": "database",
+      "label": "docs/architecture",
+      "sublabel": "Spezifikationen",
+      "pos": [
+        820,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "docs/architecture/README.md",
+          "label": "Ablauf"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Vorgaben im Repo",
+      "wraps": [
+        "settings",
+        "sessionHook",
+        "claudeMd"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Was die Sitzung nutzt",
+      "wraps": [
+        "session",
+        "agents",
+        "skills",
+        "state",
+        "docsArch"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "security-group",
+      "label": "Erst beim Commit",
+      "wraps": [
+        "preCommit",
+        "costs",
+        "repo"
+      ],
+      "pad": 20
+    }
+  ],
+  "connections": [
+    {
+      "from": "settings",
+      "to": "sessionHook",
+      "label": "SessionStart",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        140,
+        148
+      ]
+    },
+    {
+      "from": "sessionHook",
+      "to": "session",
+      "label": "install, hooksPath",
+      "variant": "emphasis",
+      "labelAt": [
+        270,
+        235
+      ]
+    },
+    {
+      "from": "claudeMd",
+      "to": "session",
+      "label": "Regeln",
+      "variant": "dashed"
+    },
+    {
+      "from": "session",
+      "to": "agents",
+      "label": "Kette je Aufgabe",
+      "variant": "emphasis"
+    },
+    {
+      "from": "session",
+      "to": "skills",
+      "variant": "default",
+      "route": "straight"
+    },
+    {
+      "from": "skills",
+      "to": "docsArch",
+      "label": "erzeugt",
+      "variant": "default"
+    },
+    {
+      "from": "session",
+      "to": "state",
+      "label": "Stop-Hook",
+      "variant": "security"
+    },
+    {
+      "from": "state",
+      "to": "costs",
+      "label": "gepinnt",
+      "variant": "security",
+      "route": "straight"
+    },
+    {
+      "from": "preCommit",
+      "to": "costs",
+      "label": "flush",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        920,
+        338
+      ]
+    },
+    {
+      "from": "costs",
+      "to": "repo",
+      "label": "CSV-Zeilen",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "via": [
+        [
+          1160,
+          482
+        ]
+      ],
+      "labelAt": [
+        1110,
+        430
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Was wann greift",
+      "items": [
+        "SessionStart laeuft zweimal: erst session-start.sh, dann costs-update.mjs --state; Stop nur costs-update.mjs --state",
+        "session-start.sh wirkt nur in der Cloud - dort installiert es je Ordner mit package.json und setzt core.hooksPath auf .githooks",
+        "Lokal aendert der Hook nichts und weist nur auf npm run hooks:install hin"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Agenten und Skills",
+      "items": [
+        "Vier Subagenten mit fester Modellwahl im Frontmatter: umsetzer und korrektur-logik (Sonnet), reviewer (Opus), korrektur-style (Haiku)",
+        "Der Archify-Skill erzeugt die Diagramme; bei jeder Nutzung ARCHIFY_UPDATE_CHECK_DISABLED=1 setzen, sonst ruft er einen Fremdhost",
+        "CLAUDE.md gilt gestaffelt: Repo-Regeln im Root, Projektregeln im Projektordner"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Was im Repo landet",
+      "items": [
+        "Waehrend der Sitzung bleibt der Arbeitsbaum sauber: Kosten stehen nur in .claude/state/costs und sind per .gitignore ausgeschlossen",
+        "Erst der pre-commit-Hook schreibt die CSVs und legt sie zum Commit dazu - ohne core.hooksPath passiert nichts",
+        "Diagramme sind Quelltext: die JSON wird gepflegt, das HTML nur dort, wo es verlinkt ist"
+      ]
+    }
+  ]
+}

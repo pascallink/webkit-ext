@@ -42,8 +42,10 @@ vorinstallierte Chromium zur gepinnten Playwright-Version passt
 ### Architekturdiagramme
 
 Archify-Skill unter `.claude/skills/archify/` (MIT, `tt-a1i/archify`). Je Projekt
-liegen Spezifikation und erzeugtes HTML unter `<projekt>/docs/architecture/` -
-Ablauf und Release-Pflege dort in der `README.md`. Bei jeder Nutzung des Skills
+liegt die Spezifikation unter `<projekt>/docs/architecture/`, repoweite Diagramme
+(Kosten, Claude-Kette, Release) unter `docs/architecture/` - Ablauf und
+Release-Pflege dort je in der `README.md`. Quelle ist immer die JSON; HTML liegt
+nur im Repo, wo es verlinkt ist. Bei jeder Nutzung des Skills
 `ARCHIFY_UPDATE_CHECK_DISABLED=1` setzen, sonst ruft der Skill unaufgefordert
 einen Fremdhost auf.
 
@@ -52,7 +54,7 @@ einen Fremdhost auf.
 - Jedes Projekt: `manifest.json`, `package.json` mit `lint` **und** `test`,
   `CLAUDE.md`; Laufzeitcode getrennt von `test/` und `docs/` (fliegen raus).
 - Deutsch in Kommentaren und UI-Texten, **ohne Umlaute** (`ue`, `ae`, `oe`).
-- Release: Versionen synchron (hebt die CI, nicht die Hand), `CHANGELOG.md` + `README.md` pflegen, gruen nach `main`.
+- Release: Versionen synchron (hebt die CI, nicht die Hand), `CHANGELOG.md` + `README.md` pflegen, Diagramme neu validieren, gruen nach `main`.
 - Store-Einreichung: Unterlagen je Projekt unter `<projekt>/docs/store/`,
   Datenschutz (`PRIVACY.md`) und Lizenz (`LICENSE`) liegen im Root.
 - Nach dem Push endet die Arbeit: PR anlegen, Ergebnis melden, fertig. Nicht

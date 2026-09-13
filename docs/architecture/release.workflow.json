@@ -1,0 +1,78 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Release - Version, ZIPs und Diagramme",
+    "output": "docs/architecture/release.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "prep", "label": "Vorbereitung" },
+    { "id": "pascal", "label": "Pascal" },
+    { "id": "ci", "label": "GitHub Actions" },
+    { "id": "art", "label": "Artefakte" },
+    { "id": "ex", "label": "Harter Abbruch", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "prepare", "label": "Unterlagen", "fromCol": 0, "toCol": 1 },
+    { "id": "version", "label": "Version und Tag", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "ship", "label": "Bauen und veroeffentlichen", "fromCol": 4, "toCol": 5 }
+  ],
+  "mainPath": ["diagrams", "docs", "minor", "tag", "release", "zips"],
+  "nodes": [
+    { "id": "diagrams", "lane": "prep", "col": 0, "type": "backend", "label": "Diagramme heben", "sublabel": "validate und deliver", "width": 136 },
+    { "id": "docs", "lane": "prep", "col": 1, "type": "frontend", "label": "CHANGELOG, README", "sublabel": "Stand nachziehen", "width": 136 },
+    { "id": "minor", "lane": "pascal", "col": 2, "type": "frontend", "label": "Version x.y.0", "sublabel": "von Hand, dann Merge", "width": 136 },
+    { "id": "tag", "lane": "pascal", "col": 3, "type": "frontend", "label": "Tag pushen", "sublabel": "x.y.0 oder vx.y.0", "width": 136 },
+    { "id": "bump", "lane": "ci", "col": 3, "type": "cloud", "label": "version-bump.yml", "sublabel": "Patch, [skip ci]", "width": 136 },
+    { "id": "release", "lane": "ci", "col": 4, "type": "cloud", "label": "release.yml", "sublabel": "baut und packt", "width": 136 },
+    { "id": "dryrun", "lane": "ci", "col": 5, "type": "cloud", "label": "Probelauf", "sublabel": "dry_run vorbelegt", "width": 136 },
+    { "id": "zips", "lane": "art", "col": 5, "type": "database", "label": "ZIPs und Release", "sublabel": "je Projekt eine Datei", "width": 136 },
+    { "id": "badTag", "lane": "ex", "col": 3, "type": "security", "label": "Tag passt nicht", "sublabel": "nur x.y.0 laeuft", "width": 136 },
+    { "id": "drift", "lane": "ex", "col": 4, "type": "security", "label": "Versions-Drift", "sublabel": "manifest vs package", "width": 136 },
+    { "id": "published", "lane": "ex", "col": 5, "type": "security", "label": "Release existiert", "sublabel": "immutable, Abbruch", "width": 136 }
+  ],
+  "edges": [
+    { "from": "diagrams", "to": "docs", "label": "9 von 9 gruen", "variant": "emphasis", "role": "main" },
+    { "from": "docs", "to": "minor", "label": "Unterlagen stehen", "variant": "emphasis", "role": "main" },
+    { "from": "minor", "to": "tag", "label": "auf den Merge-Commit", "variant": "emphasis", "role": "main" },
+    { "from": "minor", "to": "bump", "label": "jeder Merge", "variant": "dashed", "role": "branch" },
+    { "from": "tag", "to": "release", "label": "Tag-Push", "variant": "emphasis", "role": "main" },
+    { "from": "tag", "to": "badTag", "label": "andere Form", "variant": "security", "role": "error" },
+    { "from": "release", "to": "zips", "label": "Assets angehaengt", "variant": "emphasis", "role": "main" },
+    { "from": "release", "to": "drift", "label": "Versionen ungleich", "variant": "security", "role": "error" },
+    { "from": "release", "to": "published", "label": "Tag schon veroeffentlicht", "variant": "security", "role": "error" },
+    { "from": "release", "to": "dryrun", "label": "workflow_dispatch", "variant": "dashed", "role": "branch" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Vor dem Tag",
+      "items": [
+        "Architekturdiagramme aktualisieren: ARCHIFY_UPDATE_CHECK_DISABLED=1 setzen, dann validate --quality showcase (9 von 9, 0 Fehler, 0 Warnungen)",
+        "Bei Diagrammen mit Quellverweisen meta.repository.revision auf den geprueften Commit heben - deliver prueft jeden sources-Eintrag dagegen",
+        "CHANGELOG.md und README.md des beruehrten Projekts nachziehen"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Versionen",
+      "items": [
+        "Patch hebt version-bump.yml nach jedem Merge automatisch an - nur fuer beruehrte Projekte, Commit mit [skip ci]",
+        "bump-patch.js haelt manifest.json, package.json und package-lock.json synchron - nie einzeln von Hand anfassen",
+        "Minor bedeutet: x.y.0 von Hand setzen, mergen, Tag auf den Merge-Commit setzen und pushen"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Wo der Lauf hart abbricht",
+      "items": [
+        "Jeder Tag ausser x.y.0 bzw. vx.y.0 bricht absichtlich laut ab",
+        "Weichen manifest.json und package.json voneinander ab, bricht der Build; passt kein einziges Projekt zum Tag, ebenfalls",
+        "Ein bereits publiziertes Release wird nie ueberschrieben - der Lauf endet vor dem Build",
+        "Kein Release von Hand im UI anlegen: nur der Workflow erzeugt es, und nur zusammen mit seinen ZIPs"
+      ]
+    }
+  ]
+}

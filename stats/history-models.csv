@@ -14,3 +14,7 @@ merged_at,branch,model,input,output,cache_read,cache_write,cost_usd
 2026-09-13T11:13:18Z,fix/issue-49-stdin-schalter,claude-opus-5,128,53887,6513729,262726,7.0470
 2026-09-13T11:13:18Z,fix/issue-49-stdin-schalter,claude-sonnet-5,92,5950,1075741,87392,0.4933
 2026-09-13T11:13:18Z,fix/issue-49-stdin-schalter,<synthetic>,0,0,0,0,0.0000
+2026-09-13T12:25:31Z,claude/archify-skill-json-generation-rhd3t6,claude-opus-5,286,157765,35835949,347707,25.3406
+2026-09-13T12:25:31Z,claude/archify-skill-json-generation-rhd3t6,claude-sonnet-5,136,2135,7976804,720121,3.4173
+2026-09-13T12:25:31Z,claude/archify-skill-json-generation-rhd3t6,claude-haiku-4-5-20251001,42,11,154210,41040,0.0668
+2026-09-13T12:25:31Z,claude/archify-skill-json-generation-rhd3t6,<synthetic>,0,0,0,0,0.0000

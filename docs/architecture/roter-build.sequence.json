@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Roter Build - vom Fehlschlag zum PR-Kommentar",
+    "output": "docs/architecture/roter-build.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1080, 620]
+  },
+  "participants": [
+    { "id": "dev", "type": "external", "label": "Push oder PR", "sublabel": "Ausloeser" },
+    { "id": "build", "type": "cloud", "label": "Build Extensions", "sublabel": "Lint und Test je Projekt" },
+    { "id": "checker", "type": "cloud", "label": "AI Build Checker", "sublabel": "workflow_run" },
+    { "id": "api", "type": "backend", "label": "GitHub API", "sublabel": "Jobs, Logs, PRs" },
+    { "id": "claude", "type": "external", "label": "Anthropic API", "sublabel": "Haiku, 512 Token" },
+    { "id": "pr", "type": "frontend", "label": "Pull Request", "sublabel": "Kommentar" }
+  ],
+  "segments": [
+    { "from": 150, "to": 205, "label": "Fehlschlag" },
+    { "from": 213, "to": 375, "label": "Log und PR finden" },
+    { "from": 383, "to": 500, "label": "Analyse und Kommentar" }
+  ],
+  "messages": [
+    { "id": "trigger", "from": "dev", "to": "build", "y": 162, "label": "Lauf startet", "variant": "default" },
+    { "id": "failed", "from": "build", "to": "checker", "y": 192, "label": "conclusion failure", "variant": "emphasis" },
+    { "id": "jobs", "from": "checker", "to": "api", "y": 222, "label": "Jobs des Laufs", "variant": "default" },
+    { "id": "failedJob", "from": "api", "to": "checker", "y": 250, "label": "erster roter Job", "variant": "return" },
+    { "id": "log", "from": "checker", "to": "api", "y": 280, "label": "Job-Log holen", "variant": "default" },
+    { "id": "tail", "from": "api", "to": "checker", "y": 308, "label": "letzte 100 Zeilen", "variant": "return" },
+    { "id": "pulls", "from": "checker", "to": "api", "y": 338, "label": "PRs zum head_sha", "variant": "default" },
+    { "id": "openPr", "from": "api", "to": "checker", "y": 366, "label": "offener PR", "variant": "return" },
+    { "id": "ask", "from": "checker", "to": "claude", "y": 396, "label": "Logauszug, gekuerzt", "variant": "security" },
+    { "id": "answer", "from": "claude", "to": "checker", "y": 424, "label": "drei Saetze plus Fix", "variant": "return" },
+    { "id": "comment", "from": "checker", "to": "pr", "y": 454, "label": "gh pr comment", "variant": "emphasis" },
+    { "id": "read", "from": "pr", "to": "dev", "y": 482, "label": "Ursache lesen", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "build", "from": 157, "to": 198, "type": "cloud" },
+    { "participant": "checker", "from": 187, "to": 460, "type": "cloud" },
+    { "participant": "api", "from": 217, "to": 372, "type": "backend" },
+    { "participant": "claude", "from": 391, "to": 430, "type": "external" },
+    { "participant": "pr", "from": 449, "to": 488, "type": "frontend" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Warum workflow_run",
+      "items": [
+        "Der Checker baut nichts nach - er haengt am fertigen Lauf und wird nur bei conclusion failure und event pull_request aktiv",
+        "workflow_run laeuft immer in der Version des Default-Branch: Aenderungen wirken erst, wenn sie auf main liegen",
+        "Der Lauf traegt ein Token mit Schreibrecht, deshalb klappt der Kommentar auch bei PRs aus Forks"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Was das Modell sieht",
+      "items": [
+        "Nur das Ende des roten Job-Logs: 100 Zeilen, hoechstens 12000 Zeichen",
+        "Antwortgrenze 512 Token, Modell-ID und Wiederholungen stehen zentral in scripts/lib/anthropic.js",
+        "Bei 429 oder 5xx wird zweimal mit wachsender Pause wiederholt, sonst bricht der Schritt ab"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Grenzen",
+      "items": [
+        "Findet sich kein offener PR zum head_sha, endet der Lauf ohne Kommentar",
+        "Das Skript postet nicht selbst - es schreibt analysis.md und gibt die PR-Nummer weiter",
+        "Die Analyse ist vom Modell erzeugt und ungeprueft: ein Hinweis auf die Ursache, kein Nachweis"
+      ]
+    }
+  ]
+}

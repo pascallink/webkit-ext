@@ -1,0 +1,269 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Markdown umwandeln - Datenweg",
+    "output": "jira-markdown-converter/docs/architecture/markdown-umwandlung.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      700
+    ]
+  },
+  "stages": [
+    {
+      "label": "Quelle"
+    },
+    {
+      "label": "Vorbereitung"
+    },
+    {
+      "label": "Umwandlung"
+    },
+    {
+      "label": "Ergebnis"
+    },
+    {
+      "label": "Zielfeld"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "clipboard",
+      "type": "external",
+      "label": "Zwischenablage",
+      "sublabel": "text/plain",
+      "stage": 0,
+      "row": 0,
+      "tag": "Strg+V",
+      "width": 132
+    },
+    {
+      "id": "selection",
+      "type": "frontend",
+      "label": "Feldauswahl",
+      "sublabel": "markierter Text",
+      "stage": 0,
+      "row": 1,
+      "tag": "Strg+Shift+M",
+      "width": 132
+    },
+    {
+      "id": "panelInput",
+      "type": "frontend",
+      "label": "Eingabe",
+      "sublabel": "Panel und Popup",
+      "stage": 0,
+      "row": 2,
+      "tag": "Eingabefeld",
+      "width": 132
+    },
+    {
+      "id": "normalize",
+      "type": "backend",
+      "label": "normalize()",
+      "sublabel": "BOM, CRLF, NBSP",
+      "stage": 1,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "protect",
+      "type": "backend",
+      "label": "Schutzstufe",
+      "sublabel": "Code, Referenzen",
+      "stage": 1,
+      "row": 1,
+      "tag": "Platzhalter",
+      "width": 132
+    },
+    {
+      "id": "options",
+      "type": "database",
+      "label": "Optionen",
+      "sublabel": "vier Schalter",
+      "stage": 1,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "blocks",
+      "type": "backend",
+      "label": "convertBlocks()",
+      "sublabel": "Liste, Tabelle",
+      "stage": 2,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "inline",
+      "type": "backend",
+      "label": "convertInline()",
+      "sublabel": "Link, HTML",
+      "stage": 2,
+      "row": 1,
+      "width": 132
+    },
+    {
+      "id": "restore",
+      "type": "backend",
+      "label": "restore()",
+      "sublabel": "Code zurueck",
+      "stage": 2,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "jira",
+      "type": "backend",
+      "label": "Jira-Markup",
+      "sublabel": "Dialekt jira",
+      "stage": 3,
+      "row": 0,
+      "tag": "Textfeld",
+      "width": 132
+    },
+    {
+      "id": "html",
+      "type": "backend",
+      "label": "HTML",
+      "sublabel": "Dialekt html",
+      "stage": 3,
+      "row": 1,
+      "tag": "Rich-Text",
+      "width": 132
+    },
+    {
+      "id": "field",
+      "type": "external",
+      "label": "Jira-Feld",
+      "sublabel": "textarea, TinyMCE",
+      "stage": 4,
+      "row": 0,
+      "tag": "9.12 LTS",
+      "width": 132
+    }
+  ],
+  "flows": [
+    {
+      "from": "clipboard",
+      "to": "normalize",
+      "label": "Rohtext",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelDy": -22
+    },
+    {
+      "from": "selection",
+      "to": "normalize",
+      "label": "Auswahl",
+      "variant": "emphasis",
+      "labelAt": [
+        140,
+        326
+      ]
+    },
+    {
+      "from": "panelInput",
+      "to": "normalize",
+      "label": "Eingabe",
+      "variant": "default",
+      "labelAt": [
+        140,
+        440
+      ]
+    },
+    {
+      "from": "normalize",
+      "to": "protect",
+      "label": "eine Form",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "from": "protect",
+      "to": "blocks",
+      "label": "Platzhalter",
+      "variant": "emphasis"
+    },
+    {
+      "from": "options",
+      "to": "inline",
+      "label": "Schalter",
+      "variant": "dashed"
+    },
+    {
+      "from": "blocks",
+      "to": "inline",
+      "label": "je Zeile",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "from": "inline",
+      "to": "restore",
+      "label": "maskiert",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "from": "restore",
+      "to": "jira",
+      "label": "Markup",
+      "variant": "emphasis",
+      "labelSegment": 2
+    },
+    {
+      "from": "restore",
+      "to": "html",
+      "label": "HTML",
+      "variant": "default",
+      "labelAt": [
+        668,
+        330
+      ]
+    },
+    {
+      "from": "jira",
+      "to": "field",
+      "label": "insert()",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "html",
+      "to": "field",
+      "label": "formatiert",
+      "variant": "default"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Datenformen",
+      "items": [
+        "Ein Lauf, ein Dialekt: convert() liefert Wiki-Markup, convertToHtml() HTML, convertBoth() parst einmal und gibt beides",
+        "Platzhalter sind das Nadeloehr: Codebloecke, eingerueckter Code und Referenzen wandern als Sentinel durch die Umwandlung",
+        "converter.js bleibt DOM-frei und rechnet nur mit Text - kein fetch, kein Zugriff auf die Seite"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Weiche vor dem Feld",
+      "items": [
+        "Reines Textfeld bekommt Wiki-Markup, ein aktiver Rich-Text-Editor je nach richEditorFormat HTML, Markup oder das rohe Markdown",
+        "insertModeFor() entscheidet zwischen block und inline - Makros wie {code} und {panel} deutet Jira nur am Zeilenanfang"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Was nicht umgewandelt wird",
+      "items": [
+        "looksLikeJiraMarkup() stoppt fertiges Jira-Markup vor dem zweiten Durchlauf",
+        "keepCodeLanguage steuert schon die Schutzstufe: ohne Sprach-Hint entsteht {code} ohne Sprache",
+        "Ein Wurf im Konverter endet als abgelehntes Promise - der Rohtext geht nicht verloren"
+      ]
+    }
+  ]
+}
