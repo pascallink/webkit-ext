@@ -192,6 +192,15 @@
     return text;
   }
 
+  // Rueckweg zu escapeLiteral(): entmaskiert im noformat-Rumpf jedes Zeichen
+  // aus JIRA_ESCAPE_CHARS, nicht nur die geschweiften Klammern - Jira parst
+  // den Rumpf nicht, ein Backslash vor '[', '-', '~', '^' oder '+' bliebe
+  // sonst woertlich stehen (Issue #207).
+  var JIRA_UNESCAPE_RE = new RegExp(
+    '\\\\([' + JIRA_ESCAPE_CHARS.split('').map(escapeRegExpClassChar).join('') + '])',
+    'g'
+  );
+
   var JIRA_DIALECT = {
     name: 'jira',
     escapeLiteral: function (ch) {
@@ -257,13 +266,15 @@
     // Tabellenzelle (cellPipe, Issue #94) bleibt bei '{{ }}', weil er im
     // noformat-Rumpf woertlich als '\|' erschiene, statt als Spaltentrenner
     // zu wirken. Fehlt 'plain' (Fremdaufrufer wie api.dialects), gilt
-    // 'plain = text' - das Verhalten bleibt fuer sie unveraendert.
+    // 'plain = text' - Entmaskierung und Selbstenthaltungspruefung laufen
+    // dann auf 'text', die Ausgabe kann sich fuer solche Aufrufer also
+    // aendern (Issue #207).
     code: function (text, plain) {
       if (plain === undefined) plain = text;
       // Erst den Rumpf aufloesen, dann pruefen - sonst greift die
       // Selbstenthaltung bei einem maskierten '{noformat}' nicht: die
       // Pruefung auf '{noformat}' muss auf dem entmaskierten Rumpf laufen.
-      var body = plain === null ? '' : plain.replace(/\\([{}])/g, '$1');
+      var body = plain === null ? '' : plain.replace(JIRA_UNESCAPE_RE, '$1');
       if (plain && /[{}]/.test(plain) && body.indexOf('{noformat}') === -1) {
         return '{noformat}' + body + '{noformat}';
       }

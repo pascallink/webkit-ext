@@ -87,6 +87,17 @@ describe('Code', function () {
     eq('`\\{noformat\\}`', '{{\\{noformat\\}}}');
     eq('<code>\\{x\\}</code>', '{noformat}{x}{noformat}');
   });
+  test('Inline-Code mit gemischten Jira-Escapes wird vollstaendig entmaskiert (Issue #207)', function () {
+    // Jira parst den noformat-Rumpf nicht - darum darf dort keine
+    // Maskierung aus escapeLiteral() (JIRA_ESCAPE_CHARS: {}[]-~^+) stehen
+    // bleiben, nicht nur die geschweiften Klammern.
+    eq('`\\{a\\}\\[b\\]`', '{noformat}{a}[b]{noformat}');
+    eq('`\\{x\\} \\- z`', '{noformat}{x} - z{noformat}');
+    // Ein getippter Backslash vor einem Nicht-Escape-Zeichen ist kein
+    // Escape und bleibt stehen - diese Regel gilt heute schon.
+    eq('`\\{x\\} \\\\ z`', '{noformat}{x} \\ z{noformat}');
+    eq('<code>\\{a\\}\\[b\\]</code>', '{noformat}{a}[b]{noformat}');
+  });
   test('noformat-Ausgabe bleibt als Jira-Markup erkennbar (Issue #92)', function () {
     // convert() selbst ist nicht idempotent - reiner Text mit rohen {}
     // wuerde beim zweiten Durchlauf maskiert. Die eigentliche Absicherung
