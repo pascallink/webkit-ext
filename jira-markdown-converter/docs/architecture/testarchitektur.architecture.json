@@ -1,0 +1,335 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Testarchitektur - Module, Runner und Fixtures",
+    "output": "jira-markdown-converter/docs/architecture/testarchitektur.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1290,
+      600
+    ],
+    "repository": {
+      "url": "https://github.com/pascallink/webkit-ext",
+      "provider": "github",
+      "revision": "a9ae0864cee3cf57875006d5614a1da16a2464e5"
+    }
+  },
+  "components": [
+    {
+      "id": "scripts",
+      "type": "frontend",
+      "label": "package.json",
+      "sublabel": "test, test:<modul>",
+      "tag": "Einstieg",
+      "pos": [
+        40,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/package.json",
+          "label": "Skripte"
+        }
+      ]
+    },
+    {
+      "id": "ci",
+      "type": "cloud",
+      "label": "Build Extensions",
+      "sublabel": "Gesamtlauf je Projekt",
+      "tag": "CI",
+      "pos": [
+        40,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": ".github/workflows/build-extension.yml",
+          "label": "Workflow"
+        }
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "test/run.js",
+      "sublabel": "sammelt Dateien",
+      "tag": "CLI",
+      "pos": [
+        300,
+        165
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/test/run.js",
+          "label": "Runner"
+        }
+      ]
+    },
+    {
+      "id": "nodeTests",
+      "type": "backend",
+      "label": "node --test",
+      "sublabel": "DOM-freie Module",
+      "pos": [
+        560,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "browserTests",
+      "type": "backend",
+      "label": "Playwright",
+      "sublabel": "Chromium, gepinnt",
+      "pos": [
+        560,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/test/lib/browser.js",
+          "label": "withBrowser"
+        }
+      ]
+    },
+    {
+      "id": "modules",
+      "type": "database",
+      "label": "test/modules/<modul>",
+      "sublabel": "Quellen je Verantwortung",
+      "tag": "13 Module",
+      "pos": [
+        820,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": ".github/TESTS.md",
+          "label": "Modul-Landkarte"
+        }
+      ]
+    },
+    {
+      "id": "lib",
+      "type": "database",
+      "label": "test/lib",
+      "sublabel": "chrome-stub, dom",
+      "tag": "geteilt",
+      "pos": [
+        820,
+        260
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/test/lib/chrome-stub.js",
+          "label": "chrome-Stub"
+        },
+        {
+          "path": "jira-markdown-converter/test/lib/dom.js",
+          "label": "DOM-Helfer"
+        }
+      ]
+    },
+    {
+      "id": "fixtures",
+      "type": "database",
+      "label": "Fixtures",
+      "sublabel": "Nachbau Jira 9.12",
+      "pos": [
+        820,
+        430
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/test/fixtures/mock-jira-912-issue-view.html",
+          "label": "Vorgangsansicht"
+        },
+        {
+          "path": "jira-markdown-converter/test/fixtures/mock-jira-server.html",
+          "label": "Server-Feld"
+        }
+      ]
+    },
+    {
+      "id": "isolation",
+      "type": "security",
+      "label": "isolation.test.js",
+      "sublabel": "kein Fremdimport",
+      "tag": "Regel",
+      "pos": [
+        1060,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/test/modules/package/isolation.test.js",
+          "label": "Schnitt-Test"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Aufruf",
+      "wraps": [
+        "scripts",
+        "ci"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Testebene",
+      "wraps": [
+        "runner",
+        "nodeTests",
+        "browserTests",
+        "modules",
+        "lib",
+        "fixtures",
+        "isolation"
+      ],
+      "pad": 20
+    }
+  ],
+  "connections": [
+    {
+      "from": "scripts",
+      "to": "runner",
+      "label": "npm test",
+      "variant": "emphasis"
+    },
+    {
+      "from": "ci",
+      "to": "runner",
+      "label": "Gesamtlauf",
+      "variant": "dashed"
+    },
+    {
+      "from": "runner",
+      "to": "nodeTests",
+      "label": "Node-Dateien",
+      "variant": "emphasis",
+      "labelAt": [
+        530,
+        148
+      ]
+    },
+    {
+      "from": "runner",
+      "to": "browserTests",
+      "label": "browser/",
+      "variant": "emphasis"
+    },
+    {
+      "from": "nodeTests",
+      "to": "modules",
+      "label": "je Modul",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "browserTests",
+      "to": "lib",
+      "label": "Helfer",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "browserTests",
+      "to": "fixtures",
+      "label": "Nachbauten",
+      "variant": "default"
+    },
+    {
+      "from": "modules",
+      "to": "lib",
+      "label": "nur test/lib",
+      "variant": "security",
+      "route": "straight",
+      "labelAt": [
+        920,
+        148
+      ]
+    },
+    {
+      "from": "isolation",
+      "to": "modules",
+      "label": "prueft Schnitt",
+      "variant": "security",
+      "route": "straight",
+      "labelAt": [
+        1035,
+        148
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Ein Modul, ein Ordner",
+      "items": [
+        "Jede Quelldatei gehoert genau einem Modul - der Schnitt folgt der Verantwortung im Code, nicht der Dateiendung",
+        "test/run.js sammelt die Dateien selbst und spawnt node --test; die Auswahl von node --test wuerde test/lib mit einsammeln",
+        "Aktuelle Zahlen liefert node test/run.js --list, nicht die Doku"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Zwei Arten von Tests",
+      "items": [
+        "Node-Tests laden UMD-Module direkt - deshalb bleibt converter.js DOM-frei",
+        "Browser-Tests fahren Chromium ueber Playwright, exakt auf die vorinstallierte Version gepinnt",
+        "Waehrend der Arbeit laeuft nur test:module <modul>, der Gesamtlauf genau einmal vor dem finalen Commit"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Was den Schnitt haelt",
+      "items": [
+        "Kein Modul importiert aus einem fremden Modulordner - isolation.test.js erzwingt das",
+        "Geteiltes gehoert nach test/lib: chrome-Stub, Browser-Start, DOM-Helfer, Fixture-Zugriff",
+        "Neue Fixtures bilden Jira Server 9.12 nach; das Cloud-Fixture bleibt nur, damit der ausgelieferte Stand gruen ist"
+      ]
+    }
+  ]
+}

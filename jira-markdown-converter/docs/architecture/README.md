@@ -14,6 +14,8 @@ wird nie von Hand bearbeitet.
 | `markdown-einfuegen.workflow.json` | Ablauf: Ausloeser, Weichen und Abbrueche beim Einfuegen. |
 | `vorlagen-pflegen.workflow.json` | Ablauf: Vorlage aendern, speichern, im Tab ankommen. |
 | `bearbeitung-einfrieren.lifecycle.json` | Zustaende des Einfrierens: aus, wachbereit, eingefroren, offen. |
+| `nachrichtenwege.sequence.json` | Nachrichten zwischen Popup, Service-Worker und Tab, inklusive Nachinjektion. |
+| `testarchitektur.architecture.json` | Testaufbau: Runner, Module, geteilte Helfer, Fixtures. |
 
 ## Neu erzeugen
 
@@ -58,6 +60,6 @@ node <a>/bin/archify.mjs deliver <typ> <spezifikation>.json \
   <ziel>.html --quality showcase --json
 ```
 
-`<a>` = `.claude/skills/archify`, `<typ>` ist `dataflow`, `workflow` oder
-`lifecycle`. Diese Typen lehnen `--repo-root .` ab (nur `architecture`
+`<a>` = `.claude/skills/archify`, `<typ>` ist `dataflow`, `workflow`, `lifecycle`,
+`sequence` oder `architecture`. Diese Typen lehnen `--repo-root .` ab (nur `architecture`
 akzeptiert es).
