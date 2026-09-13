@@ -272,19 +272,20 @@ wird. Fuer Kommentar- und Umgebungsfelder gilt dasselbe.
 
 Solange das Schloss zu ist:
 
-* Ein Klick neben das Feld schliesst es nicht mehr – Jira schliesst das Feld
-  nicht mehr, Toolbar, Dialoge, Speichern, Abbrechen und Escape ausserhalb des
-  Feldes bleiben bedienbar; nur Escape im Feld selbst ist gesperrt, solange das
-  Schloss zu ist. Der Vorgang bleibt so stehen, wie er ist.
+* Ein Klick neben das Feld schliesst es nicht mehr - der Vorgang bleibt so
+  stehen, wie er ist.
 * Kleine Auswahlfelder (Labels, Versionen, Picker) frieren nie ein.
-* `Escape` bricht das Bearbeiten nicht ab.
+* `Escape` im eingefrorenen Feld bricht das Bearbeiten nicht ab;
+  ausserhalb des Feldes (Dialog, Zusammenfassung, Auswahlfelder) wirkt es
+  wie gewohnt.
 * Wer die Seite verlaesst oder neu laedt, wird vom Browser gefragt, ob er das
   wirklich will.
-* *Speichern* und *Abbrechen* funktionieren normal – genau wie die
-  Werkzeugleiste und der Umschalter zwischen *Visuell* und *Text*. Zum Feld
-  gehoert der ganze Block, den Jira beim Bearbeiten aufbaut, nicht nur das
-  Eingabefeld darin. Nach dem Speichern oder Abbrechen gibt das Feld seine
-  Sperre von selbst wieder ab.
+* *Speichern* und *Abbrechen* funktionieren normal - genau wie die
+  Werkzeugleiste, die Dialoge und der Umschalter zwischen *Visuell* und
+  *Text*; sie bleiben auch dann erreichbar, wenn Jira sie ausserhalb des
+  Feldblocks aufbaut. Zum Feld gehoert der ganze Block, den Jira beim
+  Bearbeiten aufbaut, nicht nur das Eingabefeld darin. Nach dem Speichern
+  oder Abbrechen gibt das Feld seine Sperre von selbst wieder ab.
 * Die eigene Buttonleiste, der schwebende Editor und die Dialoge der
   Erweiterung bleiben bedienbar – und Jira bekommt von diesen Klicks nichts
   mit, obwohl sie streng genommen „daneben" liegen.
@@ -370,8 +371,9 @@ auf der Jira-Seite gar nichts:
 
 `http` und `https` sind beide abgedeckt, ein Port spielt keine Rolle
 (`http://jira:8080/` funktioniert also ebenso wie `https://jira.firma.de/`).
-Auf `http://`-Adressen funktioniert das Kopieren ueber einen Rueckfall (ohne Clipboard-API);
-das Lesen der Zwischenablage funktioniert dort nicht - bitte Strg+V benutzen.
+Auf `http://`-Adressen funktioniert das Kopieren ueber einen Rueckfall (ohne
+Clipboard-API); das Lesen der Zwischenablage funktioniert dort nicht - bitte
+Strg+V benutzen.
 
 ## Umwandlungstabelle
 
@@ -412,8 +414,8 @@ Inline-Code trennt die Zelle wie in GitHub-Markdown.
 
 Senkrechte Striche in URLs werden kodiert (`%7C`), damit sie nicht die
 Tabellenspalten teilen. Zwei Leerzeichen oder ein Backslash am Zeilenende
-(`  ` oder `\\`) erzeugen einen harten Umbruch. Ein Codeblock innerhalb einer Liste landet hinter der
-Liste; `#`-Listen zaehlen danach neu.
+(`  ` oder `\`) erzeugen einen harten Umbruch. Ein Codeblock innerhalb einer
+Liste landet hinter der Liste; `#`-Listen zaehlen danach neu.
 
 ## Jira Server / Data Center im Detail
 
@@ -471,8 +473,8 @@ ist, und fuegt dann Jira-Markup ein.
 Den Umschalter erkennt sie zuerst am Schaltflaechen-Selektor von Jira 9.12
 (`.editor-toggle-tabs li[data-mode="source"] button`, Beschriftung *Text*),
 dann an bekannten Selektoren aelterer Versionen und andernfalls an der
-Beschriftung (*Markup*, *Quelltext*, *Bearbeitungsmodus*, *klartext*,
-*plain text*, *text-modus* ...), weil Jira ihn je nach Version anders benennt.
+Beschriftung (*Markup*, *Quelltext*, *Source*, *Klartext*, *Plain Text*,
+*Text-Modus*, *Bearbeitungsmodus* ...), weil Jira ihn je nach Version anders
 Wird keiner gefunden oder greift der Klick nicht, faellt die Erweiterung auf
 das formatierte Einfuegen zurueck - es geht also nichts verloren.
 
@@ -508,7 +510,9 @@ mitten in einem Absatz, teilt die Erweiterung den Block an der Schreibmarke auf
 und setzt den Codeblock zwischen die beiden Teile - das verhindert, dass der
 Editor den eingefuegten Block in den laufenden Absatz hineinzieht. Misslang das
 Aufteilen, faellt die Erweiterung auf leere Absaetze davor und dahinter zurueck.
-Steht die Marke am Anfang oder am Ende ihres Absatzes, rueckt die Erweiterung die Schreibmarke nur vor bzw. hinter den Absatz und setzt gar keinen Trenner; im leeren Absatz greift die Rueckfallebene, dort kommt ebenfalls keiner dazu.
+Steht die Marke am Anfang oder am Ende ihres Absatzes, rueckt die Erweiterung
+die Schreibmarke nur vor bzw. hinter den Absatz und setzt gar keinen Trenner;
+im leeren Absatz greift die Rueckfallebene, dort kommt ebenfalls keiner dazu.
 
 Liegt der Fokus noch im Feld, gilt immer die aktuelle Auswahl - die gemerkte
 Position kommt nur zum Zug, wenn der Fokus das Feld verlassen hat. Im
