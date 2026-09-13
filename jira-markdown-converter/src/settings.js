@@ -48,15 +48,25 @@
     // Eigene Vorlagen mit Platzhaltern (${Name}), siehe
     // docs/plans/issue-31-vorlagen.md. Liegen in chrome.storage.local, nicht
     // in sync - LOCAL_KEYS weiter unten haelt fest, warum.
-    customTemplates: []
+    customTemplates: [],
+    // Erkennungsmuster fuer Kunden-Schluessel (Issue #32), siehe src/mapping.js.
+    customerKeyPattern: '(ROV|REFI)-\\d+',
+    // Name des Custom Fields, ueber das der Kunden-Schluessel im Ticket landet.
+    customerKeyFieldName: 'CustomerKey',
+    // Kunden-Schluessel in der Leseansicht als Badge hervorheben.
+    customerKeyHighlight: true,
+    // Zuordnungstabelle Kunden-Schluessel -> Jira-Keys. Liegt in
+    // chrome.storage.local, nicht in sync - siehe LOCAL_KEYS weiter unten.
+    customerKeyMap: {}
   };
 
   var CONVERTER_KEYS = ['escapeBraces', 'keepCodeLanguage', 'convertAlerts', 'convertHtml'];
 
-  // customTemplates gehoert nicht nach chrome.storage.sync: der Bereich
-  // erlaubt nur 8192 Byte je Item, und customTemplates waere ein einziges
-  // Item - nach wenigen Vorlagen ein stilles, unsichtbares Limit.
-  var LOCAL_KEYS = ['customTemplates'];
+  // customTemplates und customerKeyMap gehoeren nicht nach chrome.storage.sync:
+  // der Bereich erlaubt nur 8192 Byte je Item, und beide waeren je ein
+  // einziges Item - nach wenigen Vorlagen bzw. Kunden-Schluesseln ein
+  // stilles, unsichtbares Limit.
+  var LOCAL_KEYS = ['customTemplates', 'customerKeyMap'];
 
   var MAX_TEMPLATES = 50;
   var MAX_PLACEHOLDERS = 5;
@@ -234,6 +244,20 @@
       result.otrsFieldName = DEFAULTS.otrsFieldName;
     }
     result.customTemplates = normalizeTemplates(result.customTemplates);
+    // customerKeyPattern und customerKeyFieldName pruefen wir hier nur roh
+    // (nicht-leerer String) - mapping.js laedt nach settings.js und bleibt so
+    // abhaengigkeitsfrei; die eigentliche Musterpruefung sitzt in
+    // JiraMapping.normalizePattern()/compile().
+    if (typeof result.customerKeyPattern !== 'string' || !result.customerKeyPattern.trim()) {
+      result.customerKeyPattern = DEFAULTS.customerKeyPattern;
+    }
+    if (typeof result.customerKeyFieldName !== 'string' || !result.customerKeyFieldName.trim()) {
+      result.customerKeyFieldName = DEFAULTS.customerKeyFieldName;
+    }
+    if (!result.customerKeyMap || typeof result.customerKeyMap !== 'object' || Array.isArray(result.customerKeyMap)) {
+      result.customerKeyMap = {};
+    }
+    result.customerKeyHighlight = !!result.customerKeyHighlight;
     return result;
   }
 
