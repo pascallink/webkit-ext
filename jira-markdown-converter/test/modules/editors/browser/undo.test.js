@@ -72,6 +72,10 @@ describe('Undo nach der Einfuege-Automatik', { skip: !hasPlaywright }, function 
       });
       window.JiraEditors.insert(field, 'h1. Titel', 'insert');
     });
+    // Zwischenstand vor dem Undo: ohne diesen Assert bliebe ein wirkungsloses
+    // Einfuegen (Wurf, leerer Payload, frueher return) unbemerkt, weil dann
+    // ebenfalls 'Alter Inhalt' im Feld steht und der Undo-Assert gruen bleibt.
+    assert.strictEqual(await page.inputValue('#description'), 'h1. Titel');
     await page.keyboard.press(UNDO_KEY);
     assert.strictEqual(await page.inputValue('#description'), 'Alter Inhalt');
     await page.close();
