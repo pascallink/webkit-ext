@@ -82,6 +82,10 @@ festgehalten. Das Format orientiert sich an
   die Liste zu beenden (Issue #100).
 - Setext-Ueberschriften (Titel mit Strichreihe darunter) werden als
   Ueberschriften erkannt (Issue #100).
+- Inline-Code mit maskierten geschweiften Klammern (`` `\{x\}` ``) landet jetzt
+  in `{noformat}` statt als `{{\{x\}}}`, das Jira 9.12.2 woertlich rendert;
+  in einer Tabellenzelle mit maskiertem Strich bleibt es bewusst bei `{{ }}`,
+  damit die Spaltenaufteilung haelt (Issue #155, Wurzel aus Issue #98).
 
 ## [1.4.0] - 2026-09-12
 

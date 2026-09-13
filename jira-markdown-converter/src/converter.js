@@ -246,9 +246,26 @@
     // parst. Enthaelt der Text selbst schon '{noformat}', laesst sich
     // nichts mehr retten - dann bleibt es bei der alten (kaputten) Form,
     // statt ein zweites kaputtes Muster zu erzeugen.
-    code: function (text) {
-      if (/[{}]/.test(text) && text.indexOf('{noformat}') === -1) {
-        return '{noformat}' + text + '{noformat}';
+    // Zwei Parameter (Issue #155): 'text' ist der noch mit Platzhaltern
+    // versehene Rohinhalt fuer den {{ }}-Rueckfall, 'plain' der bereits
+    // aufgeloeste Inhalt fuer die Klammer-Entscheidung. Die Entscheidung
+    // muss auf dem aufgeloesten Text laufen, weil Schritt 1 von
+    // convertInline maskierte Escapes (z.B. '\{') vorher in Platzhalter
+    // steckt - ohne Aufloesung saehe der rohe Text klammerfrei aus, obwohl
+    // der Inhalt nach der Aufloesung Klammern enthaelt. 'plain === null'
+    // heisst bewusst "keine noformat-Form": ein maskierter Strich in einer
+    // Tabellenzelle (cellPipe, Issue #94) bleibt bei '{{ }}', weil er im
+    // noformat-Rumpf woertlich als '\|' erschiene, statt als Spaltentrenner
+    // zu wirken. Fehlt 'plain' (Fremdaufrufer wie api.dialects), gilt
+    // 'plain = text' - das Verhalten bleibt fuer sie unveraendert.
+    code: function (text, plain) {
+      if (plain === undefined) plain = text;
+      // Erst den Rumpf aufloesen, dann pruefen - sonst greift die
+      // Selbstenthaltung bei einem maskierten '{noformat}' nicht: die
+      // Pruefung auf '{noformat}' muss auf dem entmaskierten Rumpf laufen.
+      var body = plain === null ? '' : plain.replace(/\\([{}])/g, '$1');
+      if (plain && /[{}]/.test(plain) && body.indexOf('{noformat}') === -1) {
+        return '{noformat}' + body + '{noformat}';
       }
       return '{{' + text + '}}';
     },
@@ -660,7 +677,15 @@
       if (inner.trim() !== '' && /^ [\s\S]* $/.test(inner)) {
         inner = inner.slice(1, -1);
       }
-      return ph.add(d.code(inner));
+      // Die Klammer-Entscheidung braucht den aufgeloesten Inhalt (siehe
+      // Kommentar bei JIRA_DIALECT.code), darum hier schon restore() statt
+      // erst am Ende. In einer Tabellenzelle bleibt ein maskierter Strich
+      // (cellPipe) bei der alten {{ }}-Form, weil er sonst im noformat-
+      // Rumpf woertlich als '\|' erschiene statt als Spaltentrenner zu
+      // wirken (Issue #94).
+      var plain = ph.restore(inner);
+      if (ctx.inTableCell && plain.indexOf(d.cellPipe) !== -1) plain = null;
+      return ph.add(d.code(inner, plain));
     });
 
     // 3. Einfaches Inline-HTML.
@@ -672,7 +697,12 @@
       };
       text = text
         .replace(/<code>([\s\S]*?)<\/code>/gi, function (match, code) {
-          return ph.add(d.code(code));
+          // Gleiche Wurzel wie beim Backtick-Inline-Code (Issue #155):
+          // Entscheidung auf dem aufgeloesten Inhalt, maskierter Strich in
+          // der Tabellenzelle (cellPipe) bleibt bei {{ }} (Issue #94).
+          var plain = ph.restore(code);
+          if (ctx.inTableCell && plain.indexOf(d.cellPipe) !== -1) plain = null;
+          return ph.add(d.code(code, plain));
         })
         .replace(/<br\s*\/?>/gi, function () { return ph.add(d.htmlBreak); })
         .replace(/<\/?(?:b|strong)>/gi, tag('bold'))

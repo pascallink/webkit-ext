@@ -219,6 +219,12 @@ describe('Tabellen', function () {
   test('Inline-Code mit maskiertem Strich', function () {
     eq('| A |\n| --- |\n| `a\\|b` |', '||A||\n|{{a\\|b}}|');
   });
+  test('maskierter Strich schlaegt die noformat-Form (Issue #94 vor #155)', function () {
+    // Bewusste Verhaltensaenderung gegenueber der reinen Klammer-Regel:
+    // im noformat-Rumpf erschiene der maskierte Strich woertlich als '\|'
+    // statt als Spaltentrenner zu wirken, darum bleibt die Zelle bei {{ }}.
+    eq('| A |\n| --- |\n| `{x}\\|y` |', '||A||\n|{{{x}\\|y}}|');
+  });
   test('roher Strich in Inline-Code trennt wie in GFM', function () {
     // Dokumentiert bewusst uebernommenes GFM-Verhalten: ein nicht maskierter
     // Strich innerhalb von Inline-Code trennt trotzdem die Tabellenzelle.
