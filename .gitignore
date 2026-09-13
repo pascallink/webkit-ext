@@ -3,3 +3,4 @@ node_modules/
 *.visual-check.html
 *.visual-check.*.png
 .aider*
+.claude/state/

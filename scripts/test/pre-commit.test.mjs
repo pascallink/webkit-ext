@@ -130,3 +130,22 @@ test('Hook-Datei im echten Repo ist als ausfuehrbar eingecheckt (Modus 100755)',
 
   assert.ok(output.startsWith('100755'), `unerwarteter Modus: ${output}`);
 });
+
+test('Hook ruft den Collector im Flush-Modus auf', (t) => {
+  const { dir, env } = initRepo();
+  t.after(() => cleanup(dir));
+
+  // Der Collector protokolliert nur seine Argumente - so haengt der Test an
+  // der Absicht des Hooks, nicht an der Zeile im Skript.
+  writeCollector(
+    dir,
+    [
+      "import fs from 'node:fs';",
+      "fs.writeFileSync('argv.txt', process.argv.slice(2).join(' '));",
+      '',
+    ].join('\n'),
+  );
+
+  assert.equal(commitDatei(dir, env).status, 0);
+  assert.equal(fs.readFileSync(path.join(dir, 'argv.txt'), 'utf8'), '--flush');
+});

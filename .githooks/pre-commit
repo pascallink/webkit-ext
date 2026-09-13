@@ -1,8 +1,11 @@
 #!/bin/sh
-# Haelt die Kosten-CSVs (stats/costs.csv, stats/tokens.csv) zum
-# Commit-Zeitpunkt frisch, egal ob Claude oder Pascal committet.
+# Materialisiert die Kosten-CSVs (stats/costs.csv, stats/tokens.csv) genau
+# dann, wenn ohnehin committet wird - so reisen die Kostenzeilen auf einem
+# fachlichen Commit mit, statt eigene Rausch-Commits zu erzeugen. Waehrend
+# der Sitzung fuehrt der Stop-Hook nur die ungetrackte State-Datei fort
+# (siehe scripts/costs-update.mjs), der Arbeitsbaum bleibt sauber.
 # "|| exit 0" ist Absicht: die Kostenerfassung darf nie einen Commit
 # blockieren, auch wenn der Collector selbst fehlschlaegt.
-node "$(git rev-parse --show-toplevel)/scripts/costs-update.mjs" || exit 0
+node "$(git rev-parse --show-toplevel)/scripts/costs-update.mjs" --flush || exit 0
 git add stats/costs.csv 2>/dev/null || true
 git add stats/tokens.csv 2>/dev/null || true

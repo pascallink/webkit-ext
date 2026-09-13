@@ -1,21 +1,37 @@
 #!/bin/bash
 #
 # SessionStart-Hook: stellt die Abhaengigkeiten jeder Sitzung in der Cloud
-# bereit, damit Lint und Tests ohne vorheriges npm install laufen.
+# bereit, damit Lint und Tests ohne vorheriges npm install laufen, und
+# aktiviert dort die Git-Hooks aus .githooks.
 #
-# Laeuft nur in einer Cloud-Sitzung - lokal macht der Hook nichts, dort
-# entscheidet Pascal selbst, wann installiert wird.
+# Laeuft nur in einer Cloud-Sitzung - lokal aendert der Hook nichts, dort
+# entscheidet Pascal selbst, wann installiert und was konfiguriert wird;
+# fehlt lokal die Hook-Konfiguration, gibt es nur einen Hinweis.
 #
 # Die Ordnersuche ist dieselbe wie in .github/workflows/build-extension.yml:
 # Repo-Wurzel plus jeder oberste Ordner mit package.json. Eine neue
 # Erweiterung braucht hier also keine Aenderung.
 set -uo pipefail
 
+cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
+
+# Die Kosten einer Session landen erst im pre-commit-Hook in den CSVs
+# (Details in .github/CI.md). Ohne core.hooksPath greift dieser Hook nicht
+# und die Session wird nie verbucht.
+hooks_path=$(git config --get core.hooksPath 2>/dev/null || true)
+
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
+  if [ "$hooks_path" != ".githooks" ]; then
+    echo "Git-Hooks sind nicht aktiv - ohne sie werden die Session-Kosten nie"
+    echo "verbucht. Einmalig: npm run hooks:install"
+  fi
   exit 0
 fi
 
-cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
+# Der Container ist ohnehin fluechtig, hier ist das Setzen unkritisch.
+if [ "$hooks_path" != ".githooks" ]; then
+  git config core.hooksPath .githooks 2>/dev/null || true
+fi
 
 installed=""
 failed=""
