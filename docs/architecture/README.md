@@ -13,6 +13,9 @@ wird nie von Hand bearbeitet.
 | `kosten-tracking.workflow.json` | Ablauf: Hooks, pre-commit, Merge-Job, Tageslauf. |
 | `claude-kette.workflow.json` | Ablauf: Plan, Sub-Task, Review, Korrektur-Routing. |
 | `release.workflow.json` | Ablauf: Diagramme, Version, Tag, ZIPs. |
+| `roter-build.sequence.json` | Ablauf eines roten Builds bis zum PR-Kommentar. |
+| `branch-kosten.lifecycle.json` | Zustaende einer Kostenzeile: erfasst, verbucht, verwaist. |
+| `claude-landschaft.architecture.json` | Hooks, Agenten, Skills und State - was wann greift. |
 
 ## Neu erzeugen
 
@@ -26,10 +29,11 @@ node <a>/bin/archify.mjs deliver <typ> <spezifikation>.json \
   <ziel>.html --quality showcase --json
 ```
 
-`<typ>` ist `dataflow` oder `workflow`. Beide lehnen `--repo-root .` ab, das
-gibt es nur fuer `architecture`. `validate` muss 9 von 9 Pruefungen mit 0
-Fehlern und 0 Warnungen melden, sonst nimmt `deliver` die Spezifikation nicht
-ab.
+`<typ>` ist `dataflow`, `workflow`, `lifecycle`, `sequence` oder
+`architecture`. Nur `architecture` nimmt `--repo-root .` und braucht es auch:
+`claude-landschaft` prueft seine Quellverweise gegen
+`meta.repository.revision`. `validate` muss 9 von 9 Pruefungen mit 0 Fehlern
+und 0 Warnungen melden, sonst nimmt `deliver` die Spezifikation nicht ab.
 
 In diesem Ordner liegt kein erzeugtes HTML im Repo. Die HTML-Dateien entstehen
 lokal bei Bedarf und sind per `.gitignore` ausgeschlossen.
