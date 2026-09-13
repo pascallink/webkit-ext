@@ -51,14 +51,18 @@ var CHROME_STUB = [
 
 /**
  * Teilt Einstellungen wie Settings.LOCAL_KEYS es vorsieht: customTemplates
- * gehoert in local - sonst ueberschreibt der leere local-Standardwert die
- * hier uebergebenen Vorlagen beim Laden. Eine Stelle fuer newPage und
- * optionsPage statt zwei fast identischer Kopien.
+ * und customerKeyMap gehoeren in local - sonst ueberschreibt der leere
+ * local-Standardwert die hier uebergebenen Werte beim Laden. Eine Stelle fuer
+ * newPage und optionsPage statt mehrerer fast identischer Kopien.
  */
 function pageStub(settings) {
   var sync = Object.assign({}, settings || {});
-  var local = { customTemplates: sync.customTemplates || [] };
+  var local = {
+    customTemplates: sync.customTemplates || [],
+    customerKeyMap: sync.customerKeyMap || {}
+  };
   delete sync.customTemplates;
+  delete sync.customerKeyMap;
   return { sync: sync, local: local };
 }
 

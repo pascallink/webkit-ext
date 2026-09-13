@@ -1,6 +1,8 @@
 branch,session_id,model,input,output,cache_read,cache_write,cost_usd
 claude/issue-32-part-1-mapping,dcf7ceb0-5b15-56b6-b669-a1be63f76d16,claude-opus-5,92,37402,4316482,290110,5.7985
 claude/issue-32-part-1-mapping,dcf7ceb0-5b15-56b6-b669-a1be63f76d16,claude-sonnet-5,206,5111,6446769,372491,2.2721
+claude/issue-32-part-2-options,dcf7ceb0-5b15-56b6-b669-a1be63f76d16,claude-opus-5,112,45406,6037505,303262,6.9907
+claude/issue-32-part-2-options,dcf7ceb0-5b15-56b6-b669-a1be63f76d16,claude-sonnet-5,344,9917,12545169,520323,3.9097
 claude/offene-code-issues-dxkmwn,bbc9afc0-64f0-5d2b-8f7e-efaba869aada,claude-opus-5,266,67219,20257618,318483,14.9954
 feature/issue-49-part-2,88612e92-6ed4-5c3b-8b68-50d671d7eed1,claude-opus-5,46,14097,2078309,74359,2.1354
 feature/issue-49-part-2,88612e92-6ed4-5c3b-8b68-50d671d7eed1,claude-sonnet-5,46,262,593111,34487,0.2076
