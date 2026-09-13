@@ -12,17 +12,18 @@ var Converter = self.JiraMarkdown;
 var CONTENT_SCRIPT_ID = 'jira-markdown-extra-hosts';
 var CONTENT_FILES = ['src/settings.js', 'src/mapping.js', 'src/converter.js', 'src/editors.js',
   'src/codedialog.js', 'src/templatedialog.js', 'src/editlock.js',
-  'src/otrslink.js', 'src/jiraui.js', 'src/otrsflow.js', 'src/otrsdialog.js',
+  'src/otrslink.js', 'src/jiraui.js', 'src/otrsflow.js', 'src/otrsdialog.js', 'src/keysync.js',
   'src/content.js'];
 var CONTENT_CSS = ['src/content.css', 'src/codedialog.css', 'src/otrsdialog.css'];
 
 // Fuer Seiten, die die Sondierung nicht als Jira erkennt: ohne Sperr-
 // Infrastruktur (editlock.js) und ohne den OTRS-Helfer (otrslink/jiraui/
-// otrsflow/otrsdialog) - beide ergeben nur im echten Jira-Vorgang Sinn
-// (Label, Custom Field, Web-Link). content.js erkennt selbst per
-// window.__jiraMarkdownStandalone, dass es im schlanken Modus laeuft.
+// otrsflow/otrsdialog) bzw. den Kunden-Schluessel-Sync (keysync.js) - alle
+// drei ergeben nur im echten Jira-Vorgang Sinn (Label, Custom Field,
+// Web-Link). content.js erkennt selbst per window.__jiraMarkdownStandalone,
+// dass es im schlanken Modus laeuft.
 var STANDALONE_EXCLUDED = ['src/editlock.js', 'src/otrslink.js', 'src/jiraui.js',
-  'src/otrsflow.js', 'src/otrsdialog.js'];
+  'src/otrsflow.js', 'src/otrsdialog.js', 'src/keysync.js'];
 var STANDALONE_FILES = CONTENT_FILES.filter(function (file) {
   return STANDALONE_EXCLUDED.indexOf(file) === -1;
 });

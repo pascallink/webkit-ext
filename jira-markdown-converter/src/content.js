@@ -18,6 +18,7 @@
   var OtrsFlow = window.JiraOtrsFlow;
   var OtrsDialog = window.JiraOtrsDialog;
   var Mapping = window.JiraMapping;
+  var KeySync = window.JiraKeySync;
 
   // Fremde Seite (kein Jira): src/background.js spielt hier STANDALONE_FILES
   // ein und setzt window.__jiraMarkdownStandalone schon vor den Dateien
@@ -48,6 +49,20 @@
     };
   }
 
+  // Ohne keysync.js (z. B. eine veraltete gecachte Ladeliste, oder der
+  // Standalone-Modus, der die Datei bewusst nicht einspielt - siehe
+  // STANDALONE_EXCLUDED in src/background.js) gaebe es kein
+  // window.JiraKeySync - dieselbe Absicherung wie bei Mapping: eine
+  // wirkungslose Huelle haelt syncCustomerKey() und die Feldleiste
+  // lauffaehig, statt sie mit einem Wurf zu zerlegen.
+  if (!KeySync) {
+    KeySync = {
+      keysInDescription: function () { return []; },
+      descriptionText: function () { return ''; },
+      run: function () { return Promise.reject(new Error('Kunden-Schluessel-Abgleich nicht verfuegbar')); }
+    };
+  }
+
   var settings = Settings.DEFAULTS;
   var panel = null;
   var fab = null;
@@ -55,6 +70,7 @@
   var pickingTarget = false;
   var toastTimer = null;
   var menu = null;           // offenes Dropdown-Menue (Panel- oder eigene Vorlagen)
+  var customerKeySyncRunning = false; // Wiedereintrittssperre fuer syncCustomerKey()
 
   /* ------------------------------------------------------------------ *
    * Konvertierung
@@ -320,11 +336,17 @@
 
   /**
    * Durchsucht den Feldinhalt nach Kunden-Schluesseln und ergaenzt die
-   * zugeordneten Jira-Keys. Ohne Zuordnungstabelle passiert nichts - der
-   * Knopf ist dann ohnehin deaktiviert, siehe showCustomerKeysButton().
+   * zugeordneten Jira-Keys. Ohne Zuordnungstabelle gibt es nichts zu
+   * ergaenzen - der Knopf kann trotzdem aktiv sein, wenn die Uebernahme aus
+   * der Beschreibung verfuegbar ist (siehe showCustomerKeysButton()), darum
+   * eine Rueckmeldung statt eines stummen Abbruchs.
    */
   function enrichCustomerKeys(field) {
-    if (!field || !settings.customerKeyMap || !Object.keys(settings.customerKeyMap).length) return;
+    if (!field) return;
+    if (!settings.customerKeyMap || !Object.keys(settings.customerKeyMap).length) {
+      toast('Noch keine Zuordnung angelegt - in den Einstellungen pflegen.', true);
+      return;
+    }
 
     if (isPlainField(field)) {
       enrichPlainField(field);
@@ -339,6 +361,79 @@
     // Schreibzugriff wuerde den Editor-Zustand auseinanderlaufen lassen.
     // Nur die Rueckmeldung, keine Anreicherung.
     toast('Dieses Feld kann nicht angereichert werden.', true);
+  }
+
+  /**
+   * Eintraege des Keys-Dropdowns (erweitertes Editor-Dropdown, Issue #32):
+   * "Aus Beschreibung uebernehmen" erscheint nur, wenn ein Custom-Field-Name
+   * hinterlegt ist und die Seite eine Vorgangsansicht ist - ohne beides gibt
+   * es weder ein Ziel-Feld noch (auf z. B. dem Dashboard) eine Beschreibung.
+   */
+  function customerKeyMenuItems() {
+    var items = [{ id: 'enrich', label: 'Im Feld ergaenzen' }];
+    if (settings.customerKeyFieldName && isIssuePage()) {
+      items.push({ id: 'sync', label: 'Aus Beschreibung uebernehmen' });
+    }
+    return items;
+  }
+
+  /**
+   * Uebernimmt den Kunden-Schluessel aus der Beschreibung des Vorgangs: liest
+   * die Leseansicht ueber KeySync.descriptionText() (nie einen Editor oder
+   * eine Textarea) und sucht darin ueber KeySync.keysInDescription() nach
+   * Kunden-Schluesseln. Bei genau einem Treffer setzt KeySync.run() Label und
+   * Custom Field. Bei mehreren verschiedenen Treffern wird nicht geraten -
+   * der Ablauf bricht ab und fordert die manuelle Eingabe.
+   *
+   * Der Ablauf steuert globale Tastenkuerzel und AUI-Dialoge - eine parallele
+   * zweite Ausfuehrung wuerde sich mit der ersten ueberschneiden, darum eine
+   * Wiedereintrittssperre ueber customerKeySyncRunning.
+   *
+   * previousKey aus KeySync.run() zeigt an, ob dabei ein vom Nutzer
+   * gepflegter Feldwert ueberschrieben wurde (leeres Feld oder bereits der
+   * gleiche Schluessel zaehlen nicht als Ueberschreiben, siehe
+   * overwrittenKey() in src/keysync.js) - genau wie previousReference bei
+   * runOtrsFlow() geht diese Warnung dann als zusaetzlicher sticky Toast mit
+   * dem alten Wert raus, statt den Erfolgstoast zu verdraengen.
+   */
+  function syncCustomerKey() {
+    if (customerKeySyncRunning) {
+      toast('Kunden-Schluessel-Abgleich laeuft bereits.', true);
+      return;
+    }
+
+    var text = KeySync.descriptionText(document);
+    var keys = KeySync.keysInDescription(text, settings.customerKeyPattern);
+
+    if (!keys.length) {
+      toast('Kein Kunden-Schluessel in der Beschreibung gefunden.', true);
+      return;
+    }
+    if (keys.length > 1) {
+      toast('Mehrere verschiedene Kunden-Schluessel gefunden - bitte von Hand setzen.', true);
+      return;
+    }
+
+    customerKeySyncRunning = true;
+    KeySync.run({ key: keys[0], fieldName: settings.customerKeyFieldName, doc: document })
+      .then(function (result) {
+        toast('Kunden-Schluessel ' + keys[0] + ' uebernommen.');
+        if (result.previousKey) {
+          toast('Achtung: Feldwert wurde ueberschrieben. Vorheriger Wert: ' + result.previousKey,
+            true, { sticky: true });
+        }
+      })
+      .catch(function (error) {
+        if (error.previousKey) {
+          toast(error.message + ' Achtung: Feldwert wurde ueberschrieben. Vorheriger Wert: ' + error.previousKey,
+            true, { sticky: true });
+        } else {
+          toast(error.message, true);
+        }
+      })
+      .then(function () {
+        customerKeySyncRunning = false;
+      });
   }
 
   /* ------------------------------------------------------------------ *
@@ -571,13 +666,25 @@
     }
   }
 
-  /** Ohne Zuordnungstabelle bleibt der Button deaktiviert - nichts zum Anreichern. */
+  /**
+   * Der Knopf ist aktiv, sobald mindestens eine der beiden Dropdown-
+   * Funktionen etwas zu tun hat: Anreichern (Zuordnungstabelle gepflegt)
+   * oder Uebernehmen (Custom-Field-Name gesetzt und Vorgangsansicht, siehe
+   * customerKeyMenuItems()). Nur ohne beides bleibt er deaktiviert.
+   */
   function showCustomerKeysButton(button) {
-    var has = Object.keys(settings.customerKeyMap || {}).length > 0;
-    button.disabled = !has;
-    button.title = has
-      ? 'Kunden-Schluessel im Feld um die zugeordneten Jira-Keys ergaenzen'
-      : 'Noch keine Zuordnung angelegt - in den Einstellungen pflegen';
+    var canEnrich = Object.keys(settings.customerKeyMap || {}).length > 0;
+    var canSync = !!(settings.customerKeyFieldName && isIssuePage());
+    button.disabled = !canEnrich && !canSync;
+    if (canEnrich && canSync) {
+      button.title = 'Kunden-Schluessel im Feld ergaenzen oder aus der Beschreibung uebernehmen';
+    } else if (canEnrich) {
+      button.title = 'Kunden-Schluessel im Feld um die zugeordneten Jira-Keys ergaenzen';
+    } else if (canSync) {
+      button.title = 'Kunden-Schluessel aus der Beschreibung uebernehmen';
+    } else {
+      button.title = 'Noch keine Zuordnung angelegt - in den Einstellungen pflegen';
+    }
   }
 
   /** Zieht den Kunden-Schluessel-Button an allen Leisten nach - neue oder geloeschte Zuordnungen. */
@@ -1696,10 +1803,22 @@
     keysButton.type = 'button';
     keysButton.className = 'jmd-fieldbar__btn jmd-fieldbar__btn--keys';
     keysButton.textContent = 'Keys';
+    keysButton.setAttribute('aria-haspopup', 'true');
+    keysButton.setAttribute('aria-expanded', 'false');
     keysButton.addEventListener('click', function (event) {
       event.preventDefault();
       target = field;
-      enrichCustomerKeys(field);
+      toggleMenu(keysButton, {
+        label: 'Kunden-Schluessel',
+        items: customerKeyMenuItems(),
+        onPick: function (entry) {
+          if (entry.id === 'sync') {
+            syncCustomerKey();
+            return;
+          }
+          enrichCustomerKeys(field);
+        }
+      });
     });
     showCustomerKeysButton(keysButton);
 

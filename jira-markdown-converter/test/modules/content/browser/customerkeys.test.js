@@ -1,8 +1,17 @@
 /**
  * Kunden-Schluessel in der Feldleiste anreichern (Issue #32, Sub-Task 3):
- * Knopf "Keys" durchsucht den Feldinhalt und haengt hinter jeden Treffer mit
- * Mapping-Eintrag die zugeordneten Jira-Keys in Klammern an - Textarea und
- * Rich-Text-Editor.
+ * Knopf "Keys" oeffnet seit Sub-Task 4 ein Dropdown (erweitertes
+ * Editor-Dropdown) - der Eintrag "Im Feld ergaenzen" durchsucht den
+ * Feldinhalt und haengt hinter jeden Treffer mit Mapping-Eintrag die
+ * zugeordneten Jira-Keys in Klammern an - Textarea und Rich-Text-Editor. Der
+ * zweite Eintrag "Aus Beschreibung uebernehmen" steht in
+ * test/modules/mapping/browser/keysync.test.js und der dortigen
+ * Content-Verdrahtung.
+ *
+ * Sichtbarkeit des Knopfes (showCustomerKeysButton()): aktiv, sobald
+ * mindestens eine der beiden Funktionen etwas zu tun hat - Zuordnungstabelle
+ * gepflegt (Anreichern) oder Vorgangsseite mit Custom-Field-Name (Uebernahme).
+ * Ohne Zuordnung bricht "Im Feld ergaenzen" darum nicht mehr stumm ab.
  * Aufruf: npm run test:content --prefix jira-markdown-converter
  */
 'use strict';
@@ -24,13 +33,45 @@ var CUSTOMER_KEY_MAP = { 'ROV-1234': ['JIRA-567'] };
 var hasPlaywright = browserLib.hasPlaywright();
 var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
 
+/**
+ * Oeffnet das Keys-Dropdown und waehlt "Im Feld ergaenzen" - seit Sub-Task 4
+ * loest ein Klick auf den Knopf selbst nicht mehr direkt die Anreicherung
+ * aus, siehe toggleMenu()/customerKeyMenuItems() in src/content.js.
+ */
+async function pickEnrich(page, button) {
+  await button.click();
+  await page.click('.jmd-panelmenu__item[data-template="enrich"]');
+}
+
 describe('Kunden-Schluessel in der Feldleiste', { skip: !hasPlaywright }, function () {
-  test('ohne Zuordnungen ist der Knopf deaktiviert', async function () {
+  test('ohne Zuordnungen und ausserhalb einer Vorgangsseite ist der Knopf deaktiviert', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, SERVER);
     await page.waitForSelector('.jmd-fieldbar');
     var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
     assert.strictEqual(await button.isDisabled(), true);
+    await page.close();
+  });
+
+  test('ohne Zuordnung aber auf einer Vorgangsseite ist der Knopf wegen der Uebernahme aktiv', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER, 'ROV-1');
+    await page.waitForSelector('.jmd-fieldbar');
+    var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
+    assert.strictEqual(await button.isDisabled(), false);
+    await page.close();
+  });
+
+  test('im Feld ergaenzen ohne Zuordnung meldet eine Warnung statt stumm abzubrechen', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER, 'ROV-1');
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.fill('#description', 'ROV-1234 offen');
+    var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
+    await pickEnrich(page, button);
+    var toastText = await page.textContent('.jmd-toast__text');
+    assert.strictEqual(toastText, 'Noch keine Zuordnung angelegt - in den Einstellungen pflegen.');
+    assert.strictEqual(await page.inputValue('#description'), 'ROV-1234 offen');
     await page.close();
   });
 
@@ -41,7 +82,7 @@ describe('Kunden-Schluessel in der Feldleiste', { skip: !hasPlaywright }, functi
     await page.fill('#description', 'ROV-1234 offen');
     var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
     assert.strictEqual(await button.isDisabled(), false);
-    await button.click();
+    await pickEnrich(page, button);
     assert.strictEqual(await page.inputValue('#description'), 'ROV-1234 (JIRA-567) offen');
     await page.close();
   });
@@ -52,9 +93,9 @@ describe('Kunden-Schluessel in der Feldleiste', { skip: !hasPlaywright }, functi
     await page.waitForSelector('.jmd-fieldbar');
     await page.fill('#description', 'ROV-1234 offen');
     var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
-    await button.click();
+    await pickEnrich(page, button);
     assert.strictEqual(await page.inputValue('#description'), 'ROV-1234 (JIRA-567) offen');
-    await button.click();
+    await pickEnrich(page, button);
     assert.strictEqual(await page.inputValue('#description'), 'ROV-1234 (JIRA-567) offen');
     await page.close();
   });
@@ -65,7 +106,7 @@ describe('Kunden-Schluessel in der Feldleiste', { skip: !hasPlaywright }, functi
     await page.waitForSelector('.jmd-fieldbar');
     await page.fill('#description', 'REFI-77 offen');
     var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
-    await button.click();
+    await pickEnrich(page, button);
     assert.strictEqual(await page.inputValue('#description'), 'REFI-77 offen');
     await page.close();
   });
@@ -87,7 +128,7 @@ describe('Kunden-Schluessel in der Feldleiste', { skip: !hasPlaywright }, functi
     });
     var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
     assert.strictEqual(await button.isDisabled(), false);
-    await button.click();
+    await pickEnrich(page, button);
     var after = await page.evaluate(function () {
       var doc = document.querySelector('#description_ifr').contentDocument;
       return {
@@ -115,7 +156,7 @@ describe('Kunden-Schluessel in der Feldleiste', { skip: !hasPlaywright }, functi
     // Editors.findAllTargets() die Feldleisten anlegt.
     var button = page.locator('.jmd-fieldbar').nth(1).locator(KEYS_BUTTON);
     assert.strictEqual(await button.isDisabled(), false);
-    await button.click();
+    await pickEnrich(page, button);
     var toastText = await page.textContent('.jmd-toast__text');
     assert.strictEqual(toastText, 'Dieses Feld kann nicht angereichert werden.');
     assert.strictEqual(await page.textContent('.ProseMirror'), 'Ticket ROV-1234 offen');
