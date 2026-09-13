@@ -16,6 +16,7 @@ var fixtures = require('../../../lib/fixtures');
 
 var SERVER = fixtures.SERVER;
 var RTE = fixtures.RTE;
+var CLOUD = fixtures.CLOUD;
 var KEYS_BUTTON = '.jmd-fieldbar__btn--keys';
 
 var CUSTOMER_KEY_MAP = { 'ROV-1234': ['JIRA-567'] };
@@ -99,6 +100,25 @@ describe('Kunden-Schluessel in der Feldleiste', { skip: !hasPlaywright }, functi
       'die Zahl der Elemente im Editorkoerper hat sich veraendert');
     assert.strictEqual(after.strongCount, before.strongCount, 'die Auszeichnung <strong> ist verschwunden');
     assert.strictEqual(after.text, 'Ticket ROV-1234 (JIRA-567) offen');
+    await page.close();
+  });
+
+  test('im nativen contenteditable-Feld (ProseMirror) meldet ein Klick eine Warnung', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, { customerKeyMap: CUSTOMER_KEY_MAP }, CLOUD);
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.evaluate(function () {
+      document.querySelector('.ProseMirror').textContent = 'Ticket ROV-1234 offen';
+    });
+    // CLOUD-Fixture in Dokumentreihenfolge: erst die Textarea "description",
+    // danach der ProseMirror-Editor - dieselbe Reihenfolge, in der
+    // Editors.findAllTargets() die Feldleisten anlegt.
+    var button = page.locator('.jmd-fieldbar').nth(1).locator(KEYS_BUTTON);
+    assert.strictEqual(await button.isDisabled(), false);
+    await button.click();
+    var toastText = await page.textContent('.jmd-toast__text');
+    assert.strictEqual(toastText, 'Dieses Feld kann nicht angereichert werden.');
+    assert.strictEqual(await page.textContent('.ProseMirror'), 'Ticket ROV-1234 offen');
     await page.close();
   });
 });

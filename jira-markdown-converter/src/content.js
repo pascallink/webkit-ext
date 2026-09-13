@@ -284,7 +284,10 @@
    */
   function enrichRichText(field) {
     var surface = Editors.editingSurface(field);
-    if (!surface) return;
+    if (!surface) {
+      toast('Dieses Feld kann nicht angereichert werden.', true);
+      return;
+    }
     var doc = surface.ownerDocument;
     var view = doc.defaultView;
     // NodeFilter aus dem Dokument der Flaeche - im Editor-Rahmen ist das ein
@@ -329,7 +332,13 @@
     }
     if (Editors.isRichTextActive(field)) {
       enrichRichText(field);
+      return;
     }
+    // Native contenteditable-Felder (z. B. ProseMirror) haben weder einen
+    // reinen Textweg noch einen TinyMCE-Rahmen - ein direkter nodeValue-
+    // Schreibzugriff wuerde den Editor-Zustand auseinanderlaufen lassen.
+    // Nur die Rueckmeldung, keine Anreicherung.
+    toast('Dieses Feld kann nicht angereichert werden.', true);
   }
 
   /* ------------------------------------------------------------------ *
