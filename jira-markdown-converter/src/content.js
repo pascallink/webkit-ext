@@ -703,9 +703,10 @@
   }
 
   /**
-   * Reines Textfeld bekommt {code:sprache}, der Rich-Text-Editor das fertige
-   * <pre><code>. Die Einstellungen fuer den Rich-Text-Editor gelten wie beim
-   * uebrigen Einfuegen: erst umschalten, sonst Markup oder formatiert.
+   * Reines Textfeld bekommt {code:sprache}, der Rich-Text-Editor das HTML
+   * als <pre class="code panel"> mit data-language-Attribut. Die
+   * Einstellungen fuer den Rich-Text-Editor gelten wie beim uebrigen
+   * Einfuegen: erst umschalten, sonst Markup oder formatiert.
    */
   function insertCode(field, result) {
     var switching = settings.switchToMarkup && Editors.isRichTextActive(field)
