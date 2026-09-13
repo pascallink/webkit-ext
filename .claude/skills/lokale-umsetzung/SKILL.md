@@ -30,126 +30,154 @@ angefasste Datei komplett neu aus. Das begrenzt den Einsatz hart.
 
 ## Ablauf
 
-### 1. Zerlegen
+Das Protokoll ist bewusst eng: jeder Schritt hat einen definierten Eingang und
+Ausgang, und nur der Ausgang landet im Kontext. Der Grund, lokal zu delegieren,
+ist Token-Ersparnis - ein Handshake, der die ganze Datei dreimal in den
+Kontext zieht, hebt sie wieder auf.
+
+| Schritt | Was in den Kontext kommt | Was nicht |
+| --- | --- | --- |
+| 1 Vorbedingung | `git status --short` (leer) | - |
+| 2 Kontext lesen | betroffene Region per `grep -n` / `sed -n` | die ganze Datei |
+| 3 Auftrag | nichts (Heredoc nach `local_task.md`) | - |
+| 4 Aufruf | Exit-Code, Zeitstempel | aiders stdout (geht in `.aider.run.log`) |
+| 5 Bewerten | `git show --stat`, Diff, ES6-Grep, Test-Summe | Modell-Prosa, Testprotokoll |
+| 6 Amend / Reset | `git log --oneline -1` | - |
+
+### 1. Vorbedingung und Zerlegen
+
+Arbeitsbaum sauber (`git status --short` leer) - sonst nimmt aider fremde
+Aenderungen mit in seinen Commit und der Reset in Schritt 6 trifft auch sie.
 
 Ein Micro-Task ist eine Aenderung an genau einer Datei, die in einen Absatz
 Anweisung passt und deren Ergebnis am Diff pruefbar ist. Aus einem Sub-Task
-werden typischerweise drei bis fuenf Micro-Tasks. Reihenfolge festlegen und
-abarbeiten - nie zwei parallel, aider committet in denselben Arbeitsbaum.
+werden typischerweise drei bis fuenf Micro-Tasks. Reihenfolge festlegen, dann
+strikt nacheinander - aider committet in denselben Arbeitsbaum.
 
-Vor dem ersten Lauf muss der Arbeitsbaum sauber sein (`git status --short`
-leer). Sonst nimmt aider fremde Aenderungen mit in seinen Commit und der
-Revert in Schritt 5 trifft auch sie.
+### 2. Kontext lesen - nur die Region
 
-### 2. Micro-Task schreiben
+Fuer einen praezisen Auftrag brauchst du die Stelle, nicht die Datei:
+`grep -n '<symbol>' <datei>` und `sed -n '<von>,<bis>p' <datei>` um die
+Treffer herum. Die ganze Datei nur, wenn sie unter ~80 Zeilen hat oder der
+Task sie strukturell umbaut. Zeilenzahl der Datei (`wc -l`) gehoert immer
+dazu - sie entscheidet ueber die Eignungsgrenze.
 
-Nach `local_task.md` im **Repo-Root**, Format und Begruendung unter
-"Micro-Task" in [`.github/PROMPTS.md`](../../../.github/PROMPTS.md). Die Datei
-wird vor jedem Lauf ueberschrieben, nicht angehaengt - aider schickt ihren
-gesamten Inhalt.
+### 3. Micro-Task schreiben
 
-Diese Datei wiederholt das Format nicht. Was beim Schreiben am haeufigsten
-schiefgeht: Pfade ab Git-Root statt ab Projektordner, und der
-Vorgaben-Block, der in jeden einzelnen Auftrag gehoert.
+Per Heredoc nach `local_task.md` im **Repo-Root**, Format unter "Micro-Task"
+in [`.github/PROMPTS.md`](../../../.github/PROMPTS.md). Die Datei wird vor
+jedem Lauf ueberschrieben, nicht angehaengt - aider schickt ihren gesamten
+Inhalt. Nicht zuruecklesen, du hast sie gerade geschrieben.
 
-### 3. Aufrufen
+Was am haeufigsten schiefgeht: Pfade ab Git-Root statt ab Projektordner, und
+der Vorgaben-Block, der wortgleich in jeden Auftrag gehoert - aider liest
+keine `CLAUDE.md`.
+
+### 4. Aufrufen - headless, Ausgabe ins Log
 
 ```
-aider --model ollama/qwen2.5-coder:14b --message-file local_task.md --yes --no-pretty
+aider <zieldatei> --model ollama/qwen2.5-coder:14b --message-file local_task.md --yes --no-pretty > .aider.run.log 2>&1
 ```
 
-Vom Repo-Root, genau dieser Befehl. **Headless-Modus ist Pflicht:** `--yes`
-(Auto-Bestaetigung) und `--no-pretty` (reiner Text-Output) gehoeren immer
-dazu, weil aider als Hintergrundprozess ohne menschliche Tastatureingabe
-laeuft - ohne sie blockiert der Prozess an einer Rueckfrage oder verstopft
-die Ausgabe mit Terminal-Steuerzeichen und Fortschrittsbalken.
+Vom Repo-Root, genau dieser Befehl, `<zieldatei>` ab Git-Root vorangestellt
+(dann muss das Modell sie nicht ueber die Repo-Map finden). **Headless-Modus
+ist Pflicht:** `--yes` (Auto-Bestaetigung) und `--no-pretty` (reiner
+Text-Output), weil aider als Hintergrundprozess ohne menschliche
+Tastatureingabe laeuft - ohne sie blockiert der Prozess an einer Rueckfrage
+oder verstopft die Ausgabe mit Steuerzeichen.
 
-Ein Lauf dauert Minuten - gemessen 8,5 min fuer eine 178-Zeilen-Datei,
-laenger als das Bash-Timeout von 600 s zulaesst. Deshalb mit
-`run_in_background: true` starten und sofort mit `TaskOutput` (block,
-Timeout 600000) auf das Ende warten. Sequenziell bleibt es trotzdem: kein
-zweiter Micro-Task, bevor der erste durch ist. Ausgabe nicht durch `tail`
-oder `grep` leiten - dann siehst du bis zum Ende nichts; die Historie steht
-ohnehin in `.aider.chat.history.md`.
+**Die Umleitung ins Log ist Teil des Befehls.** Aider echot im whole-Format
+die komplette Datei nach stdout - das waeren ~2k Tokens je Lauf im Kontext,
+die nichts sagen, was `git show` nicht besser sagt. `.aider.run.log` ist per
+`.gitignore` (`.aider*`) unsichtbar und wird nur bei einem Fehlschlag gelesen
+(Schritt 6).
 
-**Warnung ignorieren:** aider gibt beim Start `Warning: Input is not a
-terminal (fd=0).` aus. Das ist bei programmatischer Ausfuehrung erwartet,
-bedeutet keinen Fehler und unterbricht den Prozess nicht. Nicht darauf
-reagieren, nicht abbrechen - einfach warten, bis der Code geschrieben ist,
-und dann das Ergebnis bewerten. Ebenso harmlos am Ende:
-`Summarization failed ... cannot schedule new futures after shutdown` -
-das ist aiders Chat-Zusammenfassung nach dem Commit, der Commit steht da
-schon.
+Start mit `run_in_background: true`, sofort danach `TaskOutput` (block,
+Timeout 600000) - ein Lauf dauert 7 bis 9 Minuten fuer eine 180-Zeilen-Datei
+und sprengt das Bash-Timeout. Sequenziell bleibt es trotzdem: kein zweiter
+Micro-Task, bevor der erste durch ist. Zurueck kommen nur Exit-Code und
+Zeitstempel; `exit=0` heisst "aider ist durchgelaufen", nicht "der Diff
+stimmt".
 
-Die Zieldatei als Argument voranstellen
-(`aider jira-markdown-converter/src/otrslink.js --model ... --yes --no-pretty`) -
-dann muss das Modell sie nicht ueber die Repo-Map finden. Der Rest des
-Aufrufs bleibt gleich.
+**Warnungen im Log sind erwartet:** `Warning: Input is not a terminal (fd=0).`
+beim Start und `Summarization failed ... cannot schedule new futures after
+shutdown` am Ende sind bei programmatischer Ausfuehrung normal, bedeuten
+keinen Fehler und unterbrechen nichts. Nicht darauf reagieren, nicht
+abbrechen.
 
-`--yes` beantwortet **jede** Rueckfrage mit ja. Drei Rueckfragen sind mit den
-Konfigurationsdateien im Repo-Root abgestellt, ohne sie kippt der Lauf:
+Drei Rueckfragen, die `--yes` sonst falsch beantworten wuerde, sind ueber die
+Konfiguration im Repo-Root abgestellt - ohne sie kippt der Lauf:
 
 - `.aider.conf.yml` - `OLLAMA_API_BASE`, Modell-Warnungen aus,
-  `detect-urls: false`. Eine Beispiel-URL im Auftrag wuerde sonst gescrapt und
-  aider installiert dafuer ungefragt Playwright.
+  `detect-urls: false` (eine Beispiel-URL im Auftrag wuerde sonst gescrapt,
+  und dafuer installiert aider ungefragt Playwright).
 - `.aider.model.settings.yml` - Kontextfenster 32k, whole-Format.
 - `.aiderignore` - die drei Dateien ueber der Eignungsgrenze plus Tests und
   Doku. Nennt ein Kommentar oder die Modellantwort einen Dateinamen aus dem
   Repo, fragt aider "Add file to the chat?", `--yes` bejaht, **die fertige
   Ausgabe wird verworfen** und eine zweite Runde mit der Datei im Kontext
-  startet. Ignorierte Dateien sind nicht erwaehnbar. Trifft es eine kleine
-  Datei, laeuft die zweite Runde durch - nur langsamer.
+  startet. Ignorierte Dateien sind nicht erwaehnbar.
 
-Laeuft der Aufruf ins Leere: `ollama list` prueft, ob das Modell da ist,
-`curl -s localhost:11434/api/tags` ob der Server laeuft, `ollama ps` ob es
-gerade rechnet.
+Laeuft der Aufruf ins Leere: `ollama list` (Modell da?),
+`curl -s localhost:11434/api/tags` (Server laeuft?), `ollama ps` (rechnet
+gerade?).
 
-### 4. Bewerten
+### 5. Bewerten - am Diff, nicht an der Prosa
 
-Aider committet selbst. Erst pruefen, ob ueberhaupt ein Commit entstanden ist
-(`git log --oneline -1`) - eine verworfene Ausgabe (Dateierwaehnung, siehe
-oben) hinterlaesst weder Diff noch Commit, die Historie in
-`.aider.chat.history.md` zeigt dann den Grund. Du liest den Diff, nicht die
-Zusammenfassung des Modells:
+Genau diese Befehle, in dieser Reihenfolge, jeder mit gefilterter Ausgabe:
 
 ```
-git show --stat HEAD && git show HEAD
-npm run test:module <modul> --prefix jira-markdown-converter
+git log --oneline -1                      # neuer Commit da? sonst Schritt 6
+git show --stat HEAD --format=            # genau eine Datei, plausible +/-?
+git show HEAD --format=                   # der Diff selbst
+grep -nE '\b(let|const)\b|=>|require\(' <zieldatei>                # ES6, neue Abhaengigkeit
+perl -ne 'print "$.:$_" if /[^\x00-\x7F]/' <zieldatei>            # Nicht-ASCII: Umlaute, scharfes s
+npm run test:module <modul> --prefix jira-markdown-converter 2>&1 | grep -E '^. (pass|fail)'
 ```
 
-Fehlerhaft ist ein Lauf schon dann, wenn eine dieser Fragen mit ja beantwortet
-wird - nicht erst, wenn Tests rot sind:
+Die Test-Summe sind zwei bis vier Zeilen (Node und Browser je `pass`/`fail`).
+Erst bei `fail > 0` das Protokoll oeffnen, und dann gefiltert:
+`... 2>&1 | grep -B2 -A8 'not ok'`.
 
-- Fehlen Teile der Datei, die vorher da waren? (Der typische whole-Format-Fehler.)
+Fehlerhaft ist ein Lauf schon dann, wenn eine dieser Fragen mit ja
+beantwortet wird - nicht erst, wenn Tests rot sind:
+
+- Fehlen Teile der Datei, die vorher da waren? (`--stat`: Minus-Zeilen weit
+  ueber dem, was der Task entfernt. Der typische whole-Format-Fehler.)
 - Steckt eine weitere Datei im Commit, die der Task nicht genannt hat?
 - ES6 (`let`, `const`, Arrow), Umlaute, ein neuer `require`?
 - Kommentare, die den Auftrag nachplappern statt das Warum zu erklaeren?
 
-Ist der Commit inhaltlich richtig, zieh die Commit-Message auf die Konvention -
-aider formuliert sie selbst und trifft `<typ>(<scope>):` mit maximal 72 Zeichen
-im Header nicht:
+Bei einem Verhalten, das kein Test abdeckt, ein einzeiliger `node -e` mit
+dem Beispiel aus "Erwartetes Verhalten" - nicht die Testdatei erweitern, das
+ist ein eigener Schritt.
+
+### 6. Amend oder Reset
+
+**Richtig:** Commit-Message auf die Konvention ziehen. Aider formuliert sie
+selbst, mit demselben 14B-Modell - im Test beschrieb sie einmal das Gegenteil
+des Diffs. Das Amend ist deshalb Pflicht, nicht Kosmetik:
 
 ```
-git commit --amend -m "fix(jira): <betreff im imperativ>" \
+git commit --amend -m "<typ>(jira): <betreff im imperativ, max 72 zeichen>" \
   -m "Umgesetzt von ollama/qwen2.5-coder:14b via aider." \
   -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-### 5. Iterieren
+Dann der naechste Micro-Task ab Schritt 2.
 
-Der Aider-Commit ist lokal und nicht gepusht - er wird verworfen, nicht
-revertiert:
+**Falsch:** der Aider-Commit ist lokal und nicht gepusht - er wird verworfen,
+nicht revertiert:
 
 ```
 git reset --hard HEAD~1
 ```
 
-(Erst nach einem Push waere `git revert <sha>` richtig. Dann aber lieber
-eskalieren als noch einen Versuch anhaengen.)
-
-Danach `local_task.md` schaerfen: die *eine* Stelle benennen, an der das Modell
-abgebogen ist. Denselben Task unveraendert erneut zu schicken, liefert
-dasselbe Ergebnis.
+Kein Commit entstanden (Schritt 5, erste Zeile)? Dann `grep -nE
+'Add file|Add URL|Error|Traceback' .aider.run.log` - mehr vom Log nur, wenn
+das nichts ergibt. Danach `local_task.md` schaerfen: die *eine* Stelle
+benennen, an der das Modell abgebogen ist. Denselben Task unveraendert erneut
+zu schicken, liefert dasselbe Ergebnis.
 
 **Nach zwei Fehlversuchen an einem Micro-Task wird nicht weiter iteriert.**
 Dann ist der Task falsch geschnitten oder die Aufgabe zu gross fuer 14B:
@@ -157,17 +185,17 @@ weiter mit `korrektur-logik` (Sonnet) bzw. `umsetzer`, mit einem Satz dazu,
 was lokal gescheitert ist. Das ist kein Ausnahmefall, sondern der
 vorgesehene Ausgang fuer alles ueber der Eignungsgrenze.
 
-### 6. Abschluss
+### 7. Abschluss
 
-Nach dem letzten Micro-Task genau einmal:
+Nach dem letzten Micro-Task genau einmal, beides gefiltert:
 
 ```
-npm run lint --prefix jira-markdown-converter
-npm test --prefix jira-markdown-converter
+npm run lint --prefix jira-markdown-converter 2>&1 | tail -3
+npm test --prefix jira-markdown-converter 2>&1 | grep -E '^. (pass|fail)'
 ```
 
-`local_task.md` bleibt liegen (per `.gitignore` ignoriert) oder wird geloescht -
-sie gehoert nie in einen Commit. Danach geht der Stand ins Review (Stufe 1,
-Agent `reviewer`), unveraendert wie bei einer Anthropic-Umsetzung. Dass lokal
+`local_task.md` und `.aider.run.log` bleiben liegen (ignoriert) - sie gehoeren
+nie in einen Commit. Danach geht der Stand ins Review (Stufe 1, Agent
+`reviewer`), unveraendert wie bei einer Anthropic-Umsetzung. Dass lokal
 umgesetzt wurde, steht in der Uebergabe - das Review bewertet Code, nicht
 Herkunft.
