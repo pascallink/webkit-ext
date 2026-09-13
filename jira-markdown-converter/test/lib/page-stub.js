@@ -5,6 +5,8 @@
  */
 'use strict';
 
+var Settings = require('../../src/settings.js');
+
 /** Stellt chrome.* so weit nach, wie das Content-Script es braucht. */
 var CHROME_STUB = [
   'window.__settings = {};',
@@ -50,19 +52,21 @@ var CHROME_STUB = [
 ].join('\n');
 
 /**
- * Teilt Einstellungen wie Settings.LOCAL_KEYS es vorsieht: customTemplates
- * und customerKeyMap gehoeren in local - sonst ueberschreibt der leere
- * local-Standardwert die hier uebergebenen Werte beim Laden. Eine Stelle fuer
- * newPage und optionsPage statt mehrerer fast identischer Kopien.
+ * Teilt Einstellungen anhand von Settings.LOCAL_KEYS auf: jeder dort
+ * genannte Schluessel gehoert in local - sonst ueberschreibt der leere
+ * local-Standardwert die hier uebergebenen Werte beim Laden. Kommt ein
+ * lokaler Schluessel bei Settings.LOCAL_KEYS dazu, muss diese Datei nicht
+ * mehr angefasst werden. Eine Stelle fuer newPage und optionsPage statt
+ * mehrerer fast identischer Kopien.
  */
 function pageStub(settings) {
   var sync = Object.assign({}, settings || {});
-  var local = {
-    customTemplates: sync.customTemplates || [],
-    customerKeyMap: sync.customerKeyMap || {}
-  };
-  delete sync.customTemplates;
-  delete sync.customerKeyMap;
+  var local = {};
+  for (var i = 0; i < Settings.LOCAL_KEYS.length; i++) {
+    var key = Settings.LOCAL_KEYS[i];
+    local[key] = Object.prototype.hasOwnProperty.call(sync, key) ? sync[key] : Settings.DEFAULTS[key];
+    delete sync[key];
+  }
   return { sync: sync, local: local };
 }
 

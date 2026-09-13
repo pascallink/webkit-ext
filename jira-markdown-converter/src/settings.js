@@ -531,6 +531,9 @@
     templateById: templateById,
     escapeValue: escapeValue,
     fillPlaceholders: fillPlaceholders,
-    placeholdersInMarkup: placeholdersInMarkup
+    placeholdersInMarkup: placeholdersInMarkup,
+    // Nur lesend gedacht: Teststubs leiten die sync/local-Trennung daraus ab,
+    // statt die Schluesselliste zu kopieren.
+    LOCAL_KEYS: LOCAL_KEYS
   };
 });
