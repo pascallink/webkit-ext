@@ -6,7 +6,9 @@
  * bearbeitbaren Feld. Faelle hier: einfacher Treffer, title mit/ohne
  * Mapping-Eintrag, harte Ausschlussliste (Textarea/contenteditable/code),
  * Schalter aus (Start und Laufzeit) sowie ein neu aufgebauter Lesebereich
- * gegen die Observer-Schleife.
+ * gegen die Observer-Schleife. Dazu: die gerenderte Beschreibung (Link,
+ * Liste, Codeblock) bleibt ueber Hervorhebung und Ruecknahme hinweg in
+ * ihrer Struktur unveraendert.
  * Aufruf: npm run test:content --prefix jira-markdown-converter
  */
 'use strict';
@@ -197,6 +199,51 @@ describe('Kunden-Schluessel in der Leseansicht hervorheben', { skip: !hasPlaywri
     await waitForBadgeCount(page, 1);
     var text = await page.textContent(BADGE);
     assert.strictEqual(text, 'ROV-4711');
+    await page.close();
+  });
+
+  /**
+   * Regression gegen den zurueckgenommenen Entwurf aus 242f3fa (per fbe97d6
+   * entfernt): highlightCustomerKeys() darf die gerenderte Beschreibung nie
+   * zu reinem Text einebnen - Link, Liste und Codeblock bleiben ueber
+   * Hervorhebung und Ruecknahme hinweg als Struktur erhalten.
+   */
+  test('die gerenderte Beschreibung ueberlebt Hervorhebung und Ruecknahme unveraendert', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, JIRA912);
+    var before = await page.evaluate(function () {
+      var container = document.querySelector('#description-val .user-content-block');
+      container.innerHTML = '<p>Vorgang ROV-1234 offen.</p>'
+        + '<ul><li>Punkt eins</li><li>Punkt zwei</li></ul>'
+        + '<p><a href="https://example.invalid/">Link</a></p>'
+        + '<pre><code>ROV-1234</code></pre>';
+      return container.innerHTML;
+    });
+    await waitForBadgeCount(page, 1);
+    var state = await page.evaluate(function () {
+      var container = document.querySelector('#description-val .user-content-block');
+      return {
+        badgeInParagraph: !!container.querySelector('p .jmd-customer-key'),
+        hasList: !!container.querySelector('ul li'),
+        hasLink: !!container.querySelector('a[href]'),
+        hasCode: !!container.querySelector('pre code')
+      };
+    });
+    assert.strictEqual(state.badgeInParagraph, true);
+    assert.strictEqual(state.hasList, true);
+    assert.strictEqual(state.hasLink, true);
+    assert.strictEqual(state.hasCode, true);
+
+    await page.evaluate(function () {
+      window.__settings.customerKeyHighlight = false;
+      chrome.storage.onChanged.trigger({ customerKeyHighlight: { newValue: false } }, 'sync');
+    });
+    await waitForBadgeCount(page, 0);
+
+    var after = await page.evaluate(function () {
+      return document.querySelector('#description-val .user-content-block').innerHTML;
+    });
+    assert.strictEqual(after, before);
     await page.close();
   });
 });
