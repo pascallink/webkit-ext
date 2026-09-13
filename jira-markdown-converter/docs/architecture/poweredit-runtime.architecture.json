@@ -131,7 +131,7 @@
       "type": "backend",
       "label": "converter.js",
       "sublabel": "markdownToJira(), DOM-frei",
-      "tag": "Content-Script",
+      "tag": "geteilt",
       "pos": [
         300,
         70
@@ -260,7 +260,7 @@
       "id": "otrs",
       "type": "backend",
       "label": "OTRS-Verknuepfung",
-      "sublabel": "otrslink, otrsdialog, otrsflow, jiraui",
+      "sublabel": "otrslink, otrsdialog, otrsflow",
       "tag": "Content-Script",
       "pos": [
         820,
@@ -281,7 +281,7 @@
         },
         {
           "path": "jira-markdown-converter/src/otrsflow.js",
-          "label": "drei Schritte"
+          "label": "drei Schritte (jiraui via window)"
         }
       ]
     },
@@ -314,7 +314,7 @@
     },
     {
       "kind": "region",
-      "label": "Isolierte Welt - converter.js/settings.js zusaetzlich in Service-Worker und Erweiterungsseiten",
+      "label": "Isolierte Welt - Content-Scripts im Jira-Tab",
       "wraps": [
         "converter",
         "content",
@@ -431,9 +431,19 @@
       "to": "content",
       "label": "registerContentScripts (Hosts)",
       "variant": "security",
+      "via": [
+        [
+          240,
+          280
+        ],
+        [
+          300,
+          280
+        ]
+      ],
       "labelAt": [
-        270,
-        340
+        130,
+        313
       ]
     },
     {
@@ -461,9 +471,13 @@
     {
       "from": "dialogs",
       "to": "converter",
-      "label": "Vorschau",
+      "label": "codeLanguages, mapLanguage()",
       "variant": "dashed",
-      "route": "straight"
+      "route": "straight",
+      "labelAt": [
+        530,
+        160
+      ]
     },
     {
       "from": "editlock",
