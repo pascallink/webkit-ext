@@ -55,19 +55,36 @@ Vorgaben-Block, der in jeden einzelnen Auftrag gehoert.
 ### 3. Aufrufen
 
 ```
-aider --model ollama/qwen2.5-coder:14b --message-file local_task.md --yes
+aider --model ollama/qwen2.5-coder:14b --message-file local_task.md --yes --no-pretty
 ```
 
-Vom Repo-Root. Ein Lauf dauert Minuten - laenger als das Bash-Timeout von
-600 s zulaesst. Deshalb mit `run_in_background: true` starten und sofort mit
-`TaskOutput` (block, Timeout 600000) auf das Ende warten. Sequenziell bleibt
-es trotzdem: kein zweiter Micro-Task, bevor der erste durch ist. Ausgabe
-nicht durch `tail` oder `grep` leiten - dann siehst du bis zum Ende nichts;
-die Historie steht ohnehin in `.aider.chat.history.md`.
+Vom Repo-Root, genau dieser Befehl. **Headless-Modus ist Pflicht:** `--yes`
+(Auto-Bestaetigung) und `--no-pretty` (reiner Text-Output) gehoeren immer
+dazu, weil aider als Hintergrundprozess ohne menschliche Tastatureingabe
+laeuft - ohne sie blockiert der Prozess an einer Rueckfrage oder verstopft
+die Ausgabe mit Terminal-Steuerzeichen und Fortschrittsbalken.
+
+Ein Lauf dauert Minuten - gemessen 8,5 min fuer eine 178-Zeilen-Datei,
+laenger als das Bash-Timeout von 600 s zulaesst. Deshalb mit
+`run_in_background: true` starten und sofort mit `TaskOutput` (block,
+Timeout 600000) auf das Ende warten. Sequenziell bleibt es trotzdem: kein
+zweiter Micro-Task, bevor der erste durch ist. Ausgabe nicht durch `tail`
+oder `grep` leiten - dann siehst du bis zum Ende nichts; die Historie steht
+ohnehin in `.aider.chat.history.md`.
+
+**Warnung ignorieren:** aider gibt beim Start `Warning: Input is not a
+terminal (fd=0).` aus. Das ist bei programmatischer Ausfuehrung erwartet,
+bedeutet keinen Fehler und unterbricht den Prozess nicht. Nicht darauf
+reagieren, nicht abbrechen - einfach warten, bis der Code geschrieben ist,
+und dann das Ergebnis bewerten. Ebenso harmlos am Ende:
+`Summarization failed ... cannot schedule new futures after shutdown` -
+das ist aiders Chat-Zusammenfassung nach dem Commit, der Commit steht da
+schon.
 
 Die Zieldatei als Argument voranstellen
-(`aider jira-markdown-converter/src/otrslink.js --model ...`) - dann muss das
-Modell sie nicht ueber die Repo-Map finden. Der Rest des Aufrufs bleibt gleich.
+(`aider jira-markdown-converter/src/otrslink.js --model ... --yes --no-pretty`) -
+dann muss das Modell sie nicht ueber die Repo-Map finden. Der Rest des
+Aufrufs bleibt gleich.
 
 `--yes` beantwortet **jede** Rueckfrage mit ja. Drei Rueckfragen sind mit den
 Konfigurationsdateien im Repo-Root abgestellt, ohne sie kippt der Lauf:

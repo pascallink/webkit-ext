@@ -177,8 +177,8 @@ Constraints:
 
 Die Ebene unter Stufe 0 und Stufe 2: ein Stufe-0- oder Stufe-2-Block wird in
 drei bis fuenf Micro-Tasks zerlegt, jeder eine Aenderung an genau einer Datei.
-Der Text unten geht als `local_task.md` per `--message-file` an aider, also
-direkt an `ollama/qwen2.5-coder:14b`. Ablauf, Aufruf, Bewertung und Revert
+Der Text unten geht als `local_task.md` per `--message-file` an aider (headless:
+`--yes --no-pretty`), also direkt an `ollama/qwen2.5-coder:14b`. Ablauf, Aufruf, Bewertung und Revert
 stehen im Skill `.claude/skills/lokale-umsetzung/SKILL.md` - hier steht nur
 das Format.
 
