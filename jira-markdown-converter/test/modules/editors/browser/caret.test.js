@@ -93,11 +93,14 @@ describe('Gemerkte Cursorposition', { skip: !hasPlaywright }, function () {
     await page.evaluate(function () {
       var field = document.querySelector('#description');
       window.JiraEditors.insert(field, '{code}\nx\n{code}', 'block');
-      // Fokus weg vom Feld nehmen (eigener Tick, damit der Fokuswechsel
-      // wirklich greift) - die zweite Einfuegung muss trotzdem hinter dem
-      // Codeblock landen, nicht an der Stelle von vor dem ersten Einfuegen.
+      // Fokus weg vom Feld nehmen - die zweite Einfuegung ist damit auf die
+      // gemerkte Position angewiesen und muss trotzdem hinter dem Codeblock
+      // landen, nicht an der Stelle von vor dem ersten Einfuegen.
       field.blur();
     });
+    // Hier verstreicht bewusst ein Tick, damit das asynchrone
+    // selectionchange feuert - die gemerkte Position muss danach immer noch
+    // hinter dem Codeblock stehen.
     await page.waitForTimeout(50);
     await page.evaluate(function () {
       var field = document.querySelector('#description');
