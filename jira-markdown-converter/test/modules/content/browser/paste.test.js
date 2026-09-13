@@ -157,6 +157,10 @@ describe('Automatik beim Einfuegen', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
+  // Geprueft wird nur die Textarea: insertIntoRich() ist wegen #107-#109
+  // ausdruecklich eingefroren (siehe editors.js), das synthetische
+  // paste-Event traegt dort schon einen Undo-Eintrag - ein eigener
+  // Undo-Fall fuer den Rich-Text-Editor bleibt ausser Scope.
   test('Strg+Z nach der Automatik laesst das Getippte stehen', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser);
@@ -168,19 +172,6 @@ describe('Automatik beim Einfuegen', { skip: !hasPlaywright }, function () {
     assert.strictEqual(await page.inputValue('#description'), 'Vorher \nh1. Titel\n\n* a');
     await page.keyboard.press(UNDO_KEY);
     assert.strictEqual(await page.inputValue('#description'), 'Vorher ');
-    await page.close();
-  });
-
-  // insertIntoRich() ist wegen #107-#109 ausdruecklich eingefroren (siehe
-  // editors.js) - hier nur der Ist-Stand festgehalten: das synthetische
-  // paste-Event traegt bereits einen Undo-Eintrag, ein eigener Undo-Test
-  // dafuer bleibt fuer #96 ausser Scope.
-  test('Undo im Rich-Text-Editor bleibt wie gehabt', async function () {
-    var browser = await browserPromise;
-    var page = await browserLib.newPage(browser);
-    await pasteInto(page, '.ProseMirror', '# Titel\n\n- eins');
-    var text = await page.textContent('.ProseMirror');
-    assert.ok(text.indexOf('h1. Titel') !== -1, 'Editor-Inhalt: ' + text);
     await page.close();
   });
 });
