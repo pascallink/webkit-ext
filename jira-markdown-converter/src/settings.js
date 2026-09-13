@@ -219,6 +219,42 @@
     return result;
   }
 
+  /**
+   * Baut aus dem gespeicherten Wert immer ein frisches Objekt - nie die
+   * DEFAULTS.customerKeyMap-Instanz durchreichen, sonst haengt ein spaeterer
+   * Schreibzugriff auf das withDefaults()-Ergebnis an der geteilten
+   * DEFAULTS-Referenz und veraendert damit auch kuenftige Aufrufe sowie die
+   * an chrome.storage.local.get() uebergebenen LOCAL_DEFAULTS. Ist der Wert
+   * kein Objekt, null oder ein Array, bleibt es beim leeren Objekt. Nur
+   * eigene Eintraege mit Array-Wert zaehlen; der Schluessel wird getrimmt
+   * und grossgeschrieben (leere Schluessel entfallen), der Wert wird auf
+   * getrimmte, nicht leere Strings reduziert (bleibt er leer, entfaellt der
+   * Eintrag). Keine weiteren Limits hier - MAX_KEYS und MAX_TARGETS sind
+   * Sache von JiraMapping.normalizeMap() beim Import; mapping.js laedt nach
+   * settings.js und bleibt darum abhaengigkeitsfrei.
+   */
+  function normalizeCustomerKeyMap(map) {
+    var result = {};
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return result;
+    for (var key in map) {
+      if (!Object.prototype.hasOwnProperty.call(map, key)) continue;
+      var rawValue = map[key];
+      if (!Array.isArray(rawValue)) continue;
+      var normalizedKey = String(key).trim().toUpperCase();
+      if (!normalizedKey) continue;
+      var targets = [];
+      for (var i = 0; i < rawValue.length; i++) {
+        if (typeof rawValue[i] !== 'string') continue;
+        var target = rawValue[i].trim();
+        if (!target) continue;
+        targets.push(target);
+      }
+      if (!targets.length) continue;
+      result[normalizedKey] = targets;
+    }
+    return result;
+  }
+
   function withDefaults(stored) {
     var result = {};
     var key;
@@ -254,9 +290,7 @@
     if (typeof result.customerKeyFieldName !== 'string' || !result.customerKeyFieldName.trim()) {
       result.customerKeyFieldName = DEFAULTS.customerKeyFieldName;
     }
-    if (!result.customerKeyMap || typeof result.customerKeyMap !== 'object' || Array.isArray(result.customerKeyMap)) {
-      result.customerKeyMap = {};
-    }
+    result.customerKeyMap = normalizeCustomerKeyMap(result.customerKeyMap);
     result.customerKeyHighlight = !!result.customerKeyHighlight;
     return result;
   }
