@@ -460,6 +460,11 @@
   // Obergrenze je Durchlauf: eine sehr lange Beschreibung darf den Scan nicht
   // spuerbar verzoegern.
   var MAX_CUSTOMER_KEY_HIGHLIGHTS = 200;
+  // Muster/Zuordnungstabelle des letzten Durchlaufs - erkennt eine Aenderung
+  // zur Laufzeit, damit highlightCustomerKeys() vorhandene Badges mit dem
+  // alten Muster erst entfernt, bevor es mit dem neuen Muster neu aufbaut.
+  var lastHighlightPattern = null;
+  var lastHighlightMap = null;
   // Wurzeln, unter denen Badges wieder entfernt werden - dieselben Container
   // wie customerKeyContainers() sucht, nur als reine Root-Selektoren, damit
   // unhighlightCustomerKeys() auch dann etwas findet, wenn Jira den
@@ -623,8 +628,8 @@
           var parent = span.parentNode;
           if (!parent) continue;
           parent.replaceChild(document.createTextNode(span.textContent), span);
-          parent.normalize();
         }
+        if (spans.length > 0) root.normalize();
       }
     });
   }
@@ -632,16 +637,23 @@
   /**
    * Nur aktiv, wenn settings.customerKeyHighlight an ist und
    * settings.customerKeyPattern ein gueltiges Muster ergibt - sonst werden
-   * vorhandene Badges wieder entfernt (Schalter aus zur Laufzeit).
+   * vorhandene Badges wieder entfernt (Schalter aus zur Laufzeit). Aendert
+   * sich Muster oder Zuordnungstabelle gegenueber dem letzten Durchlauf,
+   * werden vorhandene Badges erst verworfen, damit isHighlightSkipped()
+   * keine Textknoten mit veraltetem title-Attribut uebersieht.
    */
   function highlightCustomerKeys() {
     if (!settings.customerKeyHighlight) {
       unhighlightCustomerKeys();
+      lastHighlightPattern = null;
+      lastHighlightMap = null;
       return;
     }
     var pattern = Mapping.normalizePattern(settings.customerKeyPattern);
     if (!pattern) {
       unhighlightCustomerKeys();
+      lastHighlightPattern = null;
+      lastHighlightMap = null;
       return;
     }
 
@@ -650,6 +662,13 @@
 
     var regex = Mapping.compile(pattern);
     var map = settings.customerKeyMap || {};
+
+    if (pattern !== lastHighlightPattern || map !== lastHighlightMap) {
+      unhighlightCustomerKeys();
+      lastHighlightPattern = pattern;
+      lastHighlightMap = map;
+    }
+
     var budget = MAX_CUSTOMER_KEY_HIGHLIGHTS;
 
     withObserverPaused(function () {
@@ -2492,10 +2511,12 @@
       updateFieldbarTemplateButtons();
       updateFieldbarKeyButtons();
       updateFieldbarOtrsButtons();
-      // Schalter customerKeyHighlight/customerKeyPattern zur Laufzeit
-      // umgeschaltet (z. B. auf einem zweiten Tab): highlightCustomerKeys()
-      // entfernt vorhandene Badges selbst wieder, wenn der Schalter jetzt
-      // aus ist oder das Muster ungueltig wurde.
+      // Schalter customerKeyHighlight/customerKeyPattern/customerKeyMap zur
+      // Laufzeit umgeschaltet (z. B. auf einem zweiten Tab):
+      // highlightCustomerKeys() entfernt vorhandene Badges selbst wieder,
+      // wenn der Schalter jetzt aus ist oder das Muster ungueltig wurde -
+      // bei geaendertem Muster oder geaenderter Zuordnungstabelle werden
+      // vorhandene Badges verworfen und mit dem neuen Stand neu gesetzt.
       highlightCustomerKeys();
       // Ein offenes Vorlagenmenue kann durch eine Aenderung in einem
       // zweiten Tab veraltet sein (Vorlage geloescht/umbenannt).
