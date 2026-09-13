@@ -87,6 +87,25 @@ describe('JiraUi - DOM-Helfer gegen AUI-Dialoge', { skip: !hasPlaywright }, func
     await page.close();
   });
 
+  /*
+   * Sichert das Geruest der Fixture, nicht JiraUi: der vorbelegte Wert des
+   * Custom-Field-Dialogs wird als Eigenschaft gesetzt, nicht in das
+   * value-Attribut konkateniert. Mit einem Anfuehrungszeichen im Wert bricht
+   * die Konkatenation aus dem Attribut aus und der Wert kommt verstuemmelt an.
+   */
+  test('vorbelegter Wert ueberlebt ein Anfuehrungszeichen', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage(browser);
+    var value = await page.evaluate(function () {
+      window.__setCustomFieldValue('Ticket#4711 "Modul A" zu B');
+      window.__openCustomFieldDialog();
+      return window.JiraUi.waitForElement('#customfield_11000', { timeout: 1000 })
+        .then(function (field) { return field.value; });
+    });
+    assert.strictEqual(value, 'Ticket#4711 "Modul A" zu B');
+    await page.close();
+  });
+
   test('setValue schreibt den Wert und loest genau ein input-Ereignis aus', async function () {
     var browser = await browserPromise;
     var page = await loadPage(browser);

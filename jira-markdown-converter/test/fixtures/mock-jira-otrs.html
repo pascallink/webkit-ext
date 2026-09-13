@@ -64,9 +64,10 @@
         document.body.appendChild(node);
       }
 
-      function afterDelay(html) {
+      function afterDelay(html, nachher) {
         setTimeout(function () {
           appendHtml(html);
+          if (nachher) nachher();
         }, 120);
       }
 
@@ -95,11 +96,17 @@
         '</div>' +
         '</div>';
 
+      /*
+       * Der vorbelegte Wert wird nach dem Einhaengen als Eigenschaft gesetzt,
+       * nicht in das value-Attribut konkateniert: __setCustomFieldValue()
+       * nimmt beliebigen Text an, und ein Anfuehrungszeichen darin braeche
+       * sonst aus dem Attribut aus.
+       */
       function customFieldDialogHtml() {
         return '<div id="customfield-dialog" class="aui-dialog2 aui-dialog2-medium">' +
           '<div class="aui-dialog2-header"><h2 class="aui-dialog2-header-main">Kunden Referenz bearbeiten</h2></div>' +
           '<div class="aui-dialog2-content">' +
-          '<input id="customfield_11000" type="text" value="' + customFieldValue + '">' +
+          '<input id="customfield_11000" type="text">' +
           '</div>' +
           '<div class="aui-dialog2-footer"><div class="aui-dialog2-footer-actions">' +
           '<button type="button" class="aui-button aui-button-primary">Aktualisieren</button>' +
@@ -135,7 +142,9 @@
         afterDelay(QUICK_SEARCH_HTML);
       };
       window.__openCustomFieldDialog = function () {
-        afterDelay(customFieldDialogHtml());
+        afterDelay(customFieldDialogHtml(), function () {
+          document.getElementById('customfield_11000').value = customFieldValue;
+        });
       };
       window.__openLinkDialog = function () {
         afterDelay(LINK_DIALOG_HTML);
