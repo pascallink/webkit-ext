@@ -35,7 +35,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `package` | `manifest.json`, `docs/store/` | 32 Node | alle |
 | `mapping` *(reserviert)* | `src/mapping.js` *(geplant)* | - | **#32** |
 | `ext` | Erweiterung als Ganzes | 8 Browser | #104 |
-| `otrs` | `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | 16 Node + 27 Browser | #17, #103 |
+| `otrs` | `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | 16 Node + 33 Browser | #17, #103 |
 
 `mapping` bekommt seinen Ordner erst mit dem jeweiligen Feature -
 die Zeile hier reserviert nur den Namen, damit ein neues Modul nicht zufaellig

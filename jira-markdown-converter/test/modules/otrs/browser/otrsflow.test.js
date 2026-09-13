@@ -69,6 +69,18 @@ describe('JiraOtrsFlow.run - Ablauf gegen den Nachbau von 9.12', { skip: !hasPla
     var saved = await page.evaluate(function () { return window.__mock.saved.kundenReferenz; });
     assert.strictEqual(saved, PARSED.reference);
     await page.close();
+
+    // Zweiter Durchlauf auf einer frischen Seite ohne vorbelegtes Feld:
+    // previousReference muss leer bleiben, der geschriebene Wert bleibt
+    // trotzdem PARSED.reference.
+    var pageLeer = await loadPage(browser);
+    var resultLeer = await pageLeer.evaluate(function (parsed) {
+      return window.JiraOtrsFlow.run(parsed, {});
+    }, PARSED);
+    assert.strictEqual(resultLeer.previousReference, '');
+    var savedLeer = await pageLeer.evaluate(function () { return window.__mock.saved.kundenReferenz; });
+    assert.strictEqual(savedLeer, PARSED.reference);
+    await pageLeer.close();
   });
 
   /**
@@ -79,8 +91,10 @@ describe('JiraOtrsFlow.run - Ablauf gegen den Nachbau von 9.12', { skip: !hasPla
    * laufen (#wrap-labels .labels-wrap.editable-field bzw.
    * #opsbar-operations_more -> #link-issue). Kunden Referenz ist in 9.12
    * ausschliesslich ueber den Shifter erreichbar - ein inline stehendes
-   * Feld deckt hier nur locateReferenceFallback ab und ist nicht
-   * Pruefgegenstand dieses Falls.
+   * Feld deckt hier zusaetzlich die Prioritaet der beiden Selektoren in
+   * locateReferenceFallback ab: ein fremdes Custom Field steht zuerst im
+   * Dokument und muss unberuehrt bleiben, erst danach folgt das echte
+   * Feld "Kunden Referenz".
    */
   test('ohne Shortcuts laufen Label und Web-Link ueber die sichtbaren Trigger', async function () {
     var browser = await browserPromise;
@@ -92,6 +106,11 @@ describe('JiraOtrsFlow.run - Ablauf gegen den Nachbau von 9.12', { skip: !hasPla
           event.preventDefault();
         }
       }, true);
+      var fremd = document.createElement('div');
+      fremd.className = 'customfield';
+      fremd.setAttribute('data-field-name', 'Anderes Feld');
+      fremd.innerHTML = '<input type="text" id="fremdes-feld" value="">';
+      document.body.appendChild(fremd);
       var inline = document.createElement('div');
       inline.className = 'customfield';
       inline.setAttribute('data-field-name', 'Kunden Referenz');
@@ -105,6 +124,14 @@ describe('JiraOtrsFlow.run - Ablauf gegen den Nachbau von 9.12', { skip: !hasPla
     var saved = await page.evaluate(function () { return window.__mock.saved; });
     assert.strictEqual(saved.labels, PARSED.label);
     assert.deepStrictEqual(saved.weblink, { url: PARSED.url, title: PARSED.linkText });
+    var werte = await page.evaluate(function () {
+      return {
+        fremdesFeld: document.getElementById('fremdes-feld').value,
+        kundenReferenz: document.querySelector('[data-field-name="Kunden Referenz"] input').value
+      };
+    });
+    assert.strictEqual(werte.fremdesFeld, '');
+    assert.strictEqual(werte.kundenReferenz, PARSED.reference);
     await page.close();
   });
 
