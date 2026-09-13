@@ -53,6 +53,7 @@
   var tryInput = document.getElementById('tryInput');
   var tryOutput = document.getElementById('tryOutput');
   var saveTimer = null;
+  var MAX_IMPORT_BYTES = 1048576;
 
   var customerKeyPatternField = document.getElementById('customerKeyPattern');
   var customerKeyFieldNameField = document.getElementById('customerKeyFieldName');
@@ -116,7 +117,8 @@
     var normalized = Mapping.normalizePattern(trimmed);
     if (!normalized) {
       setPatternError('Muster ist ungueltig oder zu aufwendig - gespeichert wurde der letzte gueltige Stand.', true);
-      return settings.customerKeyPattern;
+      var fallback = Mapping.normalizePattern(settings.customerKeyPattern);
+      return fallback || Settings.DEFAULTS.customerKeyPattern;
     }
     setPatternError('', false);
     return normalized;
@@ -332,7 +334,11 @@
     renderTemplates();
     customerKeyPatternField.value = settings.customerKeyPattern;
     customerKeyFieldNameField.value = settings.customerKeyFieldName;
-    setPatternError('', false);
+    if (settings.customerKeyPattern && !Mapping.normalizePattern(settings.customerKeyPattern)) {
+      setPatternError('Muster ist ungueltig oder zu aufwendig - gespeichert wurde der letzte gueltige Stand.', true);
+    } else {
+      setPatternError('', false);
+    }
     customerKeyMap = settings.customerKeyMap || {};
     updateCkCount();
     refreshPreview();
@@ -499,6 +505,11 @@
     disarmReset();
     var file = event.target.files && event.target.files[0];
     if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) {
+      sayCk('Datei ist zu gross (hoechstens 1 MB).', true);
+      event.target.value = '';
+      return;
+    }
     var reader = new FileReader();
     reader.onload = function () {
       ckJson.value = String(reader.result || '');
