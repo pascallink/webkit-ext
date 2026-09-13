@@ -33,7 +33,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `popup` | `popup/` | 5 Browser | - |
 | `background` | `src/background.js` | 16 Node | #32 |
 | `package` | `manifest.json`, `docs/store/` | 34 Node | alle |
-| `mapping` | `src/mapping.js` | 44 Node | #32 |
+| `mapping` | `src/mapping.js`, `src/keysync.js` | 44 Node + 6 Browser | #32 |
 | `ext` | Erweiterung als Ganzes | 8 Browser | #104 |
 | `otrs` | `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | 16 Node + 33 Browser | #17, #103 |
 
@@ -42,6 +42,11 @@ PRs, siehe `docs/plans/issue-32-customerkeys.md`) Zuordnungstabelle,
 Musterpruefung und Textanreicherung als reine Node-Logik; `src/mapping.js`
 steht im Manifest, wird aber erst ab Sub-Task 3 von `content.js` aufgerufen -
 `package/sources.test.js` nimmt es bis dahin von der Verdrahtungspruefung aus.
+Seit Sub-Task 4 gehoert `src/keysync.js` dazu: uebernimmt einen per
+`JiraMapping.findKeys()` gefundenen Kunden-Schluessel aus der Beschreibung in
+Label und Custom Field, denselben Weg wie `src/otrsflow.js` (Shortcut, dann
+DOM-Fallback, `JiraUi`). Die Browser-Tests laufen gegen `fixtures.JIRA912`
+(nicht `fixtures.OTRS`, siehe otrs-Zeile unten und `verdrahtung.test.js`).
 `otrs` - Quellen stehen seit dem OTRS-Link-Helfer (1.4.0, Issue #17)
 wieder im Manifest, laufen aber nicht in `STANDALONE_FILES` mit (nur im echten
 Jira-Vorgang sinnvoll); die Modul-Tests laden sie unabhaengig davon weiter
@@ -74,7 +79,7 @@ jira-markdown-converter/test/
                   httpkontext,robustheit,spaetleiste,standalone}.test.js
     dialogs/      browser/{code,panel,placeholder}.test.js
     editlock/     browser/{inline,description,dialogs,versteckt}.test.js
-    mapping/      mapping.test.js
+    mapping/      mapping.test.js     browser/keysync.test.js
     options/      browser/templates.test.js
     ext/          browser/{welt,storage,worker,popup,eingabe}.test.js
     otrs/         otrslink.test.js  browser/{jiraui,otrsflow,otrsdialog}.test.js

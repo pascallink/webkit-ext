@@ -18,6 +18,7 @@
   var OtrsFlow = window.JiraOtrsFlow;
   var OtrsDialog = window.JiraOtrsDialog;
   var Mapping = window.JiraMapping;
+  var KeySync = window.JiraKeySync;
 
   // Fremde Seite (kein Jira): src/background.js spielt hier STANDALONE_FILES
   // ein und setzt window.__jiraMarkdownStandalone schon vor den Dateien
@@ -45,6 +46,20 @@
   if (!Mapping) {
     Mapping = {
       enrich: function (text) { return { text: text, count: 0 }; }
+    };
+  }
+
+  // Ohne keysync.js (z. B. eine veraltete gecachte Ladeliste, oder der
+  // Standalone-Modus, der die Datei bewusst nicht einspielt - siehe
+  // STANDALONE_EXCLUDED in src/background.js) gaebe es kein
+  // window.JiraKeySync - dieselbe Absicherung wie bei Mapping: eine
+  // wirkungslose Huelle haelt syncCustomerKey() und die Feldleiste
+  // lauffaehig, statt sie mit einem Wurf zu zerlegen.
+  if (!KeySync) {
+    KeySync = {
+      keysInDescription: function () { return []; },
+      descriptionText: function () { return ''; },
+      run: function () { return Promise.reject(new Error('Kunden-Schluessel-Abgleich nicht verfuegbar')); }
     };
   }
 
@@ -339,6 +354,50 @@
     // Schreibzugriff wuerde den Editor-Zustand auseinanderlaufen lassen.
     // Nur die Rueckmeldung, keine Anreicherung.
     toast('Dieses Feld kann nicht angereichert werden.', true);
+  }
+
+  /**
+   * Eintraege des Keys-Dropdowns (erweitertes Editor-Dropdown, Issue #32):
+   * "Aus Beschreibung uebernehmen" erscheint nur, wenn ein Custom-Field-Name
+   * hinterlegt ist und die Seite eine Vorgangsansicht ist - ohne beides gibt
+   * es weder ein Ziel-Feld noch (auf z. B. dem Dashboard) eine Beschreibung.
+   */
+  function customerKeyMenuItems() {
+    var items = [{ id: 'enrich', label: 'Im Feld ergaenzen' }];
+    if (settings.customerKeyFieldName && isIssuePage()) {
+      items.push({ id: 'sync', label: 'Aus Beschreibung uebernehmen' });
+    }
+    return items;
+  }
+
+  /**
+   * Uebernimmt den Kunden-Schluessel aus der Beschreibung des Vorgangs: liest
+   * die Leseansicht ueber KeySync.descriptionText() (nie einen Editor oder
+   * eine Textarea) und sucht darin ueber KeySync.keysInDescription() nach
+   * Kunden-Schluesseln. Bei genau einem Treffer setzt KeySync.run() Label und
+   * Custom Field. Bei mehreren verschiedenen Treffern wird nicht geraten -
+   * der Ablauf bricht ab und fordert die manuelle Eingabe.
+   */
+  function syncCustomerKey() {
+    var text = KeySync.descriptionText(document);
+    var keys = KeySync.keysInDescription(text, settings.customerKeyPattern);
+
+    if (!keys.length) {
+      toast('Kein Kunden-Schluessel in der Beschreibung gefunden.', true);
+      return;
+    }
+    if (keys.length > 1) {
+      toast('Mehrere verschiedene Kunden-Schluessel gefunden - bitte von Hand setzen.', true);
+      return;
+    }
+
+    KeySync.run({ key: keys[0], fieldName: settings.customerKeyFieldName, doc: document })
+      .then(function () {
+        toast('Kunden-Schluessel ' + keys[0] + ' uebernommen.');
+      })
+      .catch(function (error) {
+        toast(error.message, true);
+      });
   }
 
   /* ------------------------------------------------------------------ *
@@ -1691,10 +1750,22 @@
     keysButton.type = 'button';
     keysButton.className = 'jmd-fieldbar__btn jmd-fieldbar__btn--keys';
     keysButton.textContent = 'Keys';
+    keysButton.setAttribute('aria-haspopup', 'true');
+    keysButton.setAttribute('aria-expanded', 'false');
     keysButton.addEventListener('click', function (event) {
       event.preventDefault();
       target = field;
-      enrichCustomerKeys(field);
+      toggleMenu(keysButton, {
+        label: 'Kunden-Schluessel',
+        items: customerKeyMenuItems(),
+        onPick: function (entry) {
+          if (entry.id === 'sync') {
+            syncCustomerKey();
+            return;
+          }
+          enrichCustomerKeys(field);
+        }
+      });
     });
     showCustomerKeysButton(keysButton);
 

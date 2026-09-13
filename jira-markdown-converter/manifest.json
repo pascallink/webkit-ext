@@ -38,6 +38,7 @@
         "src/jiraui.js",
         "src/otrsflow.js",
         "src/otrsdialog.js",
+        "src/keysync.js",
         "src/content.js"
       ],
       "css": [
