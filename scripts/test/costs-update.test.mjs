@@ -270,6 +270,36 @@ test('unbekanntes Modell wird mit 0 USD gewertet, kein harter Fehler', (t) => {
   ]);
 });
 
+test('synthetic-Platzhalter-Turns tauchen nicht als Modellzeile auf', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const opusUsage = { input_tokens: 1_000, output_tokens: 500, cache_read_input_tokens: 0 };
+  const syntheticUsage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 };
+  const transcript = writeTranscript(dir, 'sess-synthetic', [
+    assistantLine({
+      requestId: 'req-opus',
+      messageId: 'msg-opus',
+      model: 'claude-test-model',
+      usage: opusUsage,
+    }),
+    assistantLine({
+      requestId: 'req-synthetic',
+      messageId: 'msg-synthetic',
+      model: '<synthetic>',
+      usage: syntheticUsage,
+    }),
+  ]);
+
+  const result = runScript(dir, ['--transcript', transcript]);
+  assert.equal(result.status, 0);
+
+  const tokens = readCsvRows(dir, 'tokens.csv');
+  const models = tokens.rows.map((row) => row[2]);
+  assert.ok(models.includes('claude-test-model'));
+  assert.ok(!models.includes('<synthetic>'));
+});
+
 test('zaehlt Subagenten-Transcripts mit', (t) => {
   const dir = initRepo();
   t.after(() => cleanup(dir));

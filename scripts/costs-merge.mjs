@@ -24,6 +24,10 @@ import { fileURLToPath } from 'node:url';
 import gh from './lib/github.js';
 
 const COST_MARKER = 'cost-summary';
+// Platzhalter-Modell, das Claude Code fuer abgebrochene/leere Turns schreibt.
+// costs-update.mjs verbucht es nicht mehr; hier kommt es nur noch aus
+// Altbestaenden der CSVs an.
+const SYNTHETIC_MODEL = '<synthetic>';
 // Unsichtbarer Marker im Kommentartext - daran erkennt ein zweiter Lauf den
 // eigenen Kommentar wieder, statt ihn noch einmal zu posten.
 const COMMENT_MARKER = '<!-- cost-summary:comment -->';
@@ -179,6 +183,19 @@ export function aggregate(costsRows, tokensRows, branch) {
   }
   for (const bucket of perModel.values()) {
     bucket.costUsd = Number(bucket.costUsd.toFixed(4));
+  }
+  // Altzeilen mit dem synthetic-Platzhaltermodell (kein Token) sollen weder
+  // in die Zusammenfassung noch in die Historie. Es geht um Token = 0, nicht
+  // um costUsd = 0 - ein unbekanntes Modell hat Token, aber 0 USD, und muss
+  // sichtbar bleiben.
+  const syntheticBucket = perModel.get(SYNTHETIC_MODEL);
+  if (syntheticBucket) {
+    const tokenSum =
+      syntheticBucket.input +
+      syntheticBucket.output +
+      syntheticBucket.cache_read +
+      syntheticBucket.cache_write;
+    if (tokenSum === 0) perModel.delete(SYNTHETIC_MODEL);
   }
 
   return { totalUsd: Number(totalUsd.toFixed(4)), sessions: sessions.size, perModel };

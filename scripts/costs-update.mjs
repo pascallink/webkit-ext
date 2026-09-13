@@ -29,6 +29,10 @@ import { execFileSync } from 'node:child_process';
 const STATE_DIR_PARTS = ['.claude', 'state', 'costs'];
 const STATE_SCHEMA = 1;
 
+// Platzhalter-Modell, das Claude Code fuer abgebrochene/leere Turns schreibt.
+// Traegt nie Token, daher weder Modellzeile noch Kosten dafuer anlegen.
+const SYNTHETIC_MODEL = '<synthetic>';
+
 const COSTS_HEADER = ['branch', 'session_id', 'updated_at', 'cost_usd'];
 const TOKENS_HEADER = [
   'branch',
@@ -464,6 +468,7 @@ async function collectUsage(filePath, state) {
       if (entry.type !== 'assistant') continue;
       const usage = entry.message && entry.message.usage;
       if (!usage) continue;
+      if (entry.message.model === SYNTHETIC_MODEL) continue;
 
       // Dedupe: Retries und Streaming erzeugen sonst Doppel derselben Antwort.
       // Fehlen requestId und message.id beide, macht Dateipfad + Zeilennummer
