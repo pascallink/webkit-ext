@@ -133,6 +133,10 @@
   // wenn Jira ihn ausgetauscht hat.
   var areas = typeof WeakMap === 'function' ? new WeakMap() : null;
 
+  // Inhalt beim Einfrieren, fuer den Vergleich in onBeforeUnload(). Fehlt ein
+  // Feld hier, wird sicherheitshalber trotzdem gefragt (siehe onBeforeUnload).
+  var snapshots = typeof WeakMap === 'function' ? new WeakMap() : null;
+
   function editArea(field) {
     var known = areas ? areas.get(field) : null;
     if (known && known.isConnected && known.contains && known.contains(field)) return known;
@@ -244,8 +248,26 @@
     if (insideAnyLock(event.target)) block(event);
   }
 
+  /**
+   * Nachfragen soll nur, wer noch bedienbar ist und dessen Inhalt sich seit
+   * dem Einfrieren geaendert hat. Ein verstecktes Feld sieht niemand mehr,
+   * ein unveraendertes bringt nichts zum Verlieren. Fehlt der Snapshot (kein
+   * WeakMap, oder keine Editors-API), wird sicherheitshalber trotzdem
+   * gefragt - sonst warnt ein uebernommener Nachfolger stillschweigend
+   * nicht mehr.
+   */
+  function needsConfirmation() {
+    for (var i = 0; i < locks.length; i++) {
+      var field = locks[i];
+      if (!isUsable(field)) continue;
+      var known = snapshots ? snapshots.get(field) : undefined;
+      if (known === undefined || known !== contentOf(field)) return true;
+    }
+    return false;
+  }
+
   function onBeforeUnload(event) {
-    if (!locks.length) return;
+    if (!needsConfirmation()) return;
     event.preventDefault();
     // Aeltere Browser brauchen einen gesetzten Rueckgabewert.
     event.returnValue = '';
@@ -306,6 +328,7 @@
     if (indexIn(opened, field) !== -1) return false;
     if (!isFreezable(field)) return false;
     locks.push(field);
+    if (snapshots) snapshots.set(field, contentOf(field));
     listen();
     showState();
     return true;
@@ -354,12 +377,51 @@
     return next;
   }
 
-  /** Ersetzt weggeraeumte Felder durch ihren Nachfolger, sonst fallen sie raus. */
+  /**
+   * Bedienbar ist ein Feld, wenn Editors.isUsable() das so sieht - Sichtbarkeit
+   * oder ein aktiver Rich-Text-Rahmen darueber. Ohne API (Node-Tests, kein
+   * window.JiraEditors) faellt das auf isConnected zurueck, die einzige
+   * damals pruefbare Auskunft.
+   */
+  function isUsable(field) {
+    var api = editors();
+    if (api && api.isUsable) return api.isUsable(field);
+    return !!(field && field.isConnected);
+  }
+
+  /**
+   * Inhalt der Schreibflaeche eines Feldes - im Rich-Text-Modus die
+   * Editor-Flaeche, sonst das Feld selbst (editingSurface() faellt darauf
+   * zurueck). Ohne API (Node/kein window.JiraEditors) leerer String: dort
+   * gibt es keine Vergleichsbasis, onBeforeUnload() fragt dann ueber den
+   * fehlenden Snapshot trotzdem weiter.
+   */
+  function contentOf(field) {
+    var api = editors();
+    if (!api || !api.getText) return '';
+    var surface = api.editingSurface ? api.editingSurface(field) || field : field;
+    return api.getText(surface);
+  }
+
+  /**
+   * Ersetzt weggeraeumte Felder durch ihren Nachfolger, sonst fallen sie raus.
+   * Massstab ist Bedienbarkeit, nicht blosse DOM-Zugehoerigkeit: Jira 9.12.2
+   * entfernt das Formular beim Schliessen (isConnected wird false), andere
+   * Feldtypen und Add-ons verstecken es nur (display:none/hidden, isConnected
+   * bleibt true) - beides soll die Sperre abgeben, sonst haengt der
+   * Bearbeitungsmodus an einem Feld, das niemand mehr erreichen kann (Issue
+   * #89). successorOf() prueft api.isUsable(next) bereits selbst, ein
+   * versteckter Nachfolger faellt damit ebenfalls raus.
+   */
   function follow(list) {
     var kept = [];
     for (var i = 0; i < list.length; i++) {
       var field = list[i];
-      var live = field.isConnected ? field : successorOf(field);
+      var live = (field.isConnected && isUsable(field)) ? field : successorOf(field);
+      if (live && live !== field && snapshots) {
+        var known = snapshots.get(field);
+        if (known !== undefined) snapshots.set(live, known);
+      }
       if (live && indexIn(kept, live) === -1) kept.push(live);
     }
     return kept;

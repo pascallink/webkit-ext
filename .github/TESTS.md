@@ -28,7 +28,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `editors` | `src/editors.js` | 24 Browser | #31, #32 |
 | `content` | `src/content.js`, `src/content.css` | 65 Browser | #31, #32 |
 | `dialogs` | `src/codedialog.js`, `src/templatedialog.js`, `src/codedialog.css` | 50 Browser | #31 |
-| `editlock` | `src/editlock.js` | 28 Browser | #63, #90, #111, #112 |
+| `editlock` | `src/editlock.js` | 31 Browser | #63, #89, #90, #111, #112 |
 | `options` | `options/` | 8 Browser | #31, #32 |
 | `popup` | `popup/` | 5 Browser | - |
 | `background` | `src/background.js` | 16 Node | #32 |
@@ -67,7 +67,7 @@ jira-markdown-converter/test/
     editors/      browser/{server,rte,caret}.test.js
     content/      browser/{fab,panel,paste,blockmakros,fieldbar,robustheit}.test.js
     dialogs/      browser/{code,panel,placeholder}.test.js
-    editlock/     browser/{inline,description,dialogs}.test.js
+    editlock/     browser/{inline,description,dialogs,versteckt}.test.js
     options/      browser/templates.test.js
     ext/          browser/{welt,storage,worker,popup,eingabe}.test.js
     otrs/         otrslink.test.js  browser/{jiraui,otrsflow,otrsdialog}.test.js

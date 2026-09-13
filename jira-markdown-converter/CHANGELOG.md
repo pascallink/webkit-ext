@@ -9,6 +9,9 @@ festgehalten. Das Format orientiert sich an
 
 ### Geaendert
 
+- Die Sperre faellt weg, sobald das Feld nicht mehr bedienbar ist (versteckt,
+  entfernt, Modus umgeschaltet).
+- Nachfrage beim Verlassen nur noch bei sichtbarem, geaendertem Feld (Issue #89).
 - Die vier OTRS-Dateien (`otrslink`, `jiraui`, `otrsflow`, `otrsdialog`) waren
   zwischenzeitlich aus `manifest.json` genommen, weil sie noch nicht
   verdrahtet waren (Issue #103); mit dem OTRS-Link-Helfer aus 1.4.0 stehen

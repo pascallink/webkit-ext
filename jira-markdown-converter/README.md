@@ -279,7 +279,8 @@ Solange das Schloss zu ist:
 * Kleine Auswahlfelder (Labels, Versionen, Picker) frieren nie ein.
 * `Escape` bricht das Bearbeiten nicht ab.
 * Wer die Seite verlaesst oder neu laedt, wird vom Browser gefragt, ob er das
-  wirklich will.
+  wirklich will – aber nur, wenn das eingefrorene Feld noch bedienbar ist und
+  sein Inhalt sich seit dem Einfrieren geaendert hat.
 * *Speichern* und *Abbrechen* funktionieren normal – genau wie die
   Werkzeugleiste und der Umschalter zwischen *Visuell* und *Text*. Zum Feld
   gehoert der ganze Block, den Jira beim Bearbeiten aufbaut, nicht nur das
