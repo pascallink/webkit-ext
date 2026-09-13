@@ -251,10 +251,9 @@
   /**
    * Nachfragen soll nur, wer noch bedienbar ist und dessen Inhalt sich seit
    * dem Einfrieren geaendert hat. Ein verstecktes Feld sieht niemand mehr,
-   * ein unveraendertes bringt nichts zum Verlieren. Fehlt der Snapshot (kein
-   * WeakMap, oder keine Editors-API), wird sicherheitshalber trotzdem
-   * gefragt - sonst warnt ein uebernommener Nachfolger stillschweigend
-   * nicht mehr.
+   * ein unveraendertes bringt nichts zum Verlieren. Fehlt die WeakMap, gibt
+   * es keinen Snapshot und es wird sicherheitshalber trotzdem gefragt -
+   * sonst warnt ein uebernommener Nachfolger stillschweigend nicht mehr.
    */
   function needsConfirmation() {
     for (var i = 0; i < locks.length; i++) {
@@ -392,9 +391,10 @@
   /**
    * Inhalt der Schreibflaeche eines Feldes - im Rich-Text-Modus die
    * Editor-Flaeche, sonst das Feld selbst (editingSurface() faellt darauf
-   * zurueck). Ohne API (Node/kein window.JiraEditors) leerer String: dort
-   * gibt es keine Vergleichsbasis, onBeforeUnload() fragt dann ueber den
-   * fehlenden Snapshot trotzdem weiter.
+   * zurueck). Ohne API (Node/kein window.JiraEditors) liefert contentOf()
+   * fuer Snapshot und Vergleich denselben leeren String, eine Nachfrage
+   * kommt dort also nicht zustande - in der Erweiterung ist das ohne
+   * Belang, weil editors.js laut manifest.json vor editlock.js laedt.
    */
   function contentOf(field) {
     var api = editors();
