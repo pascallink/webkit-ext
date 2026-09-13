@@ -1377,18 +1377,23 @@
   }
 
   /**
-   * Loest Beobachtungen fuer Felder, die Jira beim Umbau des DOM bereits
-   * entfernt hat - sonst haeufen sich bei jedem Neuaufbau weitere
-   * ResizeObserver an, ohne dass ihr Feld je wieder waechst. Die beobachtete
-   * Box kann dabei auch verschwinden, waehrend das Feld selbst stehen bleibt
-   * (Jira baut den TinyMCE-Rahmen neu auf) - auch dann muss der Eintrag
-   * fallen, sonst bleibt jmdGrowthWatched haengen und der naechste Scan
-   * ueberspringt das Feld dauerhaft, ohne den neuen Rahmen zu beobachten.
+   * Loest Beobachtungen, deren Eintrag nicht mehr zur aktuellen Box des
+   * Feldes passt - sonst haeufen sich bei jedem Umbau weitere ResizeObserver
+   * an, ohne dass ihr Feld je wieder waechst. Das faellt sowohl beim
+   * ausgetauschten TinyMCE-Rahmen (Commit 9b4a0af) als auch beim Umschalten
+   * auf Markup (Issue #208) an: der alte Rahmen bleibt dabei im DOM, nur
+   * unsichtbar (display:none), also liefert isConnected allein keinen
+   * verlaesslichen Treffer mehr. Die Box wird deshalb wortgleich zu
+   * attachFieldButtons() neu bestimmt; weicht sie vom beobachteten Eintrag
+   * ab oder ist das Feld selbst weg, faellt der Eintrag - sonst bleibt
+   * jmdGrowthWatched haengen und der naechste Scan ueberspringt das Feld
+   * dauerhaft, ohne die neue Box zu beobachten.
    */
   function cleanupGrowthWatchers() {
     for (var i = growthWatchers.length - 1; i >= 0; i--) {
       var entry = growthWatchers[i];
-      if (!entry.field.isConnected || !entry.box || !entry.box.isConnected) {
+      var box = Editors.isRichTextActive(entry.field) ? Editors.richTextFrame(entry.field) : entry.field;
+      if (!entry.field.isConnected || box !== entry.box) {
         stopWatchingGrowth(entry);
       }
     }

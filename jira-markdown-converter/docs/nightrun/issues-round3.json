@@ -1,0 +1,88 @@
+{
+  "root_base": "docs/issue-179-claude-md-otrs-ascii",
+  "project": "jira-markdown-converter",
+  "order": [
+    [
+      "N01"
+    ],
+    [
+      "N02"
+    ],
+    [
+      "N03"
+    ],
+    [
+      "N04"
+    ],
+    [
+      "N05"
+    ]
+  ],
+  "issues": {
+    "N01": {
+      "number": 207,
+      "file": null,
+      "title": "converter.js: noformat-Rumpf fuer alle Jira-Escapes entmaskieren",
+      "labels": [
+        "nightrun-minor",
+        "area:converter"
+      ],
+      "max_rounds": 2,
+      "source_pr": 181,
+      "target_file": "jira-markdown-converter/src/converter.js",
+      "model": "sonnet"
+    },
+    "N02": {
+      "number": 208,
+      "file": null,
+      "title": "content.js: cleanupGrowthWatchers gegen die aktuelle Box des Feldes pruefen",
+      "labels": [
+        "nightrun-minor",
+        "area:content"
+      ],
+      "max_rounds": 2,
+      "source_pr": 183,
+      "target_file": "jira-markdown-converter/src/content.js",
+      "model": "sonnet"
+    },
+    "N03": {
+      "number": 209,
+      "file": null,
+      "title": "undo.test.js: Zwischen-Assert nach dem Einfuegen ergaenzen",
+      "labels": [
+        "nightrun-minor",
+        "area:test"
+      ],
+      "max_rounds": 2,
+      "source_pr": 185,
+      "target_file": "jira-markdown-converter/test/modules/editors/browser/undo.test.js",
+      "model": "sonnet"
+    },
+    "N04": {
+      "number": 210,
+      "file": null,
+      "title": "spaetleiste.test.js: Dauerscan-Satz im Dateikopf auf den rows-Fall einschraenken",
+      "labels": [
+        "nightrun-minor",
+        "area:test"
+      ],
+      "max_rounds": 2,
+      "source_pr": 188,
+      "target_file": "jira-markdown-converter/test/modules/content/browser/spaetleiste.test.js",
+      "model": "haiku"
+    },
+    "N05": {
+      "number": 211,
+      "file": null,
+      "title": "TESTS.md: geloeschten Schlussabsatz im Abschnitt Ebene ext wiederherstellen",
+      "labels": [
+        "nightrun-minor",
+        "documentation"
+      ],
+      "max_rounds": 2,
+      "source_pr": 195,
+      "target_file": ".github/TESTS.md",
+      "model": "haiku"
+    }
+  }
+}
