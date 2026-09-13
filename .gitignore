@@ -10,6 +10,7 @@ node_modules/
 .aider*
 !.aider.conf.yml
 !.aider.model.settings.yml
+!.aiderignore
 
 # Auftragsdatei der lokalen Umsetzung - immer temporaer, nie in einem Commit.
 local_task.md

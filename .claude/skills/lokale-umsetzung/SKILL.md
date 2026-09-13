@@ -58,24 +58,42 @@ Vorgaben-Block, der in jeden einzelnen Auftrag gehoert.
 aider --model ollama/qwen2.5-coder:14b --message-file local_task.md --yes
 ```
 
-Vom Repo-Root, im Vordergrund, ein Lauf dauert Minuten. Nicht mit
-`run_in_background` starten - du brauchst das Ergebnis, bevor der naechste
-Micro-Task startet.
+Vom Repo-Root. Ein Lauf dauert Minuten - laenger als das Bash-Timeout von
+600 s zulaesst. Deshalb mit `run_in_background: true` starten und sofort mit
+`TaskOutput` (block, Timeout 600000) auf das Ende warten. Sequenziell bleibt
+es trotzdem: kein zweiter Micro-Task, bevor der erste durch ist. Ausgabe
+nicht durch `tail` oder `grep` leiten - dann siehst du bis zum Ende nichts;
+die Historie steht ohnehin in `.aider.chat.history.md`.
 
-`OLLAMA_API_BASE`, Kontextfenster und die Modell-Warnungen stehen in
-`.aider.conf.yml` und `.aider.model.settings.yml` im Repo-Root. Ohne sie fragt
-aider interaktiv zurueck und `--yes` oeffnet dann Dokumentations-URLs im
-Browser. Laeuft der Aufruf ins Leere: `ollama list` prueft, ob das Modell da
-ist, `curl -s localhost:11434/api/tags` ob der Server laeuft.
-
-Optional die Zieldatei als Argument anhaengen
+Die Zieldatei als Argument voranstellen
 (`aider jira-markdown-converter/src/otrslink.js --model ...`) - dann muss das
 Modell sie nicht ueber die Repo-Map finden. Der Rest des Aufrufs bleibt gleich.
 
+`--yes` beantwortet **jede** Rueckfrage mit ja. Drei Rueckfragen sind mit den
+Konfigurationsdateien im Repo-Root abgestellt, ohne sie kippt der Lauf:
+
+- `.aider.conf.yml` - `OLLAMA_API_BASE`, Modell-Warnungen aus,
+  `detect-urls: false`. Eine Beispiel-URL im Auftrag wuerde sonst gescrapt und
+  aider installiert dafuer ungefragt Playwright.
+- `.aider.model.settings.yml` - Kontextfenster 32k, whole-Format.
+- `.aiderignore` - die drei Dateien ueber der Eignungsgrenze plus Tests und
+  Doku. Nennt ein Kommentar oder die Modellantwort einen Dateinamen aus dem
+  Repo, fragt aider "Add file to the chat?", `--yes` bejaht, **die fertige
+  Ausgabe wird verworfen** und eine zweite Runde mit der Datei im Kontext
+  startet. Ignorierte Dateien sind nicht erwaehnbar. Trifft es eine kleine
+  Datei, laeuft die zweite Runde durch - nur langsamer.
+
+Laeuft der Aufruf ins Leere: `ollama list` prueft, ob das Modell da ist,
+`curl -s localhost:11434/api/tags` ob der Server laeuft, `ollama ps` ob es
+gerade rechnet.
+
 ### 4. Bewerten
 
-Aider committet selbst. Du liest den Diff, nicht die Zusammenfassung des
-Modells:
+Aider committet selbst. Erst pruefen, ob ueberhaupt ein Commit entstanden ist
+(`git log --oneline -1`) - eine verworfene Ausgabe (Dateierwaehnung, siehe
+oben) hinterlaesst weder Diff noch Commit, die Historie in
+`.aider.chat.history.md` zeigt dann den Grund. Du liest den Diff, nicht die
+Zusammenfassung des Modells:
 
 ```
 git show --stat HEAD && git show HEAD
