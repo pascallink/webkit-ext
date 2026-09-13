@@ -1,0 +1,46 @@
+name: CodeQL
+
+# Code-Scanning als "advanced setup": nur so liest GitHub eine Konfiguration
+# aus dem Repo (.github/codeql-config.yml) und laesst damit die Testfixtures
+# aus der Analyse. Das Default-Setup aus dem Repo-Menue kennt keine
+# paths-ignore und muss deshalb abgeschaltet sein, sonst weist GitHub das
+# Ergebnis dieses Laufs zurueck. Details in .github/CI.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  schedule:
+    # Wochenlauf, damit neue Queries auch ohne Push auf den Bestand treffen.
+    - cron: '17 3 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyse
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      # Ohne dieses Recht kann der Lauf die SARIF-Datei nicht hochladen.
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Eine Sprache, keine Matrix: JS und TS liegen seit CodeQL 2.16 in einer
+      # gemeinsamen Analyse. Kommt eine Sprache dazu, wird hier eine Matrix
+      # daraus - die category unten muss dann je Sprache eindeutig bleiben.
+      - name: CodeQL initialisieren
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          config-file: ./.github/codeql-config.yml
+
+      - name: Analysieren
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript"

@@ -14,6 +14,7 @@ an der CI, nicht in jeder Sitzung.
 | `ai-build-checker.yml` | `workflow_run` nach rotem `Build Extensions` | Baut nichts selbst: analysiert das Log des fehlgeschlagenen Jobs und postet es als PR-Kommentar |
 | `haiku-pr-summary.yml` | PR `synchronize` | Fuehrt den Stand-Block im PR-Body nach - **nicht beim Oeffnen**, dort traegt die Vorlage die Beschreibung |
 | `cost-report.yml` | PR `closed` (gemergt), taeglich 0:00 UTC, `workflow_dispatch` | Verbucht Session-Kosten je gemergtem Branch bzw. erzeugt den Tagesreport - Details siehe "Kosten-Tracking" unten |
+| `codeql.yml` | Push auf `main`, jeder PR, montags 3:17 UTC, `workflow_dispatch` | CodeQL-Analyse (JS/TS) mit eigener Konfiguration - Details siehe "Code-Scanning" unten |
 
 Die beiden Jobs mit Modellaufruf (`haiku-pr-summary.yml`, `ai-build-checker.yml`)
 liefern Beiwerk, keinen Pruefbefund. Ist das Modell nicht erreichbar - fehlender
@@ -59,6 +60,35 @@ ein zweites Mal auszufuehren. Zwei Konsequenzen: Aenderungen daran wirken erst,
 wenn sie auf `main` liegen (GitHub nimmt bei `workflow_run` immer die Version
 des Default-Branch), und der Lauf traegt ein Token mit Schreibrecht, weshalb
 der Kommentar auch bei Fork-PRs funktioniert.
+
+### Code-Scanning
+
+CodeQL laeuft als **advanced setup**, also ueber `codeql.yml` im Repo, nicht
+ueber den Schalter unter *Settings -> Advanced Security -> Code scanning*.
+Grund ist allein die Konfigurierbarkeit: das Default-Setup liest keine
+`paths-ignore`, das advanced setup liest `.github/codeql-config.yml`.
+
+Beides parallel geht nicht. Ist das Default-Setup aktiv, weist GitHub das
+Ergebnis von `codeql.yml` beim Upload zurueck (`409`, "default setup is
+enabled") und der Lauf wird rot. Das Default-Setup muss also abgeschaltet
+bleiben.
+
+Ausgenommen sind die Testfixtures unter `*/test/fixtures/`. Sie bauen Jira
+nach, fuegen dabei Fremd-HTML ein und liefern deshalb dauerhaft XSS-Treffer -
+obwohl der Inhalt aus dem Test stammt, jede Fixture ihr Markup ueber einen
+untaetigen `DOMParser` plus eigenen `stripUnsafe()` saeubert und nichts davon
+im Release-ZIP landet. CodeQL erkennt als Barriere nur bekannte Sanitizer wie
+DOMPurify, den Nachbau nicht. Ohne die Ausnahme erzeugt jede Fixture-Aenderung
+neue Alerts, die von Hand als "Used in tests" geschlossen werden muessen.
+
+Was die Ausnahme nicht ist: ein Freibrief. Laufzeitcode der Erweiterung wird
+unveraendert analysiert, und eine Fixture darf nichts enthalten, was in einem
+echten Browserprofil schaden koennte. Wandert Logik aus einer Fixture in
+Produktivcode, wird sie dort wieder gescannt.
+
+Die Query-Suite bleibt die Vorgabe (`default`), damit der Bestand an Alerts
+derselbe ist wie zuvor. `security-extended` ist die naechste Stufe, bewusst
+nicht gesetzt.
 
 ### Versionen und Releases
 
@@ -123,7 +153,8 @@ Der Node-20-Runtime entkommt man nicht pauschal ueber eine Major-Nummer:
 `setup-node@v5` nicht. Massgeblich ist `runs.using` in der `action.yml` des
 Tags; die Warnung am Ende des Job-Logs nennt die Nachzuegler namentlich.
 Stand jetzt in Benutzung: `checkout@v5`, `setup-node@v5`,
-`softprops/action-gh-release@v2` (laeuft bereits auf Node 24). Fuer
+`softprops/action-gh-release@v2` und `github/codeql-action@v4` (laufen bereits
+auf Node 24). Fuer
 `upload-artifact` waere `v6` der erste taugliche Major - `v5` nicht.
 
 ## Kosten-Tracking
