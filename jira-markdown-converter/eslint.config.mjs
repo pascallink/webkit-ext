@@ -23,6 +23,8 @@ export default [
         ClipboardEvent: 'readonly',
         DataTransfer: 'readonly',
         Blob: 'readonly',
+        URL: 'readonly',
+        FileReader: 'readonly',
         ClipboardItem: 'readonly',
         MutationObserver: 'readonly',
         HTMLTextAreaElement: 'readonly',

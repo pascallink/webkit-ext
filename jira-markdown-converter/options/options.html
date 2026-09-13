@@ -232,6 +232,51 @@
     </section>
 
     <section class="card">
+      <h2>Kunden-Schluessel</h2>
+      <p class="hint">
+        Ordnet Kunden-Schluessel (z. B. ROV-1234) im Text einem oder mehreren
+        internen Jira-Keys zu; erkannte Schluessel werden beim Absenden um
+        diese Zuordnung ergaenzt. Die Tabelle liegt im lokalen Speicher
+        dieses Browsers (chrome.storage.local) und wandert - anders als die
+        uebrigen Einstellungen - nicht auf andere Geraete mit.
+      </p>
+      <p class="hint">
+        Ein Import ersetzt die gespeicherte Tabelle vollstaendig - bewusste
+        Entscheidung, kein Zusammenfuehren mit dem bisherigen Stand.
+      </p>
+
+      <label class="label" for="customerKeyPattern">Muster fuer gueltige Kunden-Schluessel</label>
+      <input type="text" id="customerKeyPattern" class="area">
+      <p class="hint">Standardmuster, wenn das Feld leer bleibt: <code>(ROV|REFI)-\d+</code></p>
+      <p class="hint" id="ckPatternError" role="alert"></p>
+
+      <label class="label" for="customerKeyFieldName">Name des Custom Fields</label>
+      <input type="text" id="customerKeyFieldName" class="area">
+
+      <label class="check">
+        <input type="checkbox" id="customerKeyHighlight">
+        <span>Kunden-Schluessel in der Leseansicht hervorheben</span>
+      </label>
+
+      <p class="hint" id="ckCount"></p>
+
+      <label class="label" for="ckJson">Zuordnungstabelle (JSON, Export und Import)</label>
+      <textarea id="ckJson" class="area area--mono" rows="8" spellcheck="false"></textarea>
+
+      <div class="row">
+        <button type="button" class="btn" id="ckExport">Export in das Feld</button>
+        <button type="button" class="btn" id="ckImport">Import aus dem Feld</button>
+        <button type="button" class="btn" id="ckDownload">Als Datei speichern</button>
+        <button type="button" class="btn" id="ckReset">Tabelle zuruecksetzen</button>
+      </div>
+
+      <label class="label" for="ckFile">JSON-Datei laden</label>
+      <input type="file" id="ckFile" accept="application/json">
+
+      <p class="hint" id="ckStatus" role="status"></p>
+    </section>
+
+    <section class="card">
       <h2>Ausprobieren</h2>
       <div class="try">
         <div>
@@ -250,6 +295,7 @@
 
   <script src="../src/settings.js"></script>
   <script src="../src/converter.js"></script>
+  <script src="../src/mapping.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

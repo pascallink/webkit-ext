@@ -3,6 +3,7 @@
 (function () {
   var Settings = window.JiraMdSettings;
   var Converter = window.JiraMarkdown;
+  var Mapping = window.JiraMapping;
 
   var CHECKBOXES = [
     'convertOnPaste',
@@ -14,7 +15,8 @@
     'keepCodeLanguage',
     'convertAlerts',
     'convertHtml',
-    'escapeBraces'
+    'escapeBraces',
+    'customerKeyHighlight'
   ];
 
   var SAMPLE = [
@@ -51,6 +53,20 @@
   var tryInput = document.getElementById('tryInput');
   var tryOutput = document.getElementById('tryOutput');
   var saveTimer = null;
+  var MAX_IMPORT_BYTES = 1048576;
+
+  var customerKeyPatternField = document.getElementById('customerKeyPattern');
+  var customerKeyFieldNameField = document.getElementById('customerKeyFieldName');
+  var ckPatternError = document.getElementById('ckPatternError');
+  var ckCount = document.getElementById('ckCount');
+  var ckJson = document.getElementById('ckJson');
+  var ckReset = document.getElementById('ckReset');
+  var ckFile = document.getElementById('ckFile');
+  var ckStatus = document.getElementById('ckStatus');
+  // Arbeitskopie der Zuordnungstabelle, wie templates es fuer Vorlagen macht -
+  // es gibt kein einzelnes Formularfeld, aus dem readForm() sie lesen koennte.
+  var customerKeyMap = {};
+  var resetTimer = null;
 
   var templateList = document.getElementById('templateList');
   var tplTitle = document.getElementById('tplTitle');
@@ -70,6 +86,70 @@
     }
   }
 
+  /** Wie say(), aber fuer die Rueckmeldungen der Kunden-Schluessel-Sektion. */
+  function sayCk(message, isError) {
+    ckStatus.textContent = message || '';
+    ckStatus.classList.toggle('status--error', !!isError);
+    if (message) {
+      setTimeout(function () {
+        if (ckStatus.textContent === message) ckStatus.textContent = '';
+      }, 2500);
+    }
+  }
+
+  function setPatternError(message, isError) {
+    ckPatternError.textContent = message || '';
+    customerKeyPatternField.classList.toggle('area--error', !!isError);
+  }
+
+  /**
+   * Liefert den zu speichernden Musterwert. Leeres Feld -> Standardmuster aus
+   * Settings.DEFAULTS. Ungueltiges (oder zu aufwendiges) Muster -> der zuletzt
+   * gueltige, bereits gespeicherte Stand bleibt erhalten, das Feld bekommt
+   * eine Fehlermeldung und die Klasse area--error.
+   */
+  function validateCustomerKeyPattern(value) {
+    var trimmed = String(value || '').trim();
+    if (!trimmed) {
+      setPatternError('', false);
+      return Settings.DEFAULTS.customerKeyPattern;
+    }
+    var normalized = Mapping.normalizePattern(trimmed);
+    if (!normalized) {
+      setPatternError('Muster ist ungueltig oder zu aufwendig - gespeichert wurde der letzte gueltige Stand.', true);
+      var fallback = Mapping.normalizePattern(settings.customerKeyPattern);
+      return fallback || Settings.DEFAULTS.customerKeyPattern;
+    }
+    setPatternError('', false);
+    return normalized;
+  }
+
+  /** verb faellt auf 'gespeichert' zurueck (Zaehlung in #ckCount), sonst z. B. 'exportiert'. */
+  function ckCountLabel(count, verb) {
+    verb = verb || 'gespeichert';
+    if (count === 0) return '0 Zuordnungen ' + verb + '.';
+    if (count === 1) return '1 Zuordnung ' + verb + '.';
+    return count + ' Zuordnungen ' + verb + '.';
+  }
+
+  function updateCkCount() {
+    ckCount.textContent = ckCountLabel(Object.keys(customerKeyMap).length);
+  }
+
+  /**
+   * Setzt den Loeschen-Knopf der Kunden-Schluessel-Sektion in den
+   * Ausgangszustand zurueck - nach Ablauf der Frist oder sobald eine andere
+   * Aktion in der Sektion ausgeloest wird.
+   */
+  function disarmReset() {
+    if (resetTimer) {
+      clearTimeout(resetTimer);
+      resetTimer = null;
+    }
+    ckReset.textContent = 'Tabelle zuruecksetzen';
+    delete ckReset.dataset.armed;
+  }
+
   function readForm() {
     var next = {};
     CHECKBOXES.forEach(function (key) {
@@ -80,6 +160,9 @@
     next.extraHosts = parseHosts(hostsField.value);
     next.otrsFieldName = otrsFieldNameField.value.trim();
     next.customTemplates = templates;
+    next.customerKeyPattern = validateCustomerKeyPattern(customerKeyPatternField.value);
+    next.customerKeyFieldName = customerKeyFieldNameField.value.trim();
+    next.customerKeyMap = customerKeyMap;
     return Settings.withDefaults(next);
   }
 
@@ -249,6 +332,15 @@
     otrsFieldNameField.value = settings.otrsFieldName;
     templates = settings.customTemplates.slice();
     renderTemplates();
+    customerKeyPatternField.value = settings.customerKeyPattern;
+    customerKeyFieldNameField.value = settings.customerKeyFieldName;
+    if (settings.customerKeyPattern && !Mapping.normalizePattern(settings.customerKeyPattern)) {
+      setPatternError('Muster ist ungueltig oder zu aufwendig - gespeichert wurde der letzte gueltige Stand.', true);
+    } else {
+      setPatternError('', false);
+    }
+    customerKeyMap = settings.customerKeyMap || {};
+    updateCkCount();
     refreshPreview();
     refreshHostStatus();
   }
@@ -319,6 +411,8 @@
 
   hostsField.addEventListener('input', scheduleSave);
   otrsFieldNameField.addEventListener('input', scheduleSave);
+  customerKeyPatternField.addEventListener('input', scheduleSave);
+  customerKeyFieldNameField.addEventListener('input', scheduleSave);
   tryInput.addEventListener('input', refreshPreview);
 
   document.getElementById('tplSave').addEventListener('click', function () {
@@ -369,6 +463,78 @@
       save();
       renderTemplates();
     }
+  });
+
+  document.getElementById('ckExport').addEventListener('click', function () {
+    disarmReset();
+    ckJson.value = Mapping.toExportText(customerKeyMap);
+    var count = Object.keys(Mapping.normalizeMap(customerKeyMap)).length;
+    sayCk(ckCountLabel(count, 'exportiert'), false);
+  });
+
+  document.getElementById('ckImport').addEventListener('click', function () {
+    disarmReset();
+    var result = Mapping.parseImport(ckJson.value);
+    if (result.error) {
+      sayCk(result.error, true);
+      return;
+    }
+    // Import ersetzt die Tabelle vollstaendig statt sie mit dem bisherigen
+    // Stand zusammenzufuehren - bewusste Entscheidung, siehe Einleitungstext
+    // der Sektion "Kunden-Schluessel" in options.html.
+    customerKeyMap = result.map;
+    save();
+    updateCkCount();
+    sayCk(ckCountLabel(Object.keys(customerKeyMap).length, 'importiert'), false);
+  });
+
+  document.getElementById('ckDownload').addEventListener('click', function () {
+    disarmReset();
+    var blob = new Blob([Mapping.toExportText(customerKeyMap)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'customer-keys.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  });
+
+  ckFile.addEventListener('change', function (event) {
+    disarmReset();
+    var file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) {
+      sayCk('Datei ist zu gross (hoechstens 1 MB).', true);
+      event.target.value = '';
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () {
+      ckJson.value = String(reader.result || '');
+      sayCk('Datei geladen - mit "Import aus dem Feld" uebernehmen.', false);
+    };
+    reader.onerror = function () {
+      sayCk('Datei konnte nicht gelesen werden.', true);
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  });
+
+  ckReset.addEventListener('click', function () {
+    if (ckReset.dataset.armed === '1') {
+      disarmReset();
+      customerKeyMap = {};
+      save();
+      updateCkCount();
+      sayCk('Tabelle geloescht.', false);
+      return;
+    }
+    if (resetTimer) clearTimeout(resetTimer);
+    ckReset.dataset.armed = '1';
+    ckReset.textContent = 'Wirklich loeschen?';
+    resetTimer = setTimeout(disarmReset, 5000);
   });
 
   Settings.load().then(function (loaded) {
