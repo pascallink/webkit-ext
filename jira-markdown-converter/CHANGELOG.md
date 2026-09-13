@@ -53,12 +53,13 @@ festgehalten. Das Format orientiert sich an
   Inline-Monospace (Issue #108).
 - Beim Einfuegen von bereits vorhandenem Jira-Markup wird nicht mehr
   konvertiert; Makros wie `{code}` bleiben heil (Issue #92).
-- Einfrieren sperrte die Navigation und Dialoge; nun bleiben Toolbar,
-  Bedienelemente ausserhalb des Feldes und Escape funktionieren normal
-  (Issue #112).
-- Bearbeiten-Dialog und Abbrechen werden vom Einfrieren nicht blockiert
-  (Issue #90).
-- Label-Felder und andere kleine Auswahlfelder frieren nicht ein (Issue #111).
+- Toolbar-Links und Dialoge oeffnen bei eingefrorenem Feld wieder normal,
+  statt die Seite zu verlassen (Issue #112).
+- Abbrechen und die Knoepfe im Dialog *Vorgang bearbeiten* sind wieder
+  bedienbar; Escape ausserhalb des eingefrorenen Feldes wirkt wieder, im
+  Feld selbst bleibt es gesperrt (Issue #90).
+- Kleine Auswahlfelder (Labels, Versionen, Picker) frieren nicht mehr ein
+  (Issue #111).
 - Tab friert nicht mehr ein, wenn eine Zeile nur aus einem Listenmarker
   besteht (Issue #88).
 - Eingefuegter Text geht bei einem Fehler in der Umwandlung nicht mehr
@@ -70,16 +71,17 @@ festgehalten. Das Format orientiert sich an
   nicht mehr (Issue #107).
 - Ueberschrift, Liste und Tabelle kleben beim Einfuegen mitten in einer Zeile
   nicht mehr am Text, sondern ruecken auf eigene Zeilen (Issue #91).
-- Verschachtelte Zitate landen in einer Huelse statt als verschachtelte
+- Verschachtelte Zitate landen in einer Huelle statt als verschachtelte
   `{quote}`-Bloecke (Issue #100).
 - E-Mail-Adressen ohne Schema (`<max@x.de>`) werden zu `mailto:`-Links verlinkt
   (Issue #100).
-- Senkrechte Striche in URLs werden kodiert, damit sie nicht als Tabellentrenner
-  wirken (Issue #100).
+- Senkrechte Striche in Link-Zielen werden kodiert, damit sie nicht als
+  Tabellentrenner wirken (Issue #100).
 - Backslash am Zeilenende erzeugt einen harten Umbruch statt roh durchgereicht
   zu werden (Issue #100).
-- Eingerueckte Abschnitte nach einer Leerzeile in Listen werden angehaengt statt
-  die Liste zu beenden (Issue #100).
+- Ein eingerueckter Absatz nach einer Leerzeile wird an den Listeneintrag
+  angehaengt; eine eingerueckte Ueberschrift, ein Zitat, eine Tabellenzeile
+  oder ein Trenner beendet die Liste weiterhin (Issue #100).
 - Setext-Ueberschriften (Titel mit Strichreihe darunter) werden als
   Ueberschriften erkannt (Issue #100).
 - Inline-Code mit maskierten geschweiften Klammern (`` `\{x\}` ``) landet jetzt
