@@ -1,12 +1,13 @@
 /**
  * Leiste an Feldern, die beim ersten Scan noch zu klein oder verdeckt waren
- * (Issue #101): vier Faelle sichern je einen Nachtrags-Pfad ab. `rows` prueft
+ * (Issue #101): fuenf Faelle sichern je einen Nachtrags-Pfad ab. `rows` prueft
  * den Attributpfad des MutationObserver, der Viewport-Wechsel ohne jeden
  * DOM-Eintrag den ResizeObserver, der Fokus-Fall das Zusammenspiel aus
  * focusin-Wachposten, Attributpfad und ResizeObserver, und der Rahmentausch
  * am Rich-Text-Feld (Issue #101-Nachtrag) denselben ResizeObserver-Pfad nach
- * einem TinyMCE-Rahmenwechsel. Alle vier duerfen dabei keinen Dauerscan
- * anstossen.
+ * einem TinyMCE-Rahmenwechsel. Und das Umschalten auf Markup bei stehendem Rahmen
+ * (Issue #208) den Weg vom versteckten Rahmen zur sichtbaren Textarea. Alle fuenf
+ * duerfen dabei keinen Dauerscan anstossen.
  * Aufruf: npm run test:content --prefix jira-markdown-converter
  */
 'use strict';
@@ -83,6 +84,17 @@ function tauscheRahmen(page, id) {
     doc.open();
     doc.write('<!DOCTYPE html><html><body contenteditable="true"></body></html>');
     doc.close();
+  }, id);
+}
+
+// Jira 9.12 versteckt beim Umschalten auf Markup nur den TinyMCE-Rahmen und zeigt die Textarea; der Rahmen bleibt stehen.
+function schalteAufMarkup(page, id) {
+  return page.evaluate(function (fieldId) {
+    var frame = document.getElementById(fieldId + '_ifr');
+    frame.style.display = 'none';
+    var textarea = document.getElementById(fieldId);
+    textarea.style.display = '';
+    textarea.style.height = '4vh';
   }, id);
 }
 
@@ -219,6 +231,45 @@ describe('Leiste an spaet gewachsenen Feldern', { skip: !hasPlaywright }, functi
     // Grosser Sprung, kein einziger DOM-Eintrag - nur die Fensterhoehe wechselt.
     await page.setViewportSize({ width: 800, height: 2000 });
     await hatLeiste(page, 'jmd-rahmen');
+
+    await page.close();
+  });
+
+  test('Leiste erscheint nach Umschalten auf Markup am zu kleinen Feld (Issue #208)', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, fixtures.RTE);
+
+    // Klein genug, dass 4vh sicher unter 48px bleibt.
+    await page.setViewportSize({ width: 800, height: 400 });
+    await page.waitForSelector('.jmd-fieldbar');
+
+    await fuegeRTEFeldEin(page, 'jmd-markup');
+    await page.waitForTimeout(600);
+
+    var vorZustand = await page.evaluate(function () {
+      var field = document.getElementById('jmd-markup');
+      return {
+        button: !!(field && field.dataset.jmdButtonAttached),
+        beobachtet: !!(field && field.dataset.jmdGrowthWatched)
+      };
+    });
+    assert.strictEqual(vorZustand.button, false, 'zu kleines Rich-Text-Feld hat schon eine Markierung bekommen');
+    assert.strictEqual(vorZustand.beobachtet, true, 'zu kleines Feld wird nicht beobachtet');
+
+    // Umschalten auf Markup: der Rahmen wird nur versteckt, die Textarea
+    // sichtbar - sie ist aber weiter zu klein, es darf noch keine Leiste geben.
+    await schalteAufMarkup(page, 'jmd-markup');
+    await page.waitForTimeout(600);
+
+    var nachUmschalten = await page.evaluate(function () {
+      var field = document.getElementById('jmd-markup');
+      return !!(field && field.dataset.jmdButtonAttached);
+    });
+    assert.strictEqual(nachUmschalten, false, 'zu kleine Textarea hat nach dem Umschalten schon eine Leiste');
+
+    // Grosser Sprung, kein einziger DOM-Eintrag - nur die Fensterhoehe wechselt.
+    await page.setViewportSize({ width: 800, height: 2000 });
+    await hatLeiste(page, 'jmd-markup');
 
     await page.close();
   });
