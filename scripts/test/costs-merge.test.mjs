@@ -236,6 +236,29 @@ test('aggregate ignoriert Token-Zeilen ohne passende Session in costs.csv', () =
   assert.equal(result.perModel.get('m1').costUsd, 0.1);
 });
 
+test('aggregate blendet den synthetic-Platzhalter ohne Token aus', () => {
+  const costs = [
+    ['b', 's1', '2026-01-01T00:00:00Z', '0.1000'],
+    ['b', 's2', '2026-01-01T00:00:00Z', '0.0000'],
+  ];
+  const tokens = [
+    ['b', 's1', 'claude-opus-5', '10', '5', '2', '1', '0.1000'],
+    ['b', 's2', '<synthetic>', '0', '0', '0', '0', '0.0000'],
+  ];
+  const result = aggregate(costs, tokens, 'b');
+  assert.equal(result.perModel.has('<synthetic>'), false);
+  assert.ok(result.perModel.has('claude-opus-5'));
+  assert.equal(result.totalUsd, 0.1);
+});
+
+test('aggregate behaelt ein unbekanntes Modell mit Token aber 0 USD', () => {
+  const costs = [['b', 's1', '2026-01-01T00:00:00Z', '0.0000']];
+  const tokens = [['b', 's1', 'unbekannt', '10', '5', '0', '0', '0.0000']];
+  const result = aggregate(costs, tokens, 'b');
+  assert.ok(result.perModel.has('unbekannt'));
+  assert.equal(result.perModel.get('unbekannt').costUsd, 0);
+});
+
 test('summaryBlock listet Modelle nach Kosten absteigend', () => {
   const perModel = new Map([
     ['klein', { ...{ input: 0, output: 0, cache_read: 0, cache_write: 0 }, costUsd: 0.01 }],
