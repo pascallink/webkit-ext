@@ -48,15 +48,25 @@
     // Eigene Vorlagen mit Platzhaltern (${Name}), siehe
     // docs/plans/issue-31-vorlagen.md. Liegen in chrome.storage.local, nicht
     // in sync - LOCAL_KEYS weiter unten haelt fest, warum.
-    customTemplates: []
+    customTemplates: [],
+    // Erkennungsmuster fuer Kunden-Schluessel (Issue #32), siehe src/mapping.js.
+    customerKeyPattern: '(ROV|REFI)-\\d+',
+    // Name des Custom Fields, ueber das der Kunden-Schluessel im Ticket landet.
+    customerKeyFieldName: 'CustomerKey',
+    // Kunden-Schluessel in der Leseansicht als Badge hervorheben.
+    customerKeyHighlight: true,
+    // Zuordnungstabelle Kunden-Schluessel -> Jira-Keys. Liegt in
+    // chrome.storage.local, nicht in sync - siehe LOCAL_KEYS weiter unten.
+    customerKeyMap: {}
   };
 
   var CONVERTER_KEYS = ['escapeBraces', 'keepCodeLanguage', 'convertAlerts', 'convertHtml'];
 
-  // customTemplates gehoert nicht nach chrome.storage.sync: der Bereich
-  // erlaubt nur 8192 Byte je Item, und customTemplates waere ein einziges
-  // Item - nach wenigen Vorlagen ein stilles, unsichtbares Limit.
-  var LOCAL_KEYS = ['customTemplates'];
+  // customTemplates und customerKeyMap gehoeren nicht nach chrome.storage.sync:
+  // der Bereich erlaubt nur 8192 Byte je Item, und beide waeren je ein
+  // einziges Item - nach wenigen Vorlagen bzw. Kunden-Schluesseln ein
+  // stilles, unsichtbares Limit.
+  var LOCAL_KEYS = ['customTemplates', 'customerKeyMap'];
 
   var MAX_TEMPLATES = 50;
   var MAX_PLACEHOLDERS = 5;
@@ -209,6 +219,42 @@
     return result;
   }
 
+  /**
+   * Baut aus dem gespeicherten Wert immer ein frisches Objekt - nie die
+   * DEFAULTS.customerKeyMap-Instanz durchreichen, sonst haengt ein spaeterer
+   * Schreibzugriff auf das withDefaults()-Ergebnis an der geteilten
+   * DEFAULTS-Referenz und veraendert damit auch kuenftige Aufrufe sowie die
+   * an chrome.storage.local.get() uebergebenen LOCAL_DEFAULTS. Ist der Wert
+   * kein Objekt, null oder ein Array, bleibt es beim leeren Objekt. Nur
+   * eigene Eintraege mit Array-Wert zaehlen; der Schluessel wird getrimmt
+   * und grossgeschrieben (leere Schluessel entfallen), der Wert wird auf
+   * getrimmte, nicht leere Strings reduziert (bleibt er leer, entfaellt der
+   * Eintrag). Keine weiteren Limits hier - MAX_KEYS und MAX_TARGETS sind
+   * Sache von JiraMapping.normalizeMap() beim Import; mapping.js laedt nach
+   * settings.js und bleibt darum abhaengigkeitsfrei.
+   */
+  function normalizeCustomerKeyMap(map) {
+    var result = {};
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return result;
+    for (var key in map) {
+      if (!Object.prototype.hasOwnProperty.call(map, key)) continue;
+      var rawValue = map[key];
+      if (!Array.isArray(rawValue)) continue;
+      var normalizedKey = String(key).trim().toUpperCase();
+      if (!normalizedKey) continue;
+      var targets = [];
+      for (var i = 0; i < rawValue.length; i++) {
+        if (typeof rawValue[i] !== 'string') continue;
+        var target = rawValue[i].trim();
+        if (!target) continue;
+        targets.push(target);
+      }
+      if (!targets.length) continue;
+      result[normalizedKey] = targets;
+    }
+    return result;
+  }
+
   function withDefaults(stored) {
     var result = {};
     var key;
@@ -234,6 +280,18 @@
       result.otrsFieldName = DEFAULTS.otrsFieldName;
     }
     result.customTemplates = normalizeTemplates(result.customTemplates);
+    // customerKeyPattern und customerKeyFieldName pruefen wir hier nur roh
+    // (nicht-leerer String) - mapping.js laedt nach settings.js und bleibt so
+    // abhaengigkeitsfrei; die eigentliche Musterpruefung sitzt in
+    // JiraMapping.normalizePattern()/compile().
+    if (typeof result.customerKeyPattern !== 'string' || !result.customerKeyPattern.trim()) {
+      result.customerKeyPattern = DEFAULTS.customerKeyPattern;
+    }
+    if (typeof result.customerKeyFieldName !== 'string' || !result.customerKeyFieldName.trim()) {
+      result.customerKeyFieldName = DEFAULTS.customerKeyFieldName;
+    }
+    result.customerKeyMap = normalizeCustomerKeyMap(result.customerKeyMap);
+    result.customerKeyHighlight = !!result.customerKeyHighlight;
     return result;
   }
 

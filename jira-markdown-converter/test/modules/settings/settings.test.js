@@ -108,6 +108,45 @@ describe('Voreinstellungen', function () {
   });
 });
 
+describe('Kunden-Schluessel-Zuordnung', function () {
+  test('withDefaults(null).customerKeyMap ist leer', function () {
+    assert.deepStrictEqual(Settings.withDefaults(null).customerKeyMap, {});
+  });
+  test('withDefaults({}).customerKeyMap ist nie die DEFAULTS-Instanz', function () {
+    var first = Settings.withDefaults({}).customerKeyMap;
+    first.ROV = ['abc-1'];
+    assert.deepStrictEqual(Settings.withDefaults({}).customerKeyMap, {});
+    assert.notStrictEqual(first, Settings.DEFAULTS.customerKeyMap);
+  });
+  test('Schluessel wird getrimmt und grossgeschrieben', function () {
+    var result = Settings.withDefaults({ customerKeyMap: { 'rov-1': ['abc-1'] } }).customerKeyMap;
+    assert.deepStrictEqual(result, { 'ROV-1': ['abc-1'] });
+  });
+  test('Eintraege mit Nicht-Array-Wert entfallen', function () {
+    var result = Settings.withDefaults({ customerKeyMap: { 'ROV-1': 'ABC-1' } }).customerKeyMap;
+    assert.deepStrictEqual(result, {});
+  });
+  test('Zielwerte werden getrimmt, leere und nicht-Strings entfallen', function () {
+    var result = Settings.withDefaults({
+      customerKeyMap: { 'rov-1': ['  abc-1  ', '', 42, '  '] }
+    }).customerKeyMap;
+    assert.deepStrictEqual(result, { 'ROV-1': ['abc-1'] });
+  });
+  test('bleibt der Zielwert nach dem Bereinigen leer, entfaellt der Eintrag', function () {
+    var result = Settings.withDefaults({ customerKeyMap: { 'rov-1': ['', '   ', 1] } }).customerKeyMap;
+    assert.deepStrictEqual(result, {});
+  });
+  test('leerer Schluessel entfaellt', function () {
+    var result = Settings.withDefaults({ customerKeyMap: { '   ': ['abc-1'] } }).customerKeyMap;
+    assert.deepStrictEqual(result, {});
+  });
+  test('String, Array oder null ergeben ein leeres Objekt', function () {
+    assert.deepStrictEqual(Settings.withDefaults({ customerKeyMap: 'kaputt' }).customerKeyMap, {});
+    assert.deepStrictEqual(Settings.withDefaults({ customerKeyMap: ['ROV-1'] }).customerKeyMap, {});
+    assert.deepStrictEqual(Settings.withDefaults({ customerKeyMap: null }).customerKeyMap, {});
+  });
+});
+
 describe('Schalter fuer die Einfuege-Automatik', function () {
   test('an: gruen mit passender Beschriftung', function () {
     var state = Settings.toggleState({ convertOnPaste: true });

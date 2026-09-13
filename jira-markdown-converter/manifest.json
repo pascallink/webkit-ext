@@ -28,6 +28,7 @@
       ],
       "js": [
         "src/settings.js",
+        "src/mapping.js",
         "src/converter.js",
         "src/editors.js",
         "src/codedialog.js",

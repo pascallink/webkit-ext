@@ -32,14 +32,17 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `options` | `options/` | 8 Browser | #31, #32 |
 | `popup` | `popup/` | 5 Browser | - |
 | `background` | `src/background.js` | 16 Node | #32 |
-| `package` | `manifest.json`, `docs/store/` | 32 Node | alle |
-| `mapping` *(reserviert)* | `src/mapping.js` *(geplant)* | - | **#32** |
+| `package` | `manifest.json`, `docs/store/` | 34 Node | alle |
+| `mapping` | `src/mapping.js` | 44 Node | #32 |
 | `ext` | Erweiterung als Ganzes | 8 Browser | #104 |
 | `otrs` | `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | 16 Node + 33 Browser | #17, #103 |
 
-`mapping` bekommt seinen Ordner erst mit dem jeweiligen Feature -
-die Zeile hier reserviert nur den Namen, damit ein neues Modul nicht zufaellig
-kollidiert. `otrs` - Quellen stehen seit dem OTRS-Link-Helfer (1.4.0, Issue #17)
+`mapping` (Issue #32, CustomerKey-Mapping) liefert seit Sub-Task 1 (Stacked
+PRs, siehe `docs/plans/issue-32-customerkeys.md`) Zuordnungstabelle,
+Musterpruefung und Textanreicherung als reine Node-Logik; `src/mapping.js`
+steht im Manifest, wird aber erst ab Sub-Task 3 von `content.js` aufgerufen -
+`package/sources.test.js` nimmt es bis dahin von der Verdrahtungspruefung aus.
+`otrs` - Quellen stehen seit dem OTRS-Link-Helfer (1.4.0, Issue #17)
 wieder im Manifest, laufen aber nicht in `STANDALONE_FILES` mit (nur im echten
 Jira-Vorgang sinnvoll); die Modul-Tests laden sie unabhaengig davon weiter
 ueber `readSource()`.
@@ -71,6 +74,7 @@ jira-markdown-converter/test/
                   httpkontext,robustheit,spaetleiste,standalone}.test.js
     dialogs/      browser/{code,panel,placeholder}.test.js
     editlock/     browser/{inline,description,dialogs,versteckt}.test.js
+    mapping/      mapping.test.js
     options/      browser/templates.test.js
     ext/          browser/{welt,storage,worker,popup,eingabe}.test.js
     otrs/         otrslink.test.js  browser/{jiraui,otrsflow,otrsdialog}.test.js
@@ -256,13 +260,6 @@ global, immer gefiltert" aus der Root-`CLAUDE.md`.
    haelt ein solches Anfuehrungszeichen sonst fuer einen Stringanfang; die Datei
    wird dann als "nicht auswertbar" gemeldet. `test/lib/` und `test/run.js` sind
    davon nicht betroffen, weil der Guard nur `test/modules/` liest.
-
-## Reservierte Module
-
-`mapping` (Issue #32, CustomerKey-Mapping) ist in der Modul-Landkarte
-reserviert, existiert aber noch nicht: `src/mapping.js` ist geplant, nicht
-vorhanden. Der Testordner entsteht mit dem jeweiligen Feature, nach
-derselben Anleitung wie oben.
 
 ## Ebene ext
 
