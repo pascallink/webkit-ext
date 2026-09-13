@@ -11,6 +11,9 @@ var nodeTest = require('node:test');
 var describe = nodeTest.describe;
 var test = nodeTest.test;
 var browserLib = require('../../../lib/browser');
+// Buffer steht in der ESLint-Umgebung der Tests nicht als Global bereit -
+// darum hier ausdruecklich aus node:buffer holen.
+var Buffer = require('node:buffer').Buffer;
 
 var hasPlaywright = browserLib.hasPlaywright();
 var browserPromise = hasPlaywright ? browserLib.withBrowser() : null;
