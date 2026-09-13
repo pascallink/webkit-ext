@@ -25,11 +25,14 @@ var manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf
 var SOURCES = manifest.content_scripts[0].js;
 var STYLES = manifest.content_scripts[0].css;
 
-// Zweite Liste fuer standalonePage(): wie SOURCES, aber ohne editlock.js -
-// deckungsgleich mit STANDALONE_FILES in src/background.js (dort spielt die
-// Sondierung diese Datei auf fremden Seiten nicht ein).
+// Zweite Liste fuer standalonePage(): wie SOURCES, aber ohne editlock.js und
+// ohne den OTRS-Helfer (otrslink/jiraui/otrsflow/otrsdialog) - deckungsgleich
+// mit STANDALONE_FILES in src/background.js (dort spielt die Sondierung
+// diese Dateien auf fremden Seiten nicht ein).
+var STANDALONE_EXCLUDED = ['src/editlock.js', 'src/otrslink.js', 'src/jiraui.js',
+  'src/otrsflow.js', 'src/otrsdialog.js'];
 var STANDALONE_SOURCES = SOURCES.filter(function (file) {
-  return file !== 'src/editlock.js';
+  return STANDALONE_EXCLUDED.indexOf(file) === -1;
 });
 
 function hasPlaywright() {
@@ -74,12 +77,24 @@ function withBrowser() {
 /**
  * Gemeinsamer Rumpf fuer newPage() und pageOhneFab(): identischer Aufbau
  * (Stub, Settings, SOURCES), nur die Wartebedingung unterscheidet sich -
- * `warten` laeuft als page.waitForFunction() im Seitenkontext.
+ * `warten` laeuft als page.waitForFunction() im Seitenkontext. issueKey ist
+ * optional: manche Fixtures (z. B. mock-jira-otrs.html) bauen ihr Ticket aus
+ * einzelnen Dialog-Fragmenten nach und tragen darum kein eigenes
+ * meta[name="ajs-issue-key"] - ohne das erkennt isIssuePage() (Issue #102)
+ * sie nicht als Vorgangsseite, der schwebende Button bliebe aus.
  */
-async function loadPage(browser, settings, fixture, warten) {
+async function loadPage(browser, settings, fixture, warten, issueKey) {
   var context = await browser.newContext();
   var page = await context.newPage();
   await page.goto('file://' + path.join(root, 'test', 'fixtures', fixture || fixtures.CLOUD));
+  if (issueKey) {
+    await page.evaluate(function (key) {
+      var meta = document.createElement('meta');
+      meta.name = 'ajs-issue-key';
+      meta.content = key;
+      document.head.appendChild(meta);
+    }, issueKey);
+  }
   for (var s = 0; s < STYLES.length; s++) {
     await page.addStyleTag({ content: readSource(STYLES[s]) });
   }
@@ -99,7 +114,7 @@ async function loadPage(browser, settings, fixture, warten) {
   return page;
 }
 
-async function newPage(browser, settings, fixture) {
+async function newPage(browser, settings, fixture, issueKey) {
   return loadPage(browser, settings, fixture, function () {
     // Der schwebende Button ist das schnellste Signal, dass das
     // Content-Script fertig geladen hat, baut sich aber seit Issue #102 nur
@@ -111,7 +126,7 @@ async function newPage(browser, settings, fixture) {
     // erst NACH dem Fab-Aufbau, ist also ein gleichwertiges, aber
     // zuverlaessigeres "fertig geladen"-Signal.
     return !!document.querySelector('.jmd-fab') || typeof window.__onMessage === 'function';
-  });
+  }, issueKey);
 }
 
 /**

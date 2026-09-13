@@ -53,6 +53,10 @@ WAS DIE ERWEITERUNG EINBAUT
 - Eigene Vorlagen: selbst angelegte Textbausteine mit bis zu 5 Platzhaltern,
   ueber die Buttonleiste am Feld einfuegbar - mit Dialog fuer die Werte, wenn
   die Vorlage Platzhalter hat.
+- OTRS-Link einpflegen: ein OTRS-Verweis (Markdown-Link, HTML-Anker oder Text
+  mit URL) wird per Dialog erkannt und auf Knopfdruck in Label, Kunden
+  Referenz und Web-Link des Jira-Vorgangs eingetragen - nur Jira Server /
+  Data Center.
 - Automatik beim Einfuegen: Text, der nach Markdown aussieht, wird direkt beim
   Einfuegen umgewandelt. Strg+Z macht das rueckgaengig, und die Automatik
   laesst sich ueberall mit einem Klick abschalten.

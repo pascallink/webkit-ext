@@ -45,6 +45,9 @@ WHAT IT ADDS
 - Custom templates: your own text snippets with up to 5 placeholders, inserted
   from the field's button bar - with a dialog for the values whenever the
   template has placeholders.
+- OTRS link helper: recognises an OTRS reference (Markdown link, HTML anchor
+  or plain text with a URL) in a dialog and fills it into the label, customer
+  reference and web link of the Jira issue - Jira Server / Data Center only.
 - Auto-convert on paste: text that looks like Markdown is converted while it is
   pasted. Ctrl+Z undoes it, and the automation can be switched off anywhere.
 - Freeze editing: the description field stays open while you edit it, so a

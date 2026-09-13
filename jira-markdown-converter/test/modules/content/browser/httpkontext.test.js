@@ -1,6 +1,10 @@
 /**
  * Kopieren und Einfuegen auf http-Instanzen: dort fehlt navigator.clipboard
  * komplett, Panel und Feldleiste muessen trotzdem funktionieren.
+ * Toast-Pruefungen lesen .jmd-toast__text statt .jmd-toast: der Toast traegt
+ * seit dem OTRS-Link-Helfer (1.4.0) zusaetzlich einen Schliessen-Knopf im
+ * selben Knoten - dessen Beschriftung "x" haette .textContent sonst mit
+ * angehaengt.
  * Aufruf: npm run test:content --prefix jira-markdown-converter
  */
 'use strict';
@@ -29,7 +33,7 @@ describe('Zwischenablage ohne Clipboard-API', { skip: !hasPlaywright }, function
     }, null, { timeout: 4000 });
     assert.deepStrictEqual(await page.evaluate(function () { return window.__copied[0]; }),
       { kind: 'text', text: 'h1. Titel' });
-    var toastText = await page.textContent('.jmd-toast');
+    var toastText = await page.textContent('.jmd-toast__text');
     assert.strictEqual(toastText, 'Jira-Markup kopiert.');
     await page.close();
   });
@@ -48,7 +52,7 @@ describe('Zwischenablage ohne Clipboard-API', { skip: !hasPlaywright }, function
     assert.strictEqual(copied.kind, 'html', 'nicht ueber execCommand als html kopiert');
     assert.strictEqual(copied.html, '<h1>Titel</h1>\n\n<ul><li><strong>fett</strong></li></ul>');
     assert.strictEqual(copied.text, 'h1. Titel\n\n* *fett*');
-    var toastText = await page.textContent('.jmd-toast');
+    var toastText = await page.textContent('.jmd-toast__text');
     assert.strictEqual(toastText, 'Formatiert kopiert.');
     await page.close();
   });
@@ -61,7 +65,7 @@ describe('Lesen ohne Clipboard-API', { skip: !hasPlaywright }, function () {
     await stubLegacyClipboard(page);
     await page.click('.jmd-fab');
     await page.click('.jmd-panel [data-action="from-clipboard"]');
-    var toastText = await page.textContent('.jmd-toast');
+    var toastText = await page.textContent('.jmd-toast__text');
     assert.strictEqual(toastText, 'Auf http-Seiten bitte Strg+V benutzen.');
     await page.close();
   });
@@ -71,7 +75,7 @@ describe('Lesen ohne Clipboard-API', { skip: !hasPlaywright }, function () {
     var page = await browserLib.newPage(browser, null, fixtures.SERVER);
     await stubLegacyClipboard(page);
     await page.locator('.jmd-fieldbar').first().getByText('Einfuegen', { exact: true }).click();
-    var toastText = await page.textContent('.jmd-toast');
+    var toastText = await page.textContent('.jmd-toast__text');
     assert.strictEqual(toastText, 'Auf http-Seiten bitte Strg+V benutzen.');
     await page.close();
   });
@@ -89,7 +93,7 @@ describe('Lesen ohne Clipboard-API', { skip: !hasPlaywright }, function () {
     });
     await page.click('.jmd-fab');
     await page.click('.jmd-panel [data-action="from-clipboard"]');
-    var toastText = await page.textContent('.jmd-toast');
+    var toastText = await page.textContent('.jmd-toast__text');
     assert.strictEqual(toastText, 'Zwischenablage ist leer oder nicht lesbar.');
     await page.close();
   });

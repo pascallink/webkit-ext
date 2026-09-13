@@ -7,13 +7,13 @@
 
 const { execFileSync } = require('node:child_process');
 const { askClaude } = require('./lib/anthropic');
+const { get, mergeIntoBody, patchBody } = require('./lib/github');
 
 // Token-Bremsen: kleiner Diff rein, kurze Antwort raus.
 const MAX_DIFF_CHARS = 40000;
 const MAX_TOKENS = 400;
 
-const MARKER_START = '<!-- haiku-summary:start -->';
-const MARKER_END = '<!-- haiku-summary:end -->';
+const MARKER = 'haiku-summary';
 
 // Rauschen, das nichts erklaert, aber Tokens frisst.
 const EXCLUDES = [
@@ -78,31 +78,8 @@ async function generateSummary({ title, stat, diff, truncated }) {
   });
 }
 
-function mergeIntoBody(existingBody, summary) {
-  const block = `${MARKER_START}\n## Zusammenfassung (automatisch generiert)\n\n${summary}\n${MARKER_END}`;
-  const current = existingBody || '';
-
-  if (current.includes(MARKER_START) && current.includes(MARKER_END)) {
-    const start = current.indexOf(MARKER_START);
-    const end = current.indexOf(MARKER_END) + MARKER_END.length;
-    return current.slice(0, start) + block + current.slice(end);
-  }
-  return current.trim() ? `${current.trim()}\n\n${block}` : block;
-}
-
-async function github(path, init = {}) {
-  const res = await fetch(`https://api.github.com${path}`, {
-    ...init,
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${env('GITHUB_TOKEN')}`,
-      'x-github-api-version': '2022-11-28',
-      'content-type': 'application/json',
-      ...(init.headers || {}),
-    },
-  });
-  if (!res.ok) throw new Error(`GitHub API ${res.status} bei ${path}: ${await res.text()}`);
-  return res.json();
+function summaryBlock(summary) {
+  return `## Zusammenfassung (automatisch generiert)\n\n${summary}`;
 }
 
 async function main() {
@@ -118,17 +95,15 @@ async function main() {
 
   const summary = await generateSummary({ title, stat, diff, truncated });
 
-  const pr = await github(`/repos/${repo}/pulls/${prNumber}`);
-  const nextBody = mergeIntoBody(pr.body, summary);
+  env('GITHUB_TOKEN');
+  const pr = await get(repo, prNumber, 'pulls');
+  const nextBody = mergeIntoBody(pr.body, summaryBlock(summary), MARKER);
   if (nextBody === (pr.body || '')) {
     console.log('PR-Body unveraendert.');
     return;
   }
 
-  await github(`/repos/${repo}/pulls/${prNumber}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ body: nextBody }),
-  });
+  await patchBody(repo, prNumber, nextBody, 'pulls');
   console.log(`PR #${prNumber} aktualisiert.`);
 }
 

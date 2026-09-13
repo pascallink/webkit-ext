@@ -37,6 +37,13 @@ The fastest way to see everything it does, without access to a Jira instance:
    preview field at the bottom that converts as you type - a second way to
    exercise the converter with no Jira page involved.
 
+New in this version: the "OTRS-Link einpflegen" button (field toolbar and
+panel) opens a dialog that parses a pasted reference and, only after the
+user clicks "Absenden", fills three of Jira's own form fields (label,
+customer reference, web link) on the current page - the same fields the
+user could fill by hand. This needs a Jira page and is not reachable through
+the popup. No new permission was added for it.
+
 The user interface is German. The extension is aimed at German-speaking Jira
 users; the English store listing describes the same functionality.
 
@@ -89,6 +96,14 @@ Der schnellste Weg, ohne Zugang zu einer Jira-Instanz:
    nur aktiv, wenn im aktuellen Tab eine Jira-Seite offen ist.
 5. Die Einstellungsseite (Link "Einstellungen" im Popup) hat unten ein
    Probierfeld mit Sofortvorschau - der zweite Weg ohne Jira-Seite.
+
+Neu in dieser Version: Der Knopf "OTRS-Link einpflegen" (Feldleiste und
+Panel) oeffnet einen Dialog, der einen eingefuegten Verweis zerlegt und erst
+nach Klick auf "Absenden" drei von Jiras eigenen Formularfeldern befuellt
+(Label, Kundenreferenz, Web-Link) - im Auftrag des Nutzers, dieselben Felder,
+die er auch von Hand ausfuellen koennte. Dafuer wird eine Jira-Seite
+gebraucht, im Popup ist die Funktion nicht erreichbar. Es kommt keine neue
+Berechtigung dazu.
 
 Auf https://*.atlassian.net aktiviert sich die Erweiterung von selbst; jede
 kostenlose Jira-Cloud-Testinstanz genuegt.

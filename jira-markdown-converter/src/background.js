@@ -12,17 +12,19 @@ var Converter = self.JiraMarkdown;
 var CONTENT_SCRIPT_ID = 'jira-markdown-extra-hosts';
 var CONTENT_FILES = ['src/settings.js', 'src/converter.js', 'src/editors.js',
   'src/codedialog.js', 'src/templatedialog.js', 'src/editlock.js',
+  'src/otrslink.js', 'src/jiraui.js', 'src/otrsflow.js', 'src/otrsdialog.js',
   'src/content.js'];
-var CONTENT_CSS = ['src/content.css', 'src/codedialog.css'];
+var CONTENT_CSS = ['src/content.css', 'src/codedialog.css', 'src/otrsdialog.css'];
 
 // Fuer Seiten, die die Sondierung nicht als Jira erkennt: ohne Sperr-
-// Infrastruktur (editlock.js), die ohnehin nur im Jira-Vorgang Sinn ergibt.
-// content.js erkennt selbst per window.__jiraMarkdownStandalone, dass es im
-// schlanken Modus laeuft. Die OTRS-Dateien (otrslink/jiraui/otrsflow/
-// otrsdialog) stehen nicht mehr in CONTENT_FILES - fertig, aber unverdrahtet
-// (#113), darum hier kein eigener Filter mehr dafuer noetig.
+// Infrastruktur (editlock.js) und ohne den OTRS-Helfer (otrslink/jiraui/
+// otrsflow/otrsdialog) - beide ergeben nur im echten Jira-Vorgang Sinn
+// (Label, Custom Field, Web-Link). content.js erkennt selbst per
+// window.__jiraMarkdownStandalone, dass es im schlanken Modus laeuft.
+var STANDALONE_EXCLUDED = ['src/editlock.js', 'src/otrslink.js', 'src/jiraui.js',
+  'src/otrsflow.js', 'src/otrsdialog.js'];
 var STANDALONE_FILES = CONTENT_FILES.filter(function (file) {
-  return file !== 'src/editlock.js';
+  return STANDALONE_EXCLUDED.indexOf(file) === -1;
 });
 
 /* -------------------------------------------------------------------- *

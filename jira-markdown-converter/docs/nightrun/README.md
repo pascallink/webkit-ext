@@ -47,3 +47,10 @@ auf "ready" gesetzt; geparkte PRs bleiben Draft. Hoechstens 3 Korrekturrunden je
 oder mehr als 90 Minuten je Issue fuehren zum Parken (PR als Draft plus
 Kommentar), drei geparkte Issues in Folge oder 9 Stunden Laufzeit beenden
 den Lauf. Geparkte Branches werden nie Base fuer den naechsten PR.
+
+## Laeufe
+
+| Datei | Inhalt |
+| --- | --- |
+| `issues-round1.json` | Erster Lauf (12.09.2026): 26 Issues der Fehlersammlung, alle als PR gegen `claude/analyse-issues-mockup-912` gemergt. |
+| `issues.json` | Zweiter Lauf: 25 nicht blockierende Review-Hinweise (MINOR/STYLE) aus dem ersten Lauf als Issues #155-#179, Label `nightrun-minor`. |
