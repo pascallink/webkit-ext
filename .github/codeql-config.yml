@@ -1,0 +1,21 @@
+# Konfiguration fuer die CodeQL-Analyse aus .github/workflows/codeql.yml.
+# Greift nur beim "advanced setup" - das Default-Setup im Repo-Menue liest
+# diese Datei nicht (siehe .github/CI.md, Abschnitt "Code-Scanning").
+
+name: "webkit-ext"
+
+# Die Query-Suite bleibt die Vorgabe ("default"), damit der Bestand an Alerts
+# derselbe ist wie unter dem Default-Setup. "security-extended" waere die
+# naechste Stufe - bewusst nicht gesetzt, sie bringt viele neue Treffer mit
+# niedriger Praezision.
+
+paths-ignore:
+  # Mock-Jira-Seiten fuer Playwright. Sie bauen Jiras Verhalten nach - inklusive
+  # Einfuegen von Fremd-HTML - und liefern darum dauerhaft XSS-Treffer, obwohl
+  # der Inhalt aus dem Test selbst stammt, jede Fixture ihr Markup ueber einen
+  # untaetigen DOMParser saeubert und nichts davon ins Release-ZIP wandert.
+  # CodeQL erkennt nur bekannte Sanitizer (DOMPurify), nicht den Nachbau hier.
+  - "**/test/fixtures/**"
+  # Abhaengigkeiten analysiert CodeQL ohnehin nicht - hier nur als Schutz vor
+  # einem lokal erzeugten Baum, der versehentlich mitlaeuft.
+  - "**/node_modules/**"
