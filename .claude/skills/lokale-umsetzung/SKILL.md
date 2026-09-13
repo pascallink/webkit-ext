@@ -132,7 +132,7 @@ git show --stat HEAD --format=            # genau eine Datei, plausible +/-?
 git show HEAD --format=                   # der Diff selbst
 grep -nE '\b(let|const)\b|=>|require\(' <zieldatei>                # ES6, neue Abhaengigkeit
 perl -ne 'print "$.:$_" if /[^\x00-\x7F]/' <zieldatei>            # Nicht-ASCII: Umlaute, scharfes s
-npm run test:module <modul> --prefix jira-markdown-converter 2>&1 | grep -E '^. (pass|fail)'
+npm run test:module <modul> --prefix jira-markdown-converter 2>&1 | grep -E ' (pass|fail) [0-9]+$'
 ```
 
 Die Test-Summe sind zwei bis vier Zeilen (Node und Browser je `pass`/`fail`).
@@ -191,7 +191,7 @@ Nach dem letzten Micro-Task genau einmal, beides gefiltert:
 
 ```
 npm run lint --prefix jira-markdown-converter 2>&1 | tail -3
-npm test --prefix jira-markdown-converter 2>&1 | grep -E '^. (pass|fail)'
+npm test --prefix jira-markdown-converter 2>&1 | grep -E ' (pass|fail) [0-9]+$'
 ```
 
 `local_task.md` und `.aider.run.log` bleiben liegen (ignoriert) - sie gehoeren
