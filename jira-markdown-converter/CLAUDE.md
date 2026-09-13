@@ -32,7 +32,7 @@ Vom Repo-Root, `<p>` = `jira-markdown-converter`. Kein Build - Laden per `chrome
 | `src/converter.js` | `markdownToJira()` - Kern der Umwandlung. |
 | `src/editors.js` | Felderkennung und Schreibzugriff. |
 | `src/codedialog.js`, `src/templatedialog.js`, `src/editlock.js` | Dialog Code, Vorlage, Bearbeitung offen. |
-| `src/otrslink.js`, `src/jiraui.js`, `src/otrsflow.js`, `src/otrsdialog.js` | OTRS-Link-Helfer: Eingabe zerlegen, AUI-Helfer, Ablauf gegen Jira, Eingabedialog (verdrahtet seit 1.4.0, Issue #17). |
+| `src/otrslink.js`, `src/otrsflow.js`, `src/otrsdialog.js`; `src/jiraui.js` | OTRS-Link (verdrahtet seit 1.4.0, Issue #17): Eingabe zerlegen, Ablauf gegen Jira, Eingabedialog - `jiraui.js` ist ein generischer AUI-DOM-Helfer ohne OTRS-Bezug. |
 | `src/settings.js` | Defaults + `chrome.storage` fuer alle Kontexte. |
 | `src/background.js` | Service-Worker: Shortcut, Kontextmenue, Hosts. |
 | `popup/`, `options/` | UI-Seiten. |
