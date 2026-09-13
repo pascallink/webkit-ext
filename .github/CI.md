@@ -115,11 +115,34 @@ Stand jetzt in Benutzung: `checkout@v5`, `setup-node@v5`,
 
 ## Kosten-Tracking
 
-Jede Claude-Code-Session schreibt ihre eigenen Kosten mit: der Stop-Hook aus
-`.claude/settings.json` und der Git-Hook `.githooks/pre-commit` rufen beide
-`scripts/costs-update.mjs` auf, das Tokens aus dem Transcript gegen
-`stats/pricing.json` rechnet und `stats/costs.csv` plus `stats/tokens.csv`
-fortschreibt (Upsert je Branch/Session). Wird ein PR gemergt, summiert
+Jede Claude-Code-Session schreibt ihre eigenen Kosten mit. Grundlage ist
+immer `scripts/costs-update.mjs`, das die Tokens der Hauptsession **und aller
+Subagenten** aus den Transcript-JSONLs gegen `stats/pricing.json` rechnet.
+Das Transcript ist dabei die Wahrheit, die CSV nur ein Derivat davon - das
+Skript rechnet bei jedem Lauf komplett neu und akkumuliert nichts. Daraus
+folgen zwei Betriebsarten:
+
+| Modus | Aufrufer | Wirkung |
+| --- | --- | --- |
+| `--state` | `SessionStart`- und `Stop`-Hook aus `.claude/settings.json` | Schreibt nur `.claude/state/costs/<session_id>.json` - ungetrackt, der Arbeitsbaum bleibt sauber. Die Datei pinnt zugleich Session-ID und Transcript-Pfad. |
+| `--flush` (Vorgabe) | `.githooks/pre-commit` | Rechnet frisch aus dem Transcript und schreibt `stats/costs.csv` plus `stats/tokens.csv` (Upsert je Branch/Session), dann `git add`. |
+
+Der Flush passiert also genau dann, wenn ohnehin committet wird: die
+Kostenzeilen reisen auf einem fachlichen Commit mit, statt eigene
+`chore(repo): session-kosten fortschreiben`-Commits zu erzeugen. Weil die
+CSVs waehrend der Arbeit unberuehrt bleiben, meint jede Sauberkeitspruefung
+auf dem Arbeitsbaum (etwa in `docs/nightrun/`) wieder nur Quellcode.
+
+Der State-Pin ist mehr als ein Zwischenspeicher: der `pre-commit`-Hook
+bekommt keinen Hook-Payload und wuerde die Session sonst per mtime raten.
+Fehlt das Transcript beim Flush (aufgeraeumt, anderer Rechner), dienen die
+Werte aus der State-Datei als Rueckfallebene.
+
+Nicht erfasst bleiben die Turns nach dem letzten Commit - Push, PR anlegen,
+Abschlussmeldung. Das ist bewusst so: verbucht wird, was in git liegt, und
+CI liest die Zeilen erst nach dem Merge.
+
+Wird ein PR gemergt, summiert
 `cost-report.yml` (Job `aggregate`) die Zeilen des Branches ueber
 `scripts/costs-merge.mjs`, postet sie in PR und verlinktes Issue, ergaenzt
 den Changelog des beruehrten Projekts und verschiebt die Summen nach
@@ -136,13 +159,17 @@ Alle Zahlen im Report sind Listenpreis-Schaetzungen wie `/usage` in der
 Claude-Code-CLI, keine tatsaechliche Rechnung - Rabatte, Prompt-Caching-
 Feinheiten und Rundungen der Abrechnung fehlen bewusst.
 
-Claude Code fragt beim ersten Start in diesem Repo einmalig nach Freigabe
-der Projekt-Hooks aus `.claude/settings.json` - ohne diese Freigabe laeuft
-der Stop-Hook nicht und `costs.csv` bleibt fuer Claude-Sessions leer. Der
-Git-Hook ist zusaetzlich noetig und nicht automatisch aktiv: einmalig
-`npm run hooks:install` ausfuehren (setzt `core.hooksPath` auf
-`.githooks`), danach schreibt auch ein Commit von Pascal selbst die
-Kosten fort.
+Der Git-Hook traegt damit die eigentliche Erfassung, `core.hooksPath` muss
+also sitzen. In einer Cloud-Sitzung setzt `.claude/hooks/session-start.sh`
+ihn selbst - der Container ist fluechtig, dort ist das unkritisch. Lokal
+bleibt es bei `npm run hooks:install`; der SessionStart-Hook sagt nur
+Bescheid, solange das fehlt. Ohne aktive Git-Hooks wird eine Session nie
+verbucht.
+
+Claude Code fragt beim ersten Start in diesem Repo ausserdem einmalig nach
+Freigabe der Projekt-Hooks aus `.claude/settings.json` - ohne sie fehlt der
+State-Pin, und der Flush faellt auf die mtime-Suche nach dem neuesten
+Transcript zurueck.
 
 ## Hinweis fuer Claude
 

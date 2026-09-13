@@ -1,8 +1,19 @@
 #!/usr/bin/env node
 /**
- * Errechnet die Kosten der laufenden Claude-Session aus dem Transcript-JSONL
- * und pflegt stats/costs.csv (Session-Summe) sowie stats/tokens.csv
- * (Aufschluesselung je Modell). Laeuft ohne Dependencies auf Node-Bordmitteln.
+ * Errechnet die Kosten der laufenden Claude-Session (inklusive Subagenten)
+ * aus dem Transcript-JSONL. Laeuft ohne Dependencies auf Node-Bordmitteln.
+ *
+ * Zwei Betriebsarten, weil das Transcript die Wahrheit ist und die CSV nur
+ * ein Derivat davon:
+ *
+ * - --state (Hook-Modus, SessionStart und Stop): schreibt ausschliesslich
+ *   .claude/state/costs/<session_id>.json - ungetrackt, also bleibt der
+ *   Arbeitsbaum sauber. Die Datei pinnt zugleich Session-ID und
+ *   Transcript-Pfad fuer den spaeteren Flush.
+ * - --flush (Vorgabe, .githooks/pre-commit): rechnet frisch aus dem
+ *   Transcript und schreibt stats/costs.csv plus stats/tokens.csv. Das
+ *   passiert genau dann, wenn ohnehin committet wird - die Kostenzeilen
+ *   reisen auf einem fachlichen Commit mit, statt eigene zu erzeugen.
  *
  * Harte Regel: dieses Skript darf nie einen Commit oder Turn blockieren.
  * Jeder Fehlerpfad (kein Git-Repo, detached HEAD, fehlendes Transcript,
@@ -14,6 +25,9 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 import { execFileSync } from 'node:child_process';
+
+const STATE_DIR_PARTS = ['.claude', 'state', 'costs'];
+const STATE_SCHEMA = 1;
 
 const COSTS_HEADER = ['branch', 'session_id', 'updated_at', 'cost_usd'];
 const TOKENS_HEADER = [
@@ -194,10 +208,15 @@ async function readStdinJson(argv) {
 
 /**
  * Aufloesungsreihenfolge: --transcript <pfad> -> stdin-JSON (Claude-Code-Hook,
- * nur mit --stdin und FIFO) -> neuestes .jsonl unter
+ * nur mit --stdin und FIFO) -> gepinnte State-Datei aus
+ * .claude/state/costs/ -> neuestes .jsonl unter
  * ~/.claude/projects/<cwd-slug>/.
+ *
+ * Der State-Pin steht vor dem mtime-Raten, weil er die Session exakt kennt:
+ * der pre-commit-Hook bekommt keinen Hook-Payload und wuerde sonst bei
+ * mehreren Transcripts desselben Projekts das falsche erwischen.
  */
-async function resolveSession(argv) {
+async function resolveSession(argv, repoRoot) {
   const flagIndex = argv.indexOf('--transcript');
   if (flagIndex !== -1 && argv[flagIndex + 1]) {
     const transcriptPath = argv[flagIndex + 1];
@@ -217,9 +236,117 @@ async function resolveSession(argv) {
     }
   }
 
+  const pinned = pinnedState(repoRoot);
+  if (pinned) {
+    return {
+      transcriptPath: pinned.transcript_path,
+      sessionId: pinned.session_id,
+      state: pinned,
+    };
+  }
+
   const transcriptPath = newestJsonl(claudeProjectsDir(process.cwd()));
   if (!transcriptPath) return null;
   return { transcriptPath, sessionId: sessionIdFromPath(transcriptPath) };
+}
+
+// --- State-Datei -------------------------------------------------------------
+//
+// Laufender Zwischenstand einer Session, ungetrackt unter
+// .claude/state/costs/<session_id>.json. Zwei Aufgaben: den Arbeitsbaum
+// waehrend der Sitzung sauber halten und Session-ID plus Transcript-Pfad
+// pinnen, damit der Flush im pre-commit-Hook die richtige Session findet
+// statt per mtime zu raten.
+
+function stateDir(repoRoot) {
+  return path.join(repoRoot, ...STATE_DIR_PARTS);
+}
+
+function stateFileName(sessionId) {
+  // Session-IDs sind UUIDs; alles Unerwartete wird trotzdem entschaerft,
+  // damit hier kein Pfad ausbrechen kann.
+  return `${String(sessionId).replace(/[^A-Za-z0-9._-]/g, '_')}.json`;
+}
+
+function writeState(repoRoot, { branch, sessionId, transcriptPath, perModel, totalCost }) {
+  const models = {};
+  for (const [model, bucket] of perModel) {
+    models[model] = {
+      input: bucket.input,
+      output: bucket.output,
+      cache_read: bucket.cache_read,
+      cache_write: bucket.cache_write,
+      cost_usd: bucket.costUsd,
+    };
+  }
+  const payload = {
+    schema: STATE_SCHEMA,
+    branch,
+    session_id: sessionId,
+    transcript_path: transcriptPath,
+    updated_at: isoNowUtc(),
+    cost_usd: Number(totalCost.toFixed(4)),
+    models,
+  };
+
+  const dir = stateDir(repoRoot);
+  const filePath = path.join(dir, stateFileName(sessionId));
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const tmpPath = `${filePath}.${process.pid}.tmp`;
+    fs.writeFileSync(tmpPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+    fs.renameSync(tmpPath, filePath);
+  } catch (err) {
+    warn(`State-Datei ${filePath} nicht schreibbar (${err.message}).`);
+  }
+}
+
+function readStates(repoRoot) {
+  const dir = stateDir(repoRoot);
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const states = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    const full = path.join(dir, entry.name);
+    try {
+      const data = JSON.parse(fs.readFileSync(full, 'utf8'));
+      if (!data || !data.session_id || !data.transcript_path) continue;
+      states.push({ data, mtimeMs: fs.statSync(full).mtimeMs });
+    } catch {
+      // Halb geschriebene oder fremde Datei - stillschweigend ueberspringen.
+    }
+  }
+  states.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return states.map((entry) => entry.data);
+}
+
+/**
+ * Juengster gepinnter Zwischenstand. Eine Session mit noch vorhandenem
+ * Transcript gewinnt gegen eine aeltere, deren Transcript weg ist.
+ */
+function pinnedState(repoRoot) {
+  const states = readStates(repoRoot);
+  if (states.length === 0) return null;
+  return states.find((state) => existsSync(state.transcript_path)) || states[0];
+}
+
+function perModelFromState(state) {
+  const perModel = new Map();
+  for (const [model, bucket] of Object.entries(state.models || {})) {
+    perModel.set(model, {
+      input: bucket.input || 0,
+      output: bucket.output || 0,
+      cache_read: bucket.cache_read || 0,
+      cache_write: bucket.cache_write || 0,
+      costUsd: bucket.cost_usd || 0,
+    });
+  }
+  return perModel;
 }
 
 // --- Preistabelle ----------------------------------------------------------
@@ -468,6 +595,10 @@ function upsertTokens(repoRoot, branch, sessionId, perModel) {
 
 async function main() {
   const argv = process.argv.slice(2);
+  // --state ist der Hook-Modus (nur State-Datei), alles andere flusht in die
+  // CSVs. --flush ist die Vorgabe und darf explizit stehen, damit der
+  // pre-commit-Hook seine Absicht im Klartext ausdrueckt.
+  const stateOnly = argv.includes('--state');
 
   const repoRoot = resolveRepoRoot();
   if (!repoRoot) {
@@ -481,7 +612,7 @@ async function main() {
     return;
   }
 
-  const session = await resolveSession(argv);
+  const session = await resolveSession(argv, repoRoot);
   if (!session || !session.sessionId || !session.transcriptPath) {
     warn('Keine Session ermittelbar - uebersprungen.');
     return;
@@ -496,21 +627,46 @@ async function main() {
     warnedModels: new Set(),
   };
 
-  await collectUsage(session.transcriptPath, state);
-  for (const subagentFile of listJsonlFiles(subagentDir(session.transcriptPath))) {
-    await collectUsage(subagentFile, state);
+  let perModel;
+  if (existsSync(session.transcriptPath)) {
+    await collectUsage(session.transcriptPath, state);
+    // Subagenten liegen als eigene Transcripts neben dem der Hauptsession -
+    // ohne sie fehlt genau der Teil der Kosten, den ein Fan-out erzeugt.
+    for (const subagentFile of listJsonlFiles(subagentDir(session.transcriptPath))) {
+      await collectUsage(subagentFile, state);
+    }
+    perModel = state.perModel;
+
+    // Je Modell zuerst auf vier Nachkommastellen runden - die Session-Summe
+    // entsteht aus diesen gerundeten Werten, damit costs.csv exakt der Summe
+    // der tokens.csv-Zeilen derselben Session entspricht.
+    for (const bucket of perModel.values()) {
+      bucket.costUsd = Number(bucket.costUsd.toFixed(4));
+    }
+  } else if (session.state) {
+    // Transcript weg (aufgeraeumt, anderer Rechner): der zuletzt gepinnte
+    // Zwischenstand ist besser als eine verlorene Session.
+    warn(`Transcript ${session.transcriptPath} fehlt - Zwischenstand aus der State-Datei.`);
+    perModel = perModelFromState(session.state);
+  } else {
+    warn(`Transcript ${session.transcriptPath} fehlt und kein Zwischenstand da - uebersprungen.`);
+    return;
   }
 
-  // Je Modell zuerst auf vier Nachkommastellen runden - die Session-Summe
-  // entsteht aus diesen gerundeten Werten, damit costs.csv exakt der Summe
-  // der tokens.csv-Zeilen derselben Session entspricht.
-  for (const bucket of state.perModel.values()) {
-    bucket.costUsd = Number(bucket.costUsd.toFixed(4));
-  }
-  const totalCost = [...state.perModel.values()].reduce((sum, bucket) => sum + bucket.costUsd, 0);
+  const totalCost = [...perModel.values()].reduce((sum, bucket) => sum + bucket.costUsd, 0);
+
+  writeState(repoRoot, {
+    branch,
+    sessionId: session.sessionId,
+    transcriptPath: session.transcriptPath,
+    perModel,
+    totalCost,
+  });
+
+  if (stateOnly) return;
 
   upsertCosts(repoRoot, branch, session.sessionId, totalCost, isoNowUtc());
-  upsertTokens(repoRoot, branch, session.sessionId, state.perModel);
+  upsertTokens(repoRoot, branch, session.sessionId, perModel);
 }
 
 main()

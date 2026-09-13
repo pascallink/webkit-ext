@@ -65,12 +65,30 @@ function writeTranscript(dir, sessionId, lines) {
   return file;
 }
 
-function runScript(repoDir, args, stdinInput = '') {
+function runScript(repoDir, args, stdinInput = '', extraEnv = {}) {
   return spawnSync('node', [SCRIPT_PATH, ...args], {
     cwd: repoDir,
     encoding: 'utf8',
     input: stdinInput,
+    env: { ...process.env, ...extraEnv },
   });
+}
+
+function stateFile(repoDir, sessionId) {
+  return path.join(repoDir, '.claude', 'state', 'costs', `${sessionId}.json`);
+}
+
+function readState(repoDir, sessionId) {
+  const file = stateFile(repoDir, sessionId);
+  if (!fs.existsSync(file)) return null;
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+function writeState(repoDir, sessionId, payload) {
+  const file = stateFile(repoDir, sessionId);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify(payload, null, 2)}\n`);
+  return file;
 }
 
 /**
@@ -539,4 +557,159 @@ test('detached HEAD beendet sauber ohne zu schreiben', (t) => {
 
   assert.equal(fs.existsSync(path.join(dir, 'stats', 'costs.csv')), false);
   assert.equal(fs.existsSync(path.join(dir, 'stats', 'tokens.csv')), false);
+});
+
+// --- Betriebsart --state -----------------------------------------------------
+
+test('--state schreibt nur die State-Datei und laesst die CSVs unberuehrt', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  // Bestandszeile aus einem frueheren Flush - der State-Modus darf sie
+  // weder ergaenzen noch ueberschreiben.
+  const bestand = 'branch,session_id,updated_at,cost_usd\ntest-branch,alt,2026-01-01T00:00:00Z,1.0000\n';
+  fs.writeFileSync(path.join(dir, 'stats', 'costs.csv'), bestand);
+
+  const usage = { input_tokens: 1_000_000, output_tokens: 500_000, cache_read_input_tokens: 0 };
+  const transcript = writeTranscript(dir, 'sess-state', [
+    assistantLine({ requestId: 'req-1', messageId: 'msg-1', usage }),
+  ]);
+
+  const result = runScript(dir, ['--transcript', transcript, '--state']);
+  assert.equal(result.status, 0);
+
+  assert.equal(fs.readFileSync(path.join(dir, 'stats', 'costs.csv'), 'utf8'), bestand);
+  assert.equal(fs.existsSync(path.join(dir, 'stats', 'tokens.csv')), false);
+
+  const state = readState(dir, 'sess-state');
+  assert.ok(state, 'State-Datei fehlt');
+  assert.equal(state.branch, 'test-branch');
+  assert.equal(state.session_id, 'sess-state');
+  assert.equal(state.transcript_path, transcript);
+  assert.equal(state.cost_usd, 7);
+  assert.equal(state.models['claude-test-model'].input, 1_000_000);
+  assert.match(state.updated_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+});
+
+test('--state zaehlt Subagenten mit', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const mainUsage = { input_tokens: 100_000, output_tokens: 0, cache_read_input_tokens: 0 };
+  const subUsage = { input_tokens: 50_000, output_tokens: 0, cache_read_input_tokens: 0 };
+
+  const transcript = writeTranscript(dir, 'sess-sub-state', [
+    assistantLine({ requestId: 'req-main', messageId: 'msg-main', usage: mainUsage }),
+  ]);
+  const subagentsDir = path.join(dir, 'sess-sub-state', 'subagents');
+  fs.mkdirSync(subagentsDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(subagentsDir, 'sub-1.jsonl'),
+    `${assistantLine({
+      requestId: 'req-sub',
+      messageId: 'msg-sub',
+      model: 'claude-test-model-b',
+      usage: subUsage,
+    })}\n`,
+  );
+
+  assert.equal(runScript(dir, ['--transcript', transcript, '--state']).status, 0);
+
+  const state = readState(dir, 'sess-sub-state');
+  assert.equal(state.models['claude-test-model'].input, 100_000);
+  assert.equal(state.models['claude-test-model-b'].input, 50_000);
+  // 0.1 Mio * 2 USD + 0.05 Mio * 3 USD = 0.2 + 0.15
+  assert.equal(state.cost_usd, 0.35);
+});
+
+// --- Betriebsart --flush -----------------------------------------------------
+
+test('--flush loest die Session ueber die gepinnte State-Datei auf', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const usage = { input_tokens: 1_000_000, output_tokens: 0, cache_read_input_tokens: 0 };
+  const transcript = writeTranscript(dir, 'sess-pin', [
+    assistantLine({ requestId: 'req-1', messageId: 'msg-1', usage }),
+  ]);
+  // Bewusst veralteter Zwischenstand: solange das Transcript da ist, wird
+  // neu gerechnet, der Pin liefert nur Session-ID und Pfad.
+  writeState(dir, 'sess-pin', {
+    schema: 1,
+    branch: 'test-branch',
+    session_id: 'sess-pin',
+    transcript_path: transcript,
+    updated_at: '2026-01-01T00:00:00Z',
+    cost_usd: 0.5,
+    models: { 'claude-test-model': { input: 1, output: 0, cache_read: 0, cache_write: 0, cost_usd: 0.5 } },
+  });
+
+  // Weder --transcript noch --stdin: genau die Lage im pre-commit-Hook.
+  // HOME zeigt ins Wegwerf-Repo, damit die mtime-Suche nichts findet.
+  const result = runScript(dir, ['--flush'], '', { HOME: dir });
+  assert.equal(result.status, 0);
+
+  const costs = readCsvRows(dir, 'costs.csv');
+  assert.equal(costs.rows.length, 1);
+  assert.equal(costs.rows[0][1], 'sess-pin');
+  assert.equal(costs.rows[0][3], '2.0000');
+});
+
+test('--flush faellt ohne Transcript auf den Zwischenstand der State-Datei zurueck', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  writeState(dir, 'sess-weg', {
+    schema: 1,
+    branch: 'test-branch',
+    session_id: 'sess-weg',
+    transcript_path: path.join(dir, 'gibt-es-nicht.jsonl'),
+    updated_at: '2026-01-01T00:00:00Z',
+    cost_usd: 1.25,
+    models: {
+      'claude-test-model': {
+        input: 500_000,
+        output: 25_000,
+        cache_read: 0,
+        cache_write: 0,
+        cost_usd: 1.25,
+      },
+    },
+  });
+
+  const result = runScript(dir, ['--flush'], '', { HOME: dir });
+  assert.equal(result.status, 0);
+
+  const costs = readCsvRows(dir, 'costs.csv');
+  assert.equal(costs.rows.length, 1);
+  assert.deepEqual(costs.rows[0].slice(0, 2), ['test-branch', 'sess-weg']);
+  assert.equal(costs.rows[0][3], '1.2500');
+
+  const tokens = readCsvRows(dir, 'tokens.csv');
+  assert.deepEqual(tokens.rows[0].slice(3, 5), ['500000', '25000']);
+});
+
+test('Vorgabe ohne Modus-Schalter flusht weiterhin in die CSVs', (t) => {
+  const dir = initRepo();
+  t.after(() => cleanup(dir));
+
+  const usage = { input_tokens: 100_000, output_tokens: 0, cache_read_input_tokens: 0 };
+  const transcript = writeTranscript(dir, 'sess-default', [
+    assistantLine({ requestId: 'req-1', messageId: 'msg-1', usage }),
+  ]);
+
+  assert.equal(runScript(dir, ['--transcript', transcript]).status, 0);
+  assert.equal(readCsvRows(dir, 'costs.csv').rows.length, 1);
+  // Der Flush pinnt die Session ebenfalls, damit ein spaeterer Lauf ohne
+  // Argumente dieselbe Session trifft.
+  assert.ok(readState(dir, 'sess-default'));
+});
+
+test('State-Verzeichnis des echten Repos ist ignoriert', () => {
+  const result = spawnSync(
+    'git',
+    ['check-ignore', '-q', '.claude/state/costs/beispiel.json'],
+    { cwd: path.join(__dirname, '..', '..'), encoding: 'utf8' },
+  );
+  assert.equal(result.status, 0, '.claude/state/ fehlt in .gitignore');
 });

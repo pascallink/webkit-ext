@@ -26,7 +26,8 @@ Ausfuehrungsplaene aus Issues: [`.github/PLAN.template.md`](.github/PLAN.templat
 
 In einer Cloud-Sitzung erledigt `.claude/hooks/session-start.sh` den Install
 beim Start - je Ordner mit `package.json`, nur wenn das Lockfile neuer ist als
-`node_modules`. Lokal tut der Hook nichts. Er meldet ausserdem, ob der
+`node_modules` - und setzt `core.hooksPath` auf `.githooks`. Lokal aendert der
+Hook nichts und weist nur auf `npm run hooks:install` hin. Er meldet ausserdem, ob der
 vorinstallierte Chromium zur gepinnten Playwright-Version passt
 ([`.github/TESTS.md`](.github/TESTS.md)).
 
@@ -59,7 +60,10 @@ einen Fremdhost auf.
   zurueck, wenn etwas ansteht. Siehe `.github/CI.md`.
 - Kosten-Tracking: die CSVs unter `stats/` und `stats/report.html` sind
   generiert, nicht von Hand pflegen; die Zahlen sind Listenpreis-Schaetzungen,
-  keine Rechnung. Details in [`.github/CI.md`](.github/CI.md).
+  keine Rechnung. Waehrend der Sitzung laeuft nur der ungetrackte
+  Zwischenstand unter `.claude/state/costs/` mit, in die CSVs schreibt erst
+  der `pre-commit`-Hook - nie einen eigenen Commit dafuer anlegen. Details in
+  [`.github/CI.md`](.github/CI.md).
 
 ## Workflow & QA-Regeln
 
