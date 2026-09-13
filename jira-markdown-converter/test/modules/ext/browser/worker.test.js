@@ -38,6 +38,12 @@ function badgeText(worker) {
  * Wartet, bis das Badge den erwarteten Text zeigt - kein waitForFunction()
  * auf worker: Playwrights ServiceWorker-Objekt (anders als Page) kennt nur
  * evaluate()/evaluateHandle(), kein eigenes Warten. Pollt darum von hier aus.
+ *
+ * Direkt nach dem serviceworker-Event ist chrome.action auf reinem
+ * Open-Source-Chromium (CI-Runner, Linux) auch mit --headless=new noch ein
+ * bis zwei Umlaeufe lang unbereit - badgeText() wirft dann statt einen Text
+ * zu liefern. Ein rejectetes evaluate() ist darum kein Abbruchgrund, solange
+ * die Frist steht, sondern wird wie ein falscher Badge-Text erneut versucht.
  */
 function waitForBadge(worker, expected, timeoutMs) {
   var deadline = Date.now() + timeoutMs;
@@ -45,6 +51,9 @@ function waitForBadge(worker, expected, timeoutMs) {
     return badgeText(worker).then(function (text) {
       if (text === expected) return text;
       if (Date.now() > deadline) return text;
+      return new Promise(function (resolve) { setTimeout(resolve, 100); }).then(attempt);
+    }, function (error) {
+      if (Date.now() > deadline) throw error;
       return new Promise(function (resolve) { setTimeout(resolve, 100); }).then(attempt);
     });
   }
