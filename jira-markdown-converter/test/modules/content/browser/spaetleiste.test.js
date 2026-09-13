@@ -3,11 +3,13 @@
  * (Issue #101): fuenf Faelle sichern je einen Nachtrags-Pfad ab. `rows` prueft
  * den Attributpfad des MutationObserver, der Viewport-Wechsel ohne jeden
  * DOM-Eintrag den ResizeObserver, der Fokus-Fall das Zusammenspiel aus
- * focusin-Wachposten, Attributpfad und ResizeObserver, und der Rahmentausch
+ * focusin-Wachposten, Attributpfad und ResizeObserver, der Rahmentausch
  * am Rich-Text-Feld (Issue #101-Nachtrag) denselben ResizeObserver-Pfad nach
- * einem TinyMCE-Rahmenwechsel. Und das Umschalten auf Markup bei stehendem Rahmen
- * (Issue #208) den Weg vom versteckten Rahmen zur sichtbaren Textarea. Alle fuenf
- * duerfen dabei keinen Dauerscan anstossen.
+ * einem TinyMCE-Rahmenwechsel und das Umschalten auf Markup bei stehendem
+ * Rahmen (Issue #208) den Weg vom versteckten Rahmen zur sichtbaren Textarea.
+ * Dass dabei kein Dauerscan angestossen wird, belegt nur der rows-Fall per
+ * Zaehlervergleich; die uebrigen vier Faelle pruefen allein das Erscheinen
+ * der Leiste.
  * Aufruf: npm run test:content --prefix jira-markdown-converter
  */
 'use strict';
