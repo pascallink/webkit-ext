@@ -226,6 +226,15 @@ describe('Quellcode', function () {
 });
 
 describe('Content-Script-Verdrahtung', function () {
+  function ohneKommentare(source) {
+    // Kommentare zaehlen nicht als Verdrahtung - sonst bliebe der Test
+    // gruen, wenn die echte window.<Global>-Zeile verschwindet, aber die
+    // Zeichenfolge nur noch in einem Kommentar uebrig bleibt.
+    return source
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/\/\/[^\n]*/g, ' ');
+  }
+
   test('jede Content-Datei wird ueber ihr Global referenziert', function () {
     // src/content.js ist der Einstieg (IIFE ohne eigenen root.X = api-Export)
     // und faellt darum aus der Pruefung selbst raus - als Sucheziel fuer die
@@ -245,7 +254,8 @@ describe('Content-Script-Verdrahtung', function () {
       var referencePattern = new RegExp('(window|self)\\.' + globalName + '\\b');
       var referenced = allFiles.some(function (other) {
         if (other === file) return false;
-        return referencePattern.test(fs.readFileSync(abs(other), 'utf8'));
+        var otherSource = fs.readFileSync(abs(other), 'utf8');
+        return referencePattern.test(ohneKommentare(otherSource));
       });
       if (!referenced) missing.push(file + ' (' + globalName + ')');
     });
