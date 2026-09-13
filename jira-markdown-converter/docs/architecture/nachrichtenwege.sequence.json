@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Nachrichtenwege zwischen Popup, Service-Worker und Tab",
+    "output": "jira-markdown-converter/docs/architecture/nachrichtenwege.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      640
+    ],
+    "column_fit": "spread"
+  },
+  "participants": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Browser",
+      "sublabel": "Kuerzel, Kontextmenue"
+    },
+    {
+      "id": "popup",
+      "type": "frontend",
+      "label": "Popup",
+      "sublabel": "eigene Seite"
+    },
+    {
+      "id": "sw",
+      "type": "backend",
+      "label": "Service-Worker",
+      "sublabel": "schlaeft von selbst ein"
+    },
+    {
+      "id": "scripting",
+      "type": "security",
+      "label": "chrome.scripting",
+      "sublabel": "nur freigegebene Hosts"
+    },
+    {
+      "id": "cs",
+      "type": "frontend",
+      "label": "Content-Script",
+      "sublabel": "isolierte Welt"
+    },
+    {
+      "id": "page",
+      "type": "external",
+      "label": "Jira-Seite",
+      "sublabel": "fremdes DOM"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 232,
+      "label": "Ausloeser"
+    },
+    {
+      "from": 240,
+      "to": 400,
+      "label": "Nachinjektion"
+    },
+    {
+      "from": 408,
+      "to": 560,
+      "label": "Popup-Weg"
+    }
+  ],
+  "messages": [
+    {
+      "id": "command",
+      "from": "browser",
+      "to": "sw",
+      "y": 162,
+      "label": "commands.onCommand",
+      "variant": "emphasis"
+    },
+    {
+      "id": "first-try",
+      "from": "sw",
+      "to": "cs",
+      "y": 192,
+      "label": "convert-selection",
+      "variant": "default"
+    },
+    {
+      "id": "no-receiver",
+      "from": "cs",
+      "to": "sw",
+      "y": 220,
+      "label": "lastError: kein Empfaenger",
+      "variant": "return"
+    },
+    {
+      "id": "probe",
+      "from": "sw",
+      "to": "scripting",
+      "y": 252,
+      "label": "executeScript detectJira",
+      "variant": "security"
+    },
+    {
+      "id": "probe-result",
+      "from": "scripting",
+      "to": "sw",
+      "y": 280,
+      "label": "Jira erkannt",
+      "variant": "return"
+    },
+    {
+      "id": "inject",
+      "from": "sw",
+      "to": "scripting",
+      "y": 310,
+      "label": "CONTENT_FILES und CSS",
+      "variant": "security"
+    },
+    {
+      "id": "loaded",
+      "from": "scripting",
+      "to": "cs",
+      "y": 338,
+      "label": "elf Dateien geladen",
+      "variant": "dashed"
+    },
+    {
+      "id": "retry",
+      "from": "sw",
+      "to": "cs",
+      "y": 368,
+      "label": "Nachricht erneut",
+      "variant": "emphasis"
+    },
+    {
+      "id": "write",
+      "from": "cs",
+      "to": "page",
+      "y": 396,
+      "label": "Feld beschreiben",
+      "variant": "default"
+    },
+    {
+      "id": "ping",
+      "from": "popup",
+      "to": "cs",
+      "y": 428,
+      "label": "ping",
+      "variant": "dashed"
+    },
+    {
+      "id": "pong",
+      "from": "cs",
+      "to": "popup",
+      "y": 456,
+      "label": "ok, laeuft schon",
+      "variant": "return"
+    },
+    {
+      "id": "insert",
+      "from": "popup",
+      "to": "cs",
+      "y": 486,
+      "label": "insert-text mit Markdown",
+      "variant": "emphasis"
+    },
+    {
+      "id": "answer",
+      "from": "cs",
+      "to": "popup",
+      "y": 514,
+      "label": "ok oder no-target",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "sw",
+      "from": 157,
+      "to": 374,
+      "type": "backend"
+    },
+    {
+      "participant": "scripting",
+      "from": 247,
+      "to": 344,
+      "type": "security"
+    },
+    {
+      "participant": "cs",
+      "from": 333,
+      "to": 520,
+      "type": "frontend"
+    },
+    {
+      "participant": "popup",
+      "from": 423,
+      "to": 520,
+      "type": "frontend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Warum zwei Anlaeufe",
+      "items": [
+        "Der Service-Worker schickt zuerst blind - antwortet niemand, meldet chrome.runtime.lastError den fehlenden Empfaenger",
+        "Erst dann sondiert detectJira() im Hauptrahmen: ajs-Meta, #jira oder body#jira",
+        "Auf Jira gehen alle Content-Dateien in den Tab, sonst nur STANDALONE_FILES ohne Sperr-Infrastruktur - davor setzt der Worker das Standalone-Signal"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Das Popup geht direkt",
+      "items": [
+        "Das Popup spricht den Tab selbst an und spielt nichts nach: ohne Empfaenger sagt es, dass die Erweiterung hier nicht laeuft",
+        "ping beim Oeffnen entscheidet, ob der Freigabe-Hinweis erscheint",
+        "Gesendet wird Markdown, nicht fertiges Markup - erst im Tab greifen switchToMarkup und richEditorFormat"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Fallstricke MV3",
+      "items": [
+        "Der Service-Worker haelt keinen Zustand: Kontextmenue und Badge werden bei jedem Aufwachen neu gesetzt",
+        "insert-text antwortet asynchron - der Listener muss true zurueckgeben, sonst schliesst Chrome den Kanal vor der Antwort",
+        "Nach einer frischen Freigabe laeuft im alten Tab noch kein Script; das Popup laedt die Seite darum neu"
+      ]
+    }
+  ]
+}

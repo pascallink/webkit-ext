@@ -96,6 +96,13 @@ Die Version steht je Projekt doppelt: `manifest.json` **und** `package.json`
 (plus `package-lock.json`, dort an zwei Stellen). `scripts/bump-patch.js`
 haelt alle drei synchron - nie einzeln von Hand anfassen.
 
+- **Diagramme (vor dem Tag)**: die Spezifikationen unter
+  `<projekt>/docs/architecture/` und `docs/architecture/` einmal durchvalidieren
+  (`ARCHIFY_UPDATE_CHECK_DISABLED=1`, `validate --quality showcase`, 9 von 9
+  Pruefungen, 0 Fehler, 0 Warnungen). Traegt ein Diagramm `sources`, gehoert
+  `meta.repository.revision` auf den Release-Commit gehoben und das verlinkte
+  HTML per `deliver` neu erzeugt - `deliver` prueft jeden Quellverweis gegen
+  diesen Stand. Befehle stehen in den beiden `README.md` der Diagrammordner.
 - **Patch (`z`)**: automatisch nach jedem Merge auf `main`, nur fuer Projekte,
   deren Dateien der Push beruehrt hat. Der Bump-Commit traegt `[skip ci]`.
   Hat der Push die Version selbst geaendert, bumpt nichts nach.

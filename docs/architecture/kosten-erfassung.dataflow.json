@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Kosten-Tracking - Datenweg",
+    "output": "docs/architecture/kosten-erfassung.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      780
+    ]
+  },
+  "stages": [
+    {
+      "label": "Quelle"
+    },
+    {
+      "label": "Rechnen"
+    },
+    {
+      "label": "Ablage"
+    },
+    {
+      "label": "Verbuchen"
+    },
+    {
+      "label": "Report"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "transcript",
+      "type": "database",
+      "label": "Transcript-JSONL",
+      "sublabel": "Session und Subagenten",
+      "stage": 0,
+      "row": 1,
+      "width": 132,
+      "tag": "die Wahrheit"
+    },
+    {
+      "id": "pricing",
+      "type": "database",
+      "label": "pricing.json",
+      "sublabel": "Listenpreise",
+      "stage": 0,
+      "row": 3,
+      "width": 132,
+      "tag": "von Hand"
+    },
+    {
+      "id": "calc",
+      "type": "backend",
+      "label": "costs-update.mjs",
+      "sublabel": "rechnet jedes Mal neu",
+      "stage": 1,
+      "row": 1,
+      "width": 132
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "state/costs",
+      "sublabel": "ungetrackt, gepinnt",
+      "stage": 2,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "costs",
+      "type": "database",
+      "label": "costs.csv",
+      "sublabel": "Branch, Session, USD",
+      "stage": 2,
+      "row": 1,
+      "width": 132
+    },
+    {
+      "id": "tokens",
+      "type": "database",
+      "label": "tokens.csv",
+      "sublabel": "je Modell",
+      "stage": 2,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "prIssue",
+      "type": "external",
+      "label": "PR und Issue",
+      "sublabel": "Kostenblock, Changelog",
+      "stage": 3,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "history",
+      "type": "database",
+      "label": "history.csv",
+      "sublabel": "Summe je PR",
+      "stage": 3,
+      "row": 1,
+      "width": 132
+    },
+    {
+      "id": "historyModels",
+      "type": "database",
+      "label": "history-models.csv",
+      "sublabel": "Summe je Modell",
+      "stage": 3,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "report",
+      "type": "frontend",
+      "label": "report.html",
+      "sublabel": "taeglich neu geschrieben",
+      "stage": 4,
+      "row": 1,
+      "width": 132
+    }
+  ],
+  "flows": [
+    {
+      "from": "transcript",
+      "to": "calc",
+      "label": "usage je Zeile",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "pricing",
+      "to": "calc",
+      "label": "USD je Mio.",
+      "variant": "dashed"
+    },
+    {
+      "from": "calc",
+      "to": "state",
+      "label": "--state",
+      "variant": "default",
+      "route": "vertical-channel",
+      "channelX": 405,
+      "labelAt": [
+        405,
+        200
+      ]
+    },
+    {
+      "from": "calc",
+      "to": "costs",
+      "label": "--flush",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        440,
+        258
+      ]
+    },
+    {
+      "from": "calc",
+      "to": "tokens",
+      "label": "vier Klassen",
+      "variant": "emphasis"
+    },
+    {
+      "from": "state",
+      "to": "costs",
+      "label": "Rueckfall",
+      "variant": "dashed",
+      "labelAt": [
+        530,
+        210
+      ]
+    },
+    {
+      "from": "costs",
+      "to": "prIssue",
+      "label": "Summe je Branch",
+      "variant": "default",
+      "route": "vertical-channel",
+      "channelX": 620,
+      "labelAt": [
+        620,
+        200
+      ]
+    },
+    {
+      "from": "costs",
+      "to": "history",
+      "label": "beim Merge",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        650,
+        318
+      ]
+    },
+    {
+      "from": "tokens",
+      "to": "historyModels",
+      "label": "beim Merge",
+      "variant": "default",
+      "route": "straight"
+    },
+    {
+      "from": "history",
+      "to": "report",
+      "label": "Historie",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "historyModels",
+      "to": "report",
+      "label": "Modellanteile",
+      "variant": "default"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Vier Tokenklassen",
+      "items": [
+        "input, output, cache_read und cache_write je Modell - cache_write getrennt nach 5m und 1h, aeltere Transcripts fallen auf die Vorgabe aus _meta zurueck",
+        "Preise stehen in stats/pricing.json und werden von Hand nach der Preisseite gepflegt; ein unbekanntes Modell wird mit 0 gewertet",
+        "Jede Zahl ist eine Schaetzung zu Listenpreisen, keine Rechnung"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Zwei Betriebsarten",
+      "items": [
+        "--state schreibt nur .claude/state/costs/<session_id>.json - ungetrackt, damit der Arbeitsbaum sauber bleibt, und pinnt Session-ID plus Transcript-Pfad",
+        "--flush rechnet frisch und schreibt costs.csv und tokens.csv als Upsert je Branch und Session, danach git add",
+        "Fehlt das Transcript beim Flush, dienen die Werte der State-Datei als Rueckfall"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Verdichten und aufraeumen",
+      "items": [
+        "Beim Merge wandern die Branch-Zeilen nach history.csv und history-models.csv und fallen aus costs.csv und tokens.csv heraus",
+        "Verwaiste Branches (Remote weg oder aelter als 30 Tage) landen mit reason=abandoned in der Historie",
+        "report.html wird nie fortgeschrieben - jeder Lauf ersetzt die Datei komplett"
+      ]
+    }
+  ]
+}

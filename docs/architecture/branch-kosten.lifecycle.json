@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Branch und Kostenzeilen - Zustaende",
+    "output": "docs/architecture/branch-kosten.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Zustand der Kostenzeile"
+    },
+    {
+      "id": "events",
+      "label": "Sonderfaelle"
+    }
+  ],
+  "states": [
+    {
+      "id": "unerfasst",
+      "type": "start",
+      "label": "Nicht erfasst",
+      "sublabel": "nur State-Datei",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": ".claude/state/costs"
+    },
+    {
+      "id": "erfasst",
+      "type": "active",
+      "label": "Im Arbeitsbaum",
+      "sublabel": "costs.csv, tokens.csv",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "verbucht",
+      "type": "success",
+      "label": "Verbucht",
+      "sublabel": "history.csv",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "tag": "reason=merged"
+    },
+    {
+      "id": "verwaist",
+      "type": "failure",
+      "label": "Verwaist",
+      "sublabel": "history.csv",
+      "lane": "events",
+      "col": 0,
+      "tag": "reason=abandoned"
+    },
+    {
+      "id": "rueckkehr",
+      "type": "waiting",
+      "label": "Rohzeile zurueck",
+      "sublabel": "Rebase, merge=union",
+      "lane": "events",
+      "col": 1
+    }
+  ],
+  "transitions": [
+    {
+      "id": "flush",
+      "from": "unerfasst",
+      "to": "erfasst",
+      "label": "pre-commit",
+      "variant": "emphasis",
+      "labelAt": [
+        171,
+        122
+      ]
+    },
+    {
+      "id": "merge",
+      "from": "erfasst",
+      "to": "verbucht",
+      "label": "PR gemergt",
+      "variant": "emphasis",
+      "labelAt": [
+        325,
+        122
+      ]
+    },
+    {
+      "id": "abandon",
+      "from": "erfasst",
+      "to": "verwaist",
+      "label": "taeglicher Lauf",
+      "variant": "dashed",
+      "labelAt": [
+        150,
+        214
+      ]
+    },
+    {
+      "id": "revived",
+      "from": "verwaist",
+      "to": "erfasst",
+      "label": "neuer Commit",
+      "variant": "dashed",
+      "labelAt": [
+        150,
+        250
+      ]
+    },
+    {
+      "id": "resurrected",
+      "from": "verbucht",
+      "to": "rueckkehr",
+      "label": "Rebase-Konflikt",
+      "variant": "security",
+      "labelAt": [
+        400,
+        214
+      ]
+    },
+    {
+      "id": "repruned",
+      "from": "rueckkehr",
+      "to": "verbucht",
+      "label": "naechster Prune",
+      "variant": "dashed",
+      "labelAt": [
+        580,
+        250
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Was eine Zeile bewegt",
+      "items": [
+        "unerfasst -> erfasst passiert nur beim Commit, ausgeloest vom pre-commit-Hook - Push und PR-Text bleiben unverbucht",
+        "erfasst -> verbucht braucht einen gemergten PR (cost-report.yml, Job aggregate); historyHasEntry() macht das idempotent",
+        "erfasst -> verwaist prueft taeglich um 0:00 UTC oder per workflow_dispatch (Job daily): Remote-Branch weg ODER updated_at mehr als 30 Tage alt"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Verwaist ist kein Endzustand",
+      "items": [
+        "Ein neuer Commit auf einem als abandoned verbuchten Branch legt in costs.csv wieder eine Zeile an - hasAbandonedEntry() verhindert nur ein zweites abandoned, nicht die Rueckkehr in den Arbeitsbaum",
+        "Verbucht bleibt dagegen dauerhaft: historyHasEntry() sperrt eine zweite merged-Zeile fuer denselben Branch/PR endgueltig"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Warum Rohzeilen zurueckkommen",
+      "items": [
+        "stats/costs.csv und stats/tokens.csv stehen in .gitattributes auf merge=union - ein Rebase-Konflikt behaelt beide Seiten und stellt geprunte Zeilen wieder her",
+        "Der eigene aggregate-Lauf raeumt seinen Branch nach dem Rebase sofort per awk nach; der taegliche Lauf raeumt bewusst nicht nach - erst removeAlreadyBookedRows() im naechsten Prune entfernt sie wieder",
+        "Verbucht wird dabei nichts doppelt: die Zeile faellt nur heraus, es entsteht keine zweite history.csv-Zeile"
+      ]
+    }
+  ]
+}

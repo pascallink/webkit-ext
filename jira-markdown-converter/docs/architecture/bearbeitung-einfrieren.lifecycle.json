@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Bearbeitung einfrieren - Zustaende",
+    "output": "jira-markdown-converter/docs/architecture/bearbeitung-einfrieren.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Zustand des Feldes"
+    },
+    {
+      "id": "events",
+      "label": "Ereignisse am Feld"
+    }
+  ],
+  "states": [
+    {
+      "id": "off",
+      "type": "neutral",
+      "label": "Ausgeschaltet",
+      "sublabel": "freezeEditMode aus",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "Einstellung"
+    },
+    {
+      "id": "armed",
+      "type": "start",
+      "label": "Wachbereit",
+      "sublabel": "Wachposten seit dem Laden",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "frozen",
+      "type": "active",
+      "label": "Eingefroren",
+      "sublabel": "Schloss ist zu",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "tag": "Sperre"
+    },
+    {
+      "id": "opened",
+      "type": "waiting",
+      "label": "Schloss offen",
+      "sublabel": "Jiras Verhalten gilt",
+      "lane": "main",
+      "col": 3,
+      "step": "04"
+    },
+    {
+      "id": "closed",
+      "type": "success",
+      "label": "Feld geschlossen",
+      "sublabel": "gespeichert oder verworfen",
+      "lane": "main",
+      "col": 4,
+      "step": "05"
+    },
+    {
+      "id": "blocked",
+      "type": "decision",
+      "label": "Klick daneben",
+      "sublabel": "Ereignis gestoppt",
+      "lane": "events",
+      "col": 0,
+      "tag": "guard()"
+    },
+    {
+      "id": "unload",
+      "type": "waiting",
+      "label": "Seite verlassen",
+      "sublabel": "Rueckfrage bei Aenderung",
+      "lane": "events",
+      "col": 1
+    }
+  ],
+  "transitions": [
+    {
+      "id": "guarded",
+      "from": "frozen",
+      "to": "blocked",
+      "label": "pointerdown, blur",
+      "variant": "security",
+      "labelAt": [
+        295,
+        214
+      ]
+    },
+    {
+      "id": "stays",
+      "from": "blocked",
+      "to": "frozen",
+      "label": "gestoppt",
+      "variant": "emphasis",
+      "labelAt": [
+        295,
+        250
+      ]
+    },
+    {
+      "id": "leaving",
+      "from": "frozen",
+      "to": "unload",
+      "label": "beforeunload",
+      "variant": "security",
+      "labelAt": [
+        585,
+        214
+      ]
+    },
+    {
+      "id": "stay",
+      "from": "unload",
+      "to": "frozen",
+      "label": "abbrechen",
+      "variant": "dashed",
+      "labelAt": [
+        585,
+        250
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Warum das Fenster",
+      "items": [
+        "Die Wachposten haengen am Fenster und am Dokument in der Erfassungsphase - wer zuerst registriert ist, gewinnt gegen Jiras eigene Handler",
+        "Registriert wird beim Laden, nicht erst beim ersten Einfrieren; ohne Sperre tut guard() nichts",
+        "Gestoppt werden Zeiger-, Fokus- und Escape-Ereignisse - Klick und Doppelklick bewusst nicht mehr, sonst blieben Toolbar-Links tot"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Wer das Schloss bedient",
+      "items": [
+        "Einfrieren passiert von selbst, sobald die Erweiterung ihre Leiste an ein bearbeitbares Feld haengt",
+        "Ein von Hand geoeffnetes Schloss bleibt offen - der naechste Klick friert nicht erneut ein",
+        "Speichern und Abbrechen bleiben immer bedienbar, auch wenn sie ausserhalb des gesperrten Rahmens liegen"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Ausstiege",
+      "items": [
+        "Vor dem Verlassen der Seite wird nur gefragt, wenn der Inhalt vom Schnappschuss abweicht",
+        "Beim Wechsel zwischen Text- und Rich-Text-Modus baut Jira den Feldblock neu - die Sperre wandert auf den Nachfolger",
+        "Wird die Einstellung ausgeschaltet, loest release() jede Sperre und versteckt die Schloesser"
+      ]
+    }
+  ]
+}

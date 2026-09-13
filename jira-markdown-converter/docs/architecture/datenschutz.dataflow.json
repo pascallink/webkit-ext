@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Datenschutz - was den Browser verlaesst",
+    "output": "jira-markdown-converter/docs/architecture/datenschutz.html",
+    "viewBox": [
+      880,
+      780
+    ],
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "Datenquellen"
+    },
+    {
+      "label": "Verarbeitung"
+    },
+    {
+      "label": "Ablage im Browser"
+    },
+    {
+      "label": "Einzige Ausnahme"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "clipboard",
+      "type": "external",
+      "label": "Zwischenablage",
+      "sublabel": "Copy/Paste",
+      "stage": 0,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "editorText",
+      "type": "external",
+      "label": "Feldinhalt",
+      "sublabel": "Auswahl im Editor",
+      "stage": 0,
+      "row": 1,
+      "width": 132
+    },
+    {
+      "id": "otrsEingabe",
+      "type": "frontend",
+      "label": "OTRS-Eingabe",
+      "sublabel": "Ticketnummer",
+      "stage": 0,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "einstellungenEingabe",
+      "type": "frontend",
+      "label": "Einstellungen",
+      "sublabel": "Schalter, Hosts",
+      "stage": 0,
+      "row": 3,
+      "width": 132
+    },
+    {
+      "id": "vorlagenEingabe",
+      "type": "frontend",
+      "label": "Eigene Vorlagen",
+      "sublabel": "Markup, Platzhalter",
+      "stage": 0,
+      "row": 4,
+      "width": 132
+    },
+    {
+      "id": "konverter",
+      "type": "backend",
+      "label": "Konverter",
+      "sublabel": "Seiten-Speicher",
+      "stage": 1,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "otrsFlow",
+      "type": "backend",
+      "label": "OtrsFlow.run()",
+      "sublabel": "Label, Feld, Link",
+      "stage": 1,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "settingsSave",
+      "type": "backend",
+      "label": "Settings.save()",
+      "sublabel": "chrome.storage",
+      "stage": 1,
+      "row": 3,
+      "width": 132
+    },
+    {
+      "id": "feld",
+      "type": "external",
+      "label": "Feld/DOM",
+      "sublabel": "bleibt in der Seite",
+      "stage": 2,
+      "row": 1,
+      "width": 132
+    },
+    {
+      "id": "storageSync",
+      "type": "database",
+      "label": "storage.sync",
+      "sublabel": "Einstellungen",
+      "stage": 2,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "storageLocal",
+      "type": "database",
+      "label": "storage.local",
+      "sublabel": "customTemplates",
+      "stage": 2,
+      "row": 4,
+      "width": 132
+    },
+    {
+      "id": "browserSync",
+      "type": "external",
+      "label": "Browser-Konto",
+      "sublabel": "Microsoft/Google",
+      "stage": 3,
+      "row": 2,
+      "width": 132
+    }
+  ],
+  "flows": [
+    {
+      "from": "clipboard",
+      "to": "konverter",
+      "label": "Copy/Paste",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "editorText",
+      "to": "konverter",
+      "label": "Feld gelesen",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "from": "otrsEingabe",
+      "to": "otrsFlow",
+      "label": "Ticketnummer",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "einstellungenEingabe",
+      "to": "settingsSave",
+      "label": "Aenderung",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "vorlagenEingabe",
+      "to": "settingsSave",
+      "label": "Speichern",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "from": "konverter",
+      "to": "feld",
+      "label": "Jira-Markup",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "from": "otrsFlow",
+      "to": "feld",
+      "label": "Label/Link",
+      "variant": "default",
+      "route": "vertical-channel"
+    },
+    {
+      "from": "settingsSave",
+      "to": "storageSync",
+      "label": "Einstellungen",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "from": "settingsSave",
+      "to": "storageLocal",
+      "label": "Vorlagen",
+      "variant": "emphasis",
+      "route": "vertical-channel"
+    },
+    {
+      "from": "storageSync",
+      "to": "browserSync",
+      "label": "Browser synct",
+      "classification": "Browser-Feature, nicht Erweiterung",
+      "variant": "dashed",
+      "route": "straight",
+      "labelDy": 53
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Was verarbeitet wird",
+      "items": [
+        "Zwischenablage und Feldinhalt durchlaufen den Konverter nur im Speicher der Seite",
+        "OTRS-Eingabe fuellt Label, Kunden Referenz und Web-Link direkt im Jira-Formular",
+        "Einstellungen und eigene Vorlagen liegen in chrome.storage, sync bzw. local"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Berechtigungen aus manifest.json",
+      "items": [
+        "Permissions: activeTab, storage, contextMenus, scripting - keine Netzwerk-Permission",
+        "host_permissions deckt nur https://*.atlassian.net/*; optional_host_permissions steht auf *://*/*, freigegeben wird aber immer nur die Adresse, die der Nutzer selbst bestaetigt",
+        "Kein eval, kein new Function, keine externen Skripte oder Stylesheets"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Die einzige Ausnahme",
+      "items": [
+        "Kein fetch, kein XMLHttpRequest, keine Telemetrie in der Erweiterung selbst",
+        "Kein Pfad in diesem Diagramm verlaesst chrome.storage, das DOM oder die Zwischenablage",
+        "chrome.storage.sync synct nur ueber das Microsoft- bzw. Google-Konto - das macht Chrome, nicht die Erweiterung"
+      ]
+    }
+  ]
+}

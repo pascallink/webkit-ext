@@ -1,0 +1,244 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Vorlagen aendern und speichern - Ablauf",
+    "output": "jira-markdown-converter/docs/architecture/vorlagen-pflegen.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "user",
+      "label": "Nutzer"
+    },
+    {
+      "id": "options",
+      "label": "Optionsseite"
+    },
+    {
+      "id": "store",
+      "label": "chrome.storage"
+    },
+    {
+      "id": "tab",
+      "label": "Offener Jira-Tab"
+    },
+    {
+      "id": "ex",
+      "label": "Abbruch und Meldung",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "edit",
+      "label": "Bearbeiten",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "check",
+      "label": "Pruefen und normalisieren",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "spread",
+      "label": "Ablegen und verteilen",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "form",
+    "validate",
+    "normalize",
+    "save",
+    "storage"
+  ],
+  "nodes": [
+    {
+      "id": "form",
+      "lane": "user",
+      "col": 0,
+      "type": "frontend",
+      "label": "Vorlage bearbeiten",
+      "sublabel": "Titel, Markup, ${Name}",
+      "width": 136
+    },
+    {
+      "id": "remove",
+      "lane": "user",
+      "col": 2,
+      "type": "frontend",
+      "label": "Loeschen",
+      "sublabel": "mit Rueckfrage",
+      "width": 136
+    },
+    {
+      "id": "validate",
+      "lane": "options",
+      "col": 1,
+      "type": "security",
+      "label": "validateTemplate()",
+      "sublabel": "Grenzen pruefen",
+      "width": 136
+    },
+    {
+      "id": "normalize",
+      "lane": "options",
+      "col": 2,
+      "type": "backend",
+      "label": "normalizeTemplate()",
+      "sublabel": "Kennung, Platzhalter",
+      "width": 136
+    },
+    {
+      "id": "save",
+      "lane": "options",
+      "col": 3,
+      "type": "backend",
+      "label": "Settings.save()",
+      "sublabel": "zwei Bereiche",
+      "width": 136
+    },
+    {
+      "id": "storage",
+      "lane": "store",
+      "col": 4,
+      "type": "database",
+      "label": "chrome.storage",
+      "sublabel": "sync und local",
+      "width": 136
+    },
+    {
+      "id": "changed",
+      "lane": "store",
+      "col": 5,
+      "type": "messagebus",
+      "label": "onChanged",
+      "sublabel": "50 ms Debounce",
+      "width": 136
+    },
+    {
+      "id": "refresh",
+      "lane": "tab",
+      "col": 5,
+      "type": "frontend",
+      "label": "Menue neu",
+      "sublabel": "load() im Tab",
+      "width": 136
+    },
+    {
+      "id": "invalid",
+      "lane": "ex",
+      "col": 1,
+      "type": "security",
+      "label": "Grenze verletzt",
+      "sublabel": "Meldung im Formular",
+      "width": 136
+    },
+    {
+      "id": "failed",
+      "lane": "ex",
+      "col": 3,
+      "type": "security",
+      "label": "Speichern scheitert",
+      "sublabel": "Grund wird genannt",
+      "width": 136
+    }
+  ],
+  "edges": [
+    {
+      "from": "form",
+      "to": "validate",
+      "label": "Speichern",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "validate",
+      "to": "normalize",
+      "label": "gueltig",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "validate",
+      "to": "invalid",
+      "label": "zu lang",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "normalize",
+      "to": "save",
+      "label": "geordnet",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "remove",
+      "to": "save",
+      "label": "ohne Eintrag",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "from": "save",
+      "to": "storage",
+      "label": "zwei Bereiche",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "save",
+      "to": "failed",
+      "label": "lastError",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "storage",
+      "to": "changed",
+      "label": "Ereignis",
+      "variant": "emphasis"
+    },
+    {
+      "from": "changed",
+      "to": "refresh",
+      "label": "load()",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Grenzen der Optionsseite",
+      "items": [
+        "50 Vorlagen, 5000 Zeichen Markup, 60 Zeichen Titel, 5 Platzhalter je Vorlage",
+        "Ein Platzhalter im Markup ohne Eintrag in der Liste ist nur ein Hinweis, kein Abbruch",
+        "Loeschen fragt nach und speichert danach dieselbe Liste ohne den Eintrag"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Zwei Bereiche, ein Speichern",
+      "items": [
+        "Alles ausser customTemplates geht nach chrome.storage.sync, die Vorlagen selbst nach local - sync erlaubt nur 8192 Byte je Item",
+        "save() schreibt beide Bereiche getrennt; die Toggles und Hosts speichern verzoegert nach 400 ms"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Ankommen im offenen Tab",
+      "items": [
+        "chrome.storage.onChanged weckt jeden Kontext - 50 ms Debounce fasst die zwei Ereignisse eines Speicherns zusammen",
+        "Danach laedt der Tab die Einstellungen neu und baut Vorlagenmenue, Leistenknoepfe und den schwebenden Knopf neu auf",
+        "Kein Nachladen der Seite noetig - ein Neustart des Tabs ist nur bei geaenderten Hosts noetig"
+      ]
+    }
+  ]
+}

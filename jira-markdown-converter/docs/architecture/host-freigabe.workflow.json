@@ -1,0 +1,271 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Host freigeben - Ablauf",
+    "output": "jira-markdown-converter/docs/architecture/host-freigabe.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Bedienung"
+    },
+    {
+      "id": "perm",
+      "label": "Chrome-Berechtigung"
+    },
+    {
+      "id": "sw",
+      "label": "Service-Worker"
+    },
+    {
+      "id": "page",
+      "label": "Tab-Inhalt"
+    },
+    {
+      "id": "ex",
+      "label": "Abbruch und Hinweis",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "start",
+      "label": "Freigabe anstossen",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "sync",
+      "label": "Registrieren",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "inject",
+      "label": "In den Tab bringen",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "eintragen",
+    "freigabeDialog",
+    "hostMerken",
+    "syncHosts",
+    "registerCS",
+    "sendToTab"
+  ],
+  "nodes": [
+    {
+      "id": "eintragen",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Host eintragen",
+      "sublabel": "Popup oder Optionen",
+      "width": 150
+    },
+    {
+      "id": "freigabeDialog",
+      "lane": "perm",
+      "col": 1,
+      "type": "security",
+      "label": "Freigabe-Dialog",
+      "sublabel": "permissions.request",
+      "width": 150
+    },
+    {
+      "id": "abgelehnt",
+      "lane": "ex",
+      "col": 1,
+      "type": "security",
+      "label": "Freigabe abgelehnt",
+      "sublabel": "granted: false",
+      "width": 150
+    },
+    {
+      "id": "hostMerken",
+      "lane": "ui",
+      "col": 2,
+      "type": "backend",
+      "label": "Host merken",
+      "sublabel": "extraHosts speichern",
+      "width": 150
+    },
+    {
+      "id": "onAdded",
+      "lane": "perm",
+      "col": 2,
+      "type": "security",
+      "label": "onAdded-Ereignis",
+      "sublabel": "chrome.permissions",
+      "width": 150
+    },
+    {
+      "id": "syncHosts",
+      "lane": "sw",
+      "col": 3,
+      "type": "backend",
+      "label": "syncExtraHosts()",
+      "sublabel": "contains() prueft",
+      "width": 150
+    },
+    {
+      "id": "nichtGewaehrt",
+      "lane": "ex",
+      "col": 3,
+      "type": "security",
+      "label": "Host nicht gewaehrt",
+      "sublabel": "contains() = false",
+      "width": 150
+    },
+    {
+      "id": "registerCS",
+      "lane": "sw",
+      "col": 4,
+      "type": "backend",
+      "label": "Scripts registrieren",
+      "sublabel": "chrome.scripting",
+      "width": 150
+    },
+    {
+      "id": "sendToTab",
+      "lane": "sw",
+      "col": 5,
+      "type": "backend",
+      "label": "sendToTab()",
+      "sublabel": "probeJira()",
+      "width": 150
+    },
+    {
+      "id": "scriptAktiv",
+      "lane": "page",
+      "col": 5,
+      "type": "external",
+      "label": "Script laeuft",
+      "sublabel": "CONTENT_FILES",
+      "width": 150
+    },
+    {
+      "id": "keineJira",
+      "lane": "ex",
+      "col": 5,
+      "type": "security",
+      "label": "Keine Jira-Instanz",
+      "sublabel": "STANDALONE_FILES",
+      "width": 150
+    }
+  ],
+  "edges": [
+    {
+      "from": "eintragen",
+      "to": "freigabeDialog",
+      "label": "Freigeben-Klick",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "freigabeDialog",
+      "to": "abgelehnt",
+      "label": "abgelehnt",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "freigabeDialog",
+      "to": "hostMerken",
+      "label": "erlaubt",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "freigabeDialog",
+      "to": "onAdded",
+      "label": "erlaubt",
+      "variant": "dashed",
+      "role": "async"
+    },
+    {
+      "from": "hostMerken",
+      "to": "syncHosts",
+      "label": "Aenderung",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "onAdded",
+      "to": "syncHosts",
+      "label": "Ereignis",
+      "variant": "dashed",
+      "role": "async"
+    },
+    {
+      "from": "syncHosts",
+      "to": "nichtGewaehrt",
+      "label": "fehlt",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "syncHosts",
+      "to": "registerCS",
+      "label": "erteilt",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "registerCS",
+      "to": "sendToTab",
+      "label": "Tab offen",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "sendToTab",
+      "to": "scriptAktiv",
+      "label": "Jira erkannt",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "sendToTab",
+      "to": "keineJira",
+      "label": "keine Jira",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Zwei Freigabe-Wege",
+      "items": [
+        "host_permissions deckt nur *.atlassian.net ab, jede andere Adresse startet in optional_host_permissions",
+        "Popup bietet die Freigabe nur an, wenn der Ping auf den aktiven Tab fehlschlaegt",
+        "Die Optionsseite hat ein eigenes Adressfeld, unabhaengig vom gerade offenen Tab"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Registrierung folgt Ereignissen",
+      "items": [
+        "permissions.onAdded/onRemoved und die Aenderung von extraHosts loesen syncExtraHosts() aus",
+        "contains() prueft vor jedem register/unregisterContentScripts erneut",
+        "Eine leere Hostliste ruft unregisterContentScripts statt eines leeren Musters"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Abbrueche bleiben sichtbar",
+      "items": [
+        "Lehnt der Nutzer den Browser-Dialog ab, endet der Weg ohne weitere Aktion",
+        "contains() = false in syncExtraHosts bricht die Registrierung kommentarlos ab",
+        "probeJira erkennt fremde Seiten und laedt STANDALONE_FILES statt CONTENT_FILES"
+      ]
+    }
+  ]
+}
