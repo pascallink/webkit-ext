@@ -192,15 +192,6 @@
     return text;
   }
 
-  // Rueckweg zu escapeLiteral(): entmaskiert im noformat-Rumpf jedes Zeichen
-  // aus JIRA_ESCAPE_CHARS, nicht nur die geschweiften Klammern - Jira parst
-  // den Rumpf nicht, ein Backslash vor '[', '-', '~', '^' oder '+' bliebe
-  // sonst woertlich stehen (Issue #207).
-  var JIRA_UNESCAPE_RE = new RegExp(
-    '\\\\([' + JIRA_ESCAPE_CHARS.split('').map(escapeRegExpClassChar).join('') + '])',
-    'g'
-  );
-
   var JIRA_DIALECT = {
     name: 'jira',
     escapeLiteral: function (ch) {
@@ -256,25 +247,23 @@
     // nichts mehr retten - dann bleibt es bei der alten (kaputten) Form,
     // statt ein zweites kaputtes Muster zu erzeugen.
     // Zwei Parameter (Issue #155): 'text' ist der noch mit Platzhaltern
-    // versehene Rohinhalt fuer den {{ }}-Rueckfall, 'plain' der bereits
-    // aufgeloeste Inhalt fuer die Klammer-Entscheidung. Die Entscheidung
-    // muss auf dem aufgeloesten Text laufen, weil Schritt 1 von
-    // convertInline maskierte Escapes (z.B. '\{') vorher in Platzhalter
-    // steckt - ohne Aufloesung saehe der rohe Text klammerfrei aus, obwohl
-    // der Inhalt nach der Aufloesung Klammern enthaelt. 'plain === null'
-    // heisst bewusst "keine noformat-Form": ein maskierter Strich in einer
-    // Tabellenzelle (cellPipe, Issue #94) bleibt bei '{{ }}', weil er im
-    // noformat-Rumpf woertlich als '\|' erschiene, statt als Spaltentrenner
-    // zu wirken. Fehlt 'plain' (Fremdaufrufer wie api.dialects), gilt
-    // 'plain = text' - Entmaskierung und Selbstenthaltungspruefung laufen
-    // dann auf 'text', die Ausgabe kann sich fuer solche Aufrufer also
+    // versehene Rohinhalt fuer den {{ }}-Rueckfall, 'plain' der bereits ueber
+    // restore(text, true) woertlich aufgeloeste Rumpf (Issue #220) fuer die
+    // Klammer-Entscheidung. Die Entscheidung muss auf dem aufgeloesten Text
+    // laufen, weil Schritt 1 von convertInline maskierte Escapes (z.B. '\{')
+    // vorher in Platzhalter steckt - ohne Aufloesung saehe der rohe Text
+    // klammerfrei aus, obwohl der Inhalt nach der Aufloesung Klammern
+    // enthaelt. 'plain === null' heisst bewusst "keine noformat-Form": ein
+    // maskierter Strich in einer Tabellenzelle (cellPipe, Issue #94) bleibt
+    // bei '{{ }}', weil er im noformat-Rumpf woertlich als '\|' erschiene,
+    // statt als Spaltentrenner zu wirken. Fehlt 'plain' (Fremdaufrufer wie
+    // api.dialects), gilt 'plain = text' unveraendert als Rumpf - keine
+    // Entmaskierung mehr, die Ausgabe kann sich fuer solche Aufrufer also
     // aendern (Issue #207).
     code: function (text, plain) {
       if (plain === undefined) plain = text;
-      // Erst den Rumpf aufloesen, dann pruefen - sonst greift die
-      // Selbstenthaltung bei einem maskierten '{noformat}' nicht: die
-      // Pruefung auf '{noformat}' muss auf dem entmaskierten Rumpf laufen.
-      var body = plain === null ? '' : plain.replace(JIRA_UNESCAPE_RE, '$1');
+      // Selbstenthaltung prueft den woertlichen Rumpf.
+      var body = plain === null ? '' : plain;
       if (plain && /[{}]/.test(plain) && body.indexOf('{noformat}') === -1) {
         return '{noformat}' + body + '{noformat}';
       }
@@ -562,21 +551,27 @@
 
   function Placeholders() {
     this.values = [];
+    // Woertliche Form je Platzhalter, nur gesetzt, wo der Aufrufer sie
+    // mitgibt (Issue #220) - restore(text, true) loest damit auf die
+    // woertliche statt die maskierte Form auf.
+    this.raws = [];
   }
 
-  Placeholders.prototype.add = function (value) {
+  Placeholders.prototype.add = function (value, raw) {
     this.values.push(value);
+    this.raws.push(raw);
     return S + 'P' + (this.values.length - 1) + S;
   };
 
-  Placeholders.prototype.restore = function (text) {
+  Placeholders.prototype.restore = function (text, raw) {
     var self = this;
     var previous = null;
     // Mehrfach durchlaufen, da Platzhalter verschachtelt sein koennen.
     while (previous !== text) {
       previous = text;
       text = text.replace(PLACEHOLDER_RE, function (match, index) {
-        var value = self.values[Number(index)];
+        var i = Number(index);
+        var value = raw && self.raws[i] !== undefined ? self.raws[i] : self.values[i];
         return value === undefined ? match : value;
       });
     }
@@ -679,7 +674,7 @@
     //    innerhalb von {{...}}, da diese Ersetzung vor Schritt 2 laeuft.
     text = text.replace(/\\([\\`*_{}\[\]()#+\-.!|~>])/g, function (match, ch) {
       if (ch === '|' && ctx.inTableCell) return ph.add(d.cellPipe);
-      return ph.add(d.escapeLiteral(ch));
+      return ph.add(d.escapeLiteral(ch), ch);
     });
 
     // 2. Inline-Code sichern -> {{...}}
@@ -694,7 +689,7 @@
       // (cellPipe) bei der alten {{ }}-Form, weil er sonst im noformat-
       // Rumpf woertlich als '\|' erschiene statt als Spaltentrenner zu
       // wirken (Issue #94).
-      var plain = ph.restore(inner);
+      var plain = ph.restore(inner, true);
       if (ctx.inTableCell && plain.indexOf(d.cellPipe) !== -1) plain = null;
       return ph.add(d.code(inner, plain));
     });
@@ -711,7 +706,7 @@
           // Gleiche Wurzel wie beim Backtick-Inline-Code (Issue #155):
           // Entscheidung auf dem aufgeloesten Inhalt, maskierter Strich in
           // der Tabellenzelle (cellPipe) bleibt bei {{ }} (Issue #94).
-          var plain = ph.restore(code);
+          var plain = ph.restore(code, true);
           if (ctx.inTableCell && plain.indexOf(d.cellPipe) !== -1) plain = null;
           return ph.add(d.code(code, plain));
         })
