@@ -226,6 +226,15 @@ describe('Quellcode', function () {
 });
 
 describe('Content-Script-Verdrahtung', function () {
+  function ohneKommentare(source) {
+    // Kommentare zaehlen nicht als Verdrahtung - sonst bliebe der Test
+    // gruen, wenn die echte window.<Global>-Zeile verschwindet, aber die
+    // Zeichenfolge nur noch in einem Kommentar uebrig bleibt.
+    return source
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/\/\/[^\n]*/g, ' ');
+  }
+
   test('jede Content-Datei wird ueber ihr Global referenziert', function () {
     // src/content.js ist der Einstieg (IIFE ohne eigenen root.X = api-Export)
     // und faellt darum aus der Pruefung selbst raus - als Sucheziel fuer die
@@ -235,14 +244,8 @@ describe('Content-Script-Verdrahtung', function () {
     var globalPattern = /root\.([A-Za-z]+) = api/;
     var missing = [];
 
-    // src/mapping.js liegt seit Issue #32 (Sub-Task 1 von 5, Stacked PRs) im
-    // Manifest, wird aber erst in Sub-Task 3 (Anreicherung im Editor) von
-    // content.js aufgerufen - Logik und Storage-Schema zuerst, Oberflaeche
-    // folgt in einem eigenen PR. Bis dahin bleibt es hier bewusst ausgenommen.
-    var NOT_YET_WIRED = ['src/mapping.js'];
-
     allFiles.filter(function (file) {
-      return file !== 'src/content.js' && NOT_YET_WIRED.indexOf(file) === -1;
+      return file !== 'src/content.js';
     }).forEach(function (file) {
       var source = fs.readFileSync(abs(file), 'utf8');
       var match = globalPattern.exec(source);
@@ -251,7 +254,8 @@ describe('Content-Script-Verdrahtung', function () {
       var referencePattern = new RegExp('(window|self)\\.' + globalName + '\\b');
       var referenced = allFiles.some(function (other) {
         if (other === file) return false;
-        return referencePattern.test(fs.readFileSync(abs(other), 'utf8'));
+        var otherSource = fs.readFileSync(abs(other), 'utf8');
+        return referencePattern.test(ohneKommentare(otherSource));
       });
       if (!referenced) missing.push(file + ' (' + globalName + ')');
     });
