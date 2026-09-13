@@ -17,6 +17,8 @@ das naechste Issue. Gemergt wird nichts; die PRs stapeln sich auf
 | `templates/fixer.md` | Haiku/Sonnet: genau ein Korrektur-Prompt. |
 | `templates/ci-fixer.md` | Sonnet: Commitlint- oder Build-Fehler beheben. |
 | `templates/cleanup.md` | Haiku: Working Tree per Stash saeubern. |
+| `tools/st.py` | State-Helfer des Orchestrators: `init <issues.json>`, `set k=v ...`, `calls <doc...>`, `log "<text>"`, `show` auf `~/nightrun-webkit-ext/state.json`. |
+| `tools/render.py` | Rendert eine Vorlage aus `templates/` mit `KEY=VALUE`-Platzhaltern (`REPO` zeigt auf das Worktree). |
 
 ## Start im neuen Chat
 
@@ -53,4 +55,18 @@ den Lauf. Geparkte Branches werden nie Base fuer den naechsten PR.
 | Datei | Inhalt |
 | --- | --- |
 | `issues-round1.json` | Erster Lauf (12.09.2026): 26 Issues der Fehlersammlung, alle als PR gegen `claude/analyse-issues-mockup-912` gemergt. |
-| `issues.json` | Zweiter Lauf: 25 nicht blockierende Review-Hinweise (MINOR/STYLE) aus dem ersten Lauf als Issues #155-#179, Label `nightrun-minor`. |
+| `issues-round2.json` | Zweiter Lauf (12./13.09.2026): 25 Review-Hinweise (MINOR/STYLE) aus Lauf 1 als Issues #155-#179, Label `nightrun-minor`, alle als gestapelte PRs #181-#198 umgesetzt. |
+| `issues.json` | Dritter Lauf: offene Review-Hinweise aus Lauf 2 (Erzeugung siehe `PROMPT.md`, Abschnitt Folgelauf). |
+
+## Start eines Folgelaufs im neuen Chat
+
+```
+Du bist der Nacht-Orchestrator fuer pascallink/webkit-ext. Lies
+/Volumes/sources/tools/webkit-ext/jira-markdown-converter/docs/nightrun/PROMPT.md
+vollstaendig (inkl. Abschnitte "Folgelauf" und "Gelernte Regeln") und fuehre
+ihn aus. Arbeite im Worktree /Volumes/sources/tools/webkit-ext-nightrun
+(anlegen, falls es fehlt). Sammle zuerst die offenen MINOR-Hinweise aus den
+Reviews des Vorlaufs unter ~/nightrun-webkit-ext/reviews/ als Issues und
+neue issues.json, checke die Liste ein, dann arbeite sie ab; Stop nur auf
+mein Kommando. Der Nutzer entscheidet nichts mit, du entscheidest.
+```
