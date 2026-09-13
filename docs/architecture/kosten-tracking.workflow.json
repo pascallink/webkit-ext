@@ -1,0 +1,75 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Kosten-Tracking - von der Erhebung bis zum Report",
+    "output": "docs/architecture/kosten-tracking.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "session", "label": "Claude-Session" },
+    { "id": "hook", "label": "Git-Hook" },
+    { "id": "ci", "label": "GitHub Actions" },
+    { "id": "stats", "label": "Dateien unter stats/" },
+    { "id": "ex", "label": "Nicht erfasst", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "collect", "label": "Erheben", "fromCol": 0, "toCol": 1 },
+    { "id": "write", "label": "Festschreiben", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "close", "label": "Verbuchen und berichten", "fromCol": 4, "toCol": 5 }
+  ],
+  "mainPath": ["run", "state", "flush", "csv", "merge"],
+  "nodes": [
+    { "id": "run", "lane": "session", "col": 0, "type": "frontend", "label": "Session laeuft", "sublabel": "Haupt und Subagenten", "width": 136 },
+    { "id": "state", "lane": "session", "col": 1, "type": "backend", "label": "SessionStart, Stop", "sublabel": "--state, ungetrackt", "width": 136 },
+    { "id": "flush", "lane": "hook", "col": 2, "type": "backend", "label": "pre-commit", "sublabel": "--flush, dann git add", "width": 136 },
+    { "id": "csv", "lane": "stats", "col": 3, "type": "database", "label": "costs, tokens", "sublabel": "Upsert je Branch", "width": 136 },
+    { "id": "merge", "lane": "ci", "col": 4, "type": "cloud", "label": "aggregate", "sublabel": "nur gemergter PR", "width": 136 },
+    { "id": "history", "lane": "stats", "col": 4, "type": "database", "label": "Historie", "sublabel": "je PR und Modell", "width": 136 },
+    { "id": "daily", "lane": "ci", "col": 5, "type": "cloud", "label": "daily 0:00 UTC", "sublabel": "auch von Hand", "width": 136 },
+    { "id": "report", "lane": "stats", "col": 5, "type": "frontend", "label": "report.html", "sublabel": "komplett neu", "width": 136 },
+    { "id": "noHooks", "lane": "ex", "col": 2, "type": "security", "label": "keine Git-Hooks", "sublabel": "nichts wird verbucht", "width": 136 },
+    { "id": "afterCommit", "lane": "ex", "col": 3, "type": "security", "label": "nach dem Commit", "sublabel": "Push und PR fehlen", "width": 136 }
+  ],
+  "edges": [
+    { "from": "run", "to": "state", "label": "Hook-Ereignis", "variant": "emphasis", "role": "main" },
+    { "from": "state", "to": "flush", "label": "Session gepinnt", "variant": "emphasis", "role": "main" },
+    { "from": "flush", "to": "csv", "label": "frisch gerechnet", "variant": "emphasis", "role": "main" },
+    { "from": "flush", "to": "noHooks", "label": "hooksPath fehlt", "variant": "security", "role": "error" },
+    { "from": "csv", "to": "afterCommit", "label": "Rest der Sitzung", "variant": "dashed", "role": "error" },
+    { "from": "csv", "to": "merge", "label": "PR gemergt", "variant": "emphasis", "role": "main" },
+    { "from": "merge", "to": "history", "label": "Summe je Branch", "variant": "emphasis" },
+    { "from": "history", "to": "daily", "label": "vier CSVs", "variant": "default" },
+    { "from": "daily", "to": "report", "label": "neu geschrieben", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Zwei Betriebsarten",
+      "items": [
+        "SessionStart und Stop rufen costs-update.mjs mit --state: nur .claude/state/costs/<session_id>.json, der Arbeitsbaum bleibt sauber",
+        "Der pre-commit-Hook ruft --flush: frisch aus dem Transcript gerechnet, Upsert in costs.csv und tokens.csv, danach git add",
+        "Fehlt das Transcript, dient die State-Datei als Rueckfall - sie pinnt Session-ID und Transcript-Pfad"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Beim Merge und taeglich",
+      "items": [
+        "aggregate laeuft nur fuer einen gemergten PR: Job Summary, PR-Kommentar, Kostenblock in PR und verlinktem Issue, Changelog-Zeile je beruehrtem Projekt",
+        "Die Branch-Zeilen wandern in history.csv und history-models.csv und fallen aus den Rohdateien heraus",
+        "daily raeumt verwaiste Branches auf (Remote weg oder aelter als 30 Tage, reason=abandoned) und schreibt report.html komplett neu"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Grenzen",
+      "items": [
+        "Ohne aktive Git-Hooks wird eine Session nie verbucht - lokal per npm run hooks:install, in der Cloud setzt der SessionStart-Hook core.hooksPath selbst",
+        "Turns nach dem letzten Commit (Push, PR, Abschlussmeldung) bleiben bewusst unverbucht: verbucht wird, was in git liegt",
+        "Alle Betraege sind Listenpreis-Schaetzungen aus stats/pricing.json, keine Rechnung"
+      ]
+    }
+  ]
+}

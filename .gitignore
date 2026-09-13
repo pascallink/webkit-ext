@@ -4,3 +4,5 @@ node_modules/
 *.visual-check.*.png
 .aider*
 .claude/state/
+# Repoweite Diagramme: HTML entsteht bei Bedarf, nur die JSON liegt im Repo.
+/docs/architecture/*.html
