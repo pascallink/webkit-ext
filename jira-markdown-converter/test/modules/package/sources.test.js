@@ -235,14 +235,8 @@ describe('Content-Script-Verdrahtung', function () {
     var globalPattern = /root\.([A-Za-z]+) = api/;
     var missing = [];
 
-    // src/mapping.js liegt seit Issue #32 (Sub-Task 1 von 5, Stacked PRs) im
-    // Manifest, wird aber erst in Sub-Task 3 (Anreicherung im Editor) von
-    // content.js aufgerufen - Logik und Storage-Schema zuerst, Oberflaeche
-    // folgt in einem eigenen PR. Bis dahin bleibt es hier bewusst ausgenommen.
-    var NOT_YET_WIRED = ['src/mapping.js'];
-
     allFiles.filter(function (file) {
-      return file !== 'src/content.js' && NOT_YET_WIRED.indexOf(file) === -1;
+      return file !== 'src/content.js';
     }).forEach(function (file) {
       var source = fs.readFileSync(abs(file), 'utf8');
       var match = globalPattern.exec(source);

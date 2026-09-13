@@ -17,6 +17,7 @@
   var EditLock = window.JiraEditLock;
   var OtrsFlow = window.JiraOtrsFlow;
   var OtrsDialog = window.JiraOtrsDialog;
+  var Mapping = window.JiraMapping;
 
   // Fremde Seite (kein Jira): src/background.js spielt hier STANDALONE_FILES
   // ein und setzt window.__jiraMarkdownStandalone schon vor den Dateien
@@ -34,6 +35,16 @@
       watch: function () {},
       configure: function () {},
       createButton: function () { return null; }
+    };
+  }
+
+  // Ohne mapping.js (z. B. eine veraltete gecachte Ladeliste) gaebe es kein
+  // window.JiraMapping - dieselbe Absicherung wie bei EditLock: eine
+  // wirkungslose Huelle haelt enrichCustomerKeys() und die Feldleiste
+  // lauffaehig, statt sie mit einem Wurf zu zerlegen.
+  if (!Mapping) {
+    Mapping = {
+      enrich: function (text) { return { text: text, count: 0 }; }
     };
   }
 
@@ -220,6 +231,105 @@
       toast(insertMessage(how));
     });
     return true;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Kunden-Schluessel anreichern (Issue #32)
+   *
+   * JiraMapping.enrich() sucht Kunden-Schluessel im Text und haengt hinter
+   * jeden Treffer mit Mapping-Eintrag die zugeordneten Jira-Keys in Klammern
+   * an. Im Textfeld geht das ueber denselben Schreibweg wie convertInPlace()
+   * fuer den ganzen Feldinhalt (Editors.insert(), Modus replace). Im
+   * Rich-Text-Editor wuerde 'replace' die Formatierung wegwerfen - dort wird
+   * stattdessen je Textknoten angereichert, siehe enrichRichText().
+   * ------------------------------------------------------------------ */
+
+  /** Reines Textfeld: derselbe Schreibweg wie convertInPlace() (Modus replace). */
+  function enrichPlainField(field) {
+    var result = Mapping.enrich(field.value, settings.customerKeyMap, settings.customerKeyPattern);
+    if (!result.count) {
+      toast('Keine Kunden-Schluessel zu ergaenzen.');
+      return;
+    }
+    // Die Cursorposition wird nicht gerettet - Editors.insert() im Modus
+    // replace setzt sie ans Feldende (insertIntoTextarea()).
+    Editors.insert(field, result.text, 'replace');
+    toast(result.count + ' Kunden-Schluessel ergaenzt.');
+  }
+
+  /**
+   * Vorfahr eines Textknotens bis zur Editor-Wurzel (surface): Code,
+   * vorformatierter Text, Links und die eigene Oberflaeche (data-jmd-ui)
+   * bleiben von der Anreicherung unberuehrt.
+   */
+  function isEnrichSkipped(node, surface) {
+    var element = node.parentNode;
+    while (element && element !== surface) {
+      if (element.nodeType === 1) {
+        var tag = element.tagName;
+        if (tag === 'CODE' || tag === 'PRE' || tag === 'A' ||
+            (element.hasAttribute && element.hasAttribute('data-jmd-ui'))) {
+          return true;
+        }
+      }
+      element = element.parentNode;
+    }
+    return false;
+  }
+
+  /**
+   * Rich-Text-Editor: je Textknoten per TreeWalker angereichert, damit nur
+   * node.nodeValue angefasst wird - kein innerHTML, kein neues Element,
+   * keine Tags in bearbeitbaren Text (harte Vorgabe aus Issue #32).
+   */
+  function enrichRichText(field) {
+    var surface = Editors.editingSurface(field);
+    if (!surface) return;
+    var doc = surface.ownerDocument;
+    var view = doc.defaultView;
+    // NodeFilter aus dem Dokument der Flaeche - im Editor-Rahmen ist das ein
+    // anderes Fenster als das der Seite, siehe selectInEditable().
+    var walker = doc.createTreeWalker(surface, view.NodeFilter.SHOW_TEXT, null);
+    var node = null;
+    var nodes = [];
+    while ((node = walker.nextNode())) {
+      if (!isEnrichSkipped(node, surface)) nodes.push(node);
+    }
+
+    var total = 0;
+    for (var i = 0; i < nodes.length; i++) {
+      var result = Mapping.enrich(nodes[i].nodeValue, settings.customerKeyMap, settings.customerKeyPattern);
+      if (result.count) {
+        nodes[i].nodeValue = result.text;
+        total += result.count;
+      }
+    }
+
+    if (!total) {
+      toast('Keine Kunden-Schluessel zu ergaenzen.');
+      return;
+    }
+    // Jira soll den Feldinhalt als geaendert erkennen. Die Cursorposition
+    // wird nicht gerettet - sie kann nach der Anreicherung am Feldende liegen.
+    surface.dispatchEvent(new Event('input', { bubbles: true }));
+    toast(total + ' Kunden-Schluessel ergaenzt.');
+  }
+
+  /**
+   * Durchsucht den Feldinhalt nach Kunden-Schluesseln und ergaenzt die
+   * zugeordneten Jira-Keys. Ohne Zuordnungstabelle passiert nichts - der
+   * Knopf ist dann ohnehin deaktiviert, siehe showCustomerKeysButton().
+   */
+  function enrichCustomerKeys(field) {
+    if (!field || !settings.customerKeyMap || !Object.keys(settings.customerKeyMap).length) return;
+
+    if (isPlainField(field)) {
+      enrichPlainField(field);
+      return;
+    }
+    if (Editors.isRichTextActive(field)) {
+      enrichRichText(field);
+    }
   }
 
   /* ------------------------------------------------------------------ *
@@ -449,6 +559,23 @@
     var buttons = document.querySelectorAll('.jmd-fieldbar__btn--templates');
     for (var i = 0; i < buttons.length; i++) {
       showCustomTemplatesButton(buttons[i]);
+    }
+  }
+
+  /** Ohne Zuordnungstabelle bleibt der Button deaktiviert - nichts zum Anreichern. */
+  function showCustomerKeysButton(button) {
+    var has = Object.keys(settings.customerKeyMap || {}).length > 0;
+    button.disabled = !has;
+    button.title = has
+      ? 'Kunden-Schluessel im Feld um die zugeordneten Jira-Keys ergaenzen'
+      : 'Noch keine Zuordnung angelegt - in den Einstellungen pflegen';
+  }
+
+  /** Zieht den Kunden-Schluessel-Button an allen Leisten nach - neue oder geloeschte Zuordnungen. */
+  function updateFieldbarKeyButtons() {
+    var buttons = document.querySelectorAll('.jmd-fieldbar__btn--keys');
+    for (var i = 0; i < buttons.length; i++) {
+      showCustomerKeysButton(buttons[i]);
     }
   }
 
@@ -1551,6 +1678,17 @@
     });
     showCustomTemplatesButton(customButton);
 
+    var keysButton = document.createElement('button');
+    keysButton.type = 'button';
+    keysButton.className = 'jmd-fieldbar__btn jmd-fieldbar__btn--keys';
+    keysButton.textContent = 'Keys';
+    keysButton.addEventListener('click', function (event) {
+      event.preventDefault();
+      target = field;
+      enrichCustomerKeys(field);
+    });
+    showCustomerKeysButton(keysButton);
+
     var panelButton = document.createElement('button');
     panelButton.type = 'button';
     panelButton.className = 'jmd-fieldbar__btn jmd-fieldbar__btn--ghost';
@@ -1573,6 +1711,7 @@
     bar.appendChild(otrsButton);
     bar.appendChild(templateButton);
     bar.appendChild(customButton);
+    bar.appendChild(keysButton);
     bar.appendChild(panelButton);
     bar.appendChild(lockButton);
     parent.insertBefore(bar, host);
@@ -2001,6 +2140,7 @@
       updateFab();
       updateFieldbarToggles();
       updateFieldbarTemplateButtons();
+      updateFieldbarKeyButtons();
       updateFieldbarOtrsButtons();
       // Ein offenes Vorlagenmenue kann durch eine Aenderung in einem
       // zweiten Tab veraltet sein (Vorlage geloescht/umbenannt).
