@@ -388,6 +388,13 @@
    * Der Ablauf steuert globale Tastenkuerzel und AUI-Dialoge - eine parallele
    * zweite Ausfuehrung wuerde sich mit der ersten ueberschneiden, darum eine
    * Wiedereintrittssperre ueber customerKeySyncRunning.
+   *
+   * previousKey aus KeySync.run() zeigt an, ob dabei ein vom Nutzer
+   * gepflegter Feldwert ueberschrieben wurde (leeres Feld oder bereits der
+   * gleiche Schluessel zaehlen nicht als Ueberschreiben, siehe
+   * overwrittenKey() in src/keysync.js) - genau wie previousReference bei
+   * runOtrsFlow() geht diese Warnung dann als zusaetzlicher sticky Toast mit
+   * dem alten Wert raus, statt den Erfolgstoast zu verdraengen.
    */
   function syncCustomerKey() {
     if (customerKeySyncRunning) {
@@ -409,11 +416,20 @@
 
     customerKeySyncRunning = true;
     KeySync.run({ key: keys[0], fieldName: settings.customerKeyFieldName, doc: document })
-      .then(function () {
+      .then(function (result) {
         toast('Kunden-Schluessel ' + keys[0] + ' uebernommen.');
+        if (result.previousKey) {
+          toast('Achtung: Feldwert wurde ueberschrieben. Vorheriger Wert: ' + result.previousKey,
+            true, { sticky: true });
+        }
       })
       .catch(function (error) {
-        toast(error.message, true);
+        if (error.previousKey) {
+          toast(error.message + ' Achtung: Feldwert wurde ueberschrieben. Vorheriger Wert: ' + error.previousKey,
+            true, { sticky: true });
+        } else {
+          toast(error.message, true);
+        }
       })
       .then(function () {
         customerKeySyncRunning = false;

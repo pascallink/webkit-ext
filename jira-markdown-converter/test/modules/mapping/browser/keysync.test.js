@@ -128,16 +128,60 @@ describe('JiraKeySync - Suche und Textlesen', { skip: !hasPlaywright }, function
 });
 
 describe('JiraKeySync.run - Ablauf gegen den Nachbau von 9.12', { skip: !hasPlaywright }, function () {
-  test('setzt Label und Custom Field und loest mit label/field: true auf', async function () {
+  /**
+   * customfield_10027 steht in der Fixture leer (siehe keysInDescription-
+   * Kommentar oben) - previousKey muss dann leer bleiben, es gibt ja nichts
+   * zu ueberschreiben.
+   */
+  test('setzt Label und Custom Field, leeres Feld meldet kein previousKey', async function () {
     var browser = await browserPromise;
     var page = await loadFlowPage(browser);
     var result = await page.evaluate(function (fieldName) {
       return window.JiraKeySync.run({ key: 'ROV-4711', fieldName: fieldName });
     }, FIELD_NAME);
-    assert.deepStrictEqual(result, { key: 'ROV-4711', label: true, field: true });
+    assert.deepStrictEqual(result, { key: 'ROV-4711', label: true, field: true, previousKey: '' });
     var saved = await page.evaluate(function () { return window.__mock.saved; });
     assert.strictEqual(saved.labels, 'ROV-4711');
     assert.strictEqual(saved.kundenReferenz, 'ROV-4711');
+    await page.close();
+  });
+
+  /**
+   * Ein bereits vom Nutzer gepflegter Feldwert (customfield_10027 vorbelegt,
+   * wie previousReference in otrsflow.test.js) darf nicht stillschweigend
+   * verschwinden - previousKey muss den alten Wert melden.
+   */
+  test('vorbelegtes Feld meldet den alten Wert ueber previousKey', async function () {
+    var browser = await browserPromise;
+    var page = await loadFlowPage(browser);
+    await page.evaluate(function () {
+      document.getElementById('customfield_10027').value = 'Alter Wert';
+    });
+    var result = await page.evaluate(function (fieldName) {
+      return window.JiraKeySync.run({ key: 'ROV-4711', fieldName: fieldName });
+    }, FIELD_NAME);
+    assert.strictEqual(result.previousKey, 'Alter Wert');
+    var saved = await page.evaluate(function () { return window.__mock.saved.kundenReferenz; });
+    assert.strictEqual(saved, 'ROV-4711');
+    await page.close();
+  });
+
+  /**
+   * Steht bereits genau der zu uebernehmende Kunden-Schluessel im Feld, ist
+   * das kein Ueberschreiben - previousKey bleibt leer.
+   */
+  test('gleicher Wert im Feld meldet kein Ueberschreiben', async function () {
+    var browser = await browserPromise;
+    var page = await loadFlowPage(browser);
+    await page.evaluate(function () {
+      document.getElementById('customfield_10027').value = 'ROV-4711';
+    });
+    var result = await page.evaluate(function (fieldName) {
+      return window.JiraKeySync.run({ key: 'ROV-4711', fieldName: fieldName });
+    }, FIELD_NAME);
+    assert.strictEqual(result.previousKey, '');
+    var saved = await page.evaluate(function () { return window.__mock.saved.kundenReferenz; });
+    assert.strictEqual(saved, 'ROV-4711');
     await page.close();
   });
 

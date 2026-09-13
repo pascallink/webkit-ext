@@ -40,11 +40,29 @@
     return null;
   }
 
-  /** Fehler mit step-Eigenschaft, damit der Aufrufer den gescheiterten Schritt erkennt. */
-  function stepError(step, message) {
+  /**
+   * Fehler mit step-Eigenschaft, damit der Aufrufer den gescheiterten Schritt
+   * erkennt. previousKey ist optional - nur setField() liefert ihn, damit
+   * der Aufrufer den alten Feldwert auch im Fehlerfall noch hat. Derselbe
+   * Weg wie stepError() in src/otrsflow.js (previousReference).
+   */
+  function stepError(step, message, previousKey) {
     var error = new Error(message);
     error.step = step;
+    if (previousKey !== undefined) {
+      error.previousKey = previousKey;
+    }
     return error;
+  }
+
+  /**
+   * Meldet den vorherigen Feldwert nur, wenn er tatsaechlich ein
+   * Ueberschreiben bedeutet: ein leeres Feld oder ein Feld, das schon genau
+   * den Kunden-Schluessel enthaelt, gilt nicht als ueberschrieben.
+   */
+  function overwrittenKey(previousValue, key) {
+    if (!previousValue || previousValue === key) return '';
+    return previousValue;
   }
 
   /**
@@ -203,13 +221,22 @@
     return Promise.resolve({ field: field, dialog: null });
   }
 
+  /**
+   * Setzt das Custom Field und liefert den vorherigen Feldwert (getrimmt) an
+   * den Aufrufer zurueck - derselbe Weg wie setReference() in
+   * src/otrsflow.js fuer previousReference. Schlaegt der Schritt fehl,
+   * haengt setField() den vorherigen Wert trotzdem an den Fehler, damit ihn
+   * der Aufrufer nicht verliert.
+   */
   function setField(key, fieldName, doc, timeout) {
     var ui = getUi();
+    var previousValue = '';
     return locateFieldInDialog(fieldName, doc, timeout)
       .catch(function () {
         return locateFieldFallback(fieldName, doc);
       })
       .then(function (target) {
+        previousValue = (target.field.value || '').trim();
         ui.setValue(target.field, key);
         if (!target.dialog) {
           var form = target.field.closest('form');
@@ -221,15 +248,17 @@
             // Default-Action aus, Enter allein committet das Feld nicht.
             ui.sendKey(target.field, 'Enter');
           }
-          return;
+          return previousValue;
         }
         if (!ui.submitForm(target.dialog)) {
           throw new Error('Formular fuer "' + fieldName + '" nicht gefunden');
         }
-        return ui.waitForGone('#modal-field-view', { root: doc, visible: true, timeout: timeout });
+        return ui.waitForGone('#modal-field-view', { root: doc, visible: true, timeout: timeout }).then(function () {
+          return previousValue;
+        });
       })
       .catch(function (error) {
-        throw stepError('field', 'Custom Field "' + fieldName + '" konnte nicht gesetzt werden: ' + error.message);
+        throw stepError('field', 'Custom Field "' + fieldName + '" konnte nicht gesetzt werden: ' + error.message, previousValue);
       });
   }
 
@@ -243,6 +272,11 @@
    * kein Custom Field mehr. Schlaegt nur das Custom Field fehl, bleibt das
    * Label gesetzt: der Fehler traegt dann einen Hinweis darauf in der
    * Meldung, damit der Aufrufer den Nutzer informieren kann.
+   *
+   * Das Ergebnis (bzw. im Fehlerfall der Fehler) traegt zusaetzlich
+   * previousKey: den vorherigen Feldwert, wenn er ein tatsaechliches
+   * Ueberschreiben bedeutet (siehe overwrittenKey()) - sonst ''. Derselbe
+   * Weg wie previousReference in src/otrsflow.js.
    */
   function run(options) {
     var opts = options || {};
@@ -269,12 +303,13 @@
       .then(function () {
         return setField(key, fieldName, doc, timeout);
       })
-      .then(function () {
-        return { key: key, label: true, field: true };
+      .then(function (previousValue) {
+        return { key: key, label: true, field: true, previousKey: overwrittenKey(previousValue, key) };
       })
       .catch(function (error) {
         if (error.step === 'field') {
-          var fieldError = stepError('field', error.message + ' Das Kennzeichen wurde bereits gesetzt.');
+          var fieldError = stepError('field', error.message + ' Das Kennzeichen wurde bereits gesetzt.',
+            overwrittenKey(error.previousKey, key));
           fieldError.key = key;
           fieldError.label = true;
           fieldError.field = false;
