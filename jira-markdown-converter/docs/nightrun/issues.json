@@ -1,407 +1,87 @@
 {
-  "root_base": "claude/analyse-issues-mockup-912",
+  "root_base": "docs/issue-179-claude-md-otrs-ascii",
   "project": "jira-markdown-converter",
   "order": [
     [
-      "M01"
+      "N01"
     ],
     [
-      "M02"
+      "N02"
     ],
     [
-      "M03"
+      "N03"
     ],
     [
-      "M04"
+      "N04"
     ],
     [
-      "M05"
-    ],
-    [
-      "M06"
-    ],
-    [
-      "M07"
-    ],
-    [
-      "M08"
-    ],
-    [
-      "M09"
-    ],
-    [
-      "M10"
-    ],
-    [
-      "M11"
-    ],
-    [
-      "M12"
-    ],
-    [
-      "M13"
-    ],
-    [
-      "M14"
-    ],
-    [
-      "M15"
-    ],
-    [
-      "M16"
-    ],
-    [
-      "M17"
-    ],
-    [
-      "M18"
-    ],
-    [
-      "M19"
-    ],
-    [
-      "M20"
-    ],
-    [
-      "M21"
-    ],
-    [
-      "M22"
-    ],
-    [
-      "M23"
-    ],
-    [
-      "M24"
-    ],
-    [
-      "M25"
+      "N05"
     ]
   ],
   "issues": {
-    "M01": {
-      "number": 155,
+    "N01": {
+      "number": 207,
       "file": null,
-      "title": "converter.js: Inline-Code mit maskierten Klammern landet weiter in {{ }}",
+      "title": "converter.js: noformat-Rumpf fuer alle Jira-Escapes entmaskieren",
       "labels": [
         "nightrun-minor",
         "area:converter"
       ],
       "max_rounds": 2,
-      "source_pr": 145,
+      "source_pr": 181,
       "target_file": "jira-markdown-converter/src/converter.js",
       "model": "sonnet"
     },
-    "M02": {
-      "number": 156,
+    "N02": {
+      "number": 208,
       "file": null,
-      "title": "content.js: cleanupGrowthWatchers loest Eintrag mit abgehaengter Box nicht",
+      "title": "content.js: cleanupGrowthWatchers gegen die aktuelle Box des Feldes pruefen",
       "labels": [
         "nightrun-minor",
         "area:content"
       ],
       "max_rounds": 2,
-      "source_pr": 150,
+      "source_pr": 183,
       "target_file": "jira-markdown-converter/src/content.js",
       "model": "sonnet"
     },
-    "M03": {
-      "number": 157,
+    "N03": {
+      "number": 209,
       "file": null,
-      "title": "content.js: deliverMarkup ohne try/catch laesst sendResponse aus",
-      "labels": [
-        "nightrun-minor",
-        "area:content"
-      ],
-      "max_rounds": 2,
-      "source_pr": 153,
-      "target_file": "jira-markdown-converter/src/content.js",
-      "model": "sonnet"
-    },
-    "M04": {
-      "number": 158,
-      "file": null,
-      "title": "editors.js: insertIntoTextarea ruft insertViaCommand ohne Ersetzen-Modus",
-      "labels": [
-        "nightrun-minor",
-        "area:editors"
-      ],
-      "max_rounds": 2,
-      "source_pr": 137,
-      "target_file": "jira-markdown-converter/src/editors.js",
-      "model": "sonnet"
-    },
-    "M05": {
-      "number": 159,
-      "file": null,
-      "title": "otrsflow.test.js: Fallback-Prioritaet und leere previousReference absichern",
+      "title": "undo.test.js: Zwischen-Assert nach dem Einfuegen ergaenzen",
       "labels": [
         "nightrun-minor",
         "area:test"
       ],
       "max_rounds": 2,
-      "source_pr": 139,
-      "target_file": "jira-markdown-converter/test/modules/otrs/browser/otrsflow.test.js",
+      "source_pr": 185,
+      "target_file": "jira-markdown-converter/test/modules/editors/browser/undo.test.js",
       "model": "sonnet"
     },
-    "M06": {
-      "number": 160,
+    "N04": {
+      "number": 210,
       "file": null,
-      "title": "eingabe.test.js: festes waitForTimeout(700) durch Warten auf den Zielzustand ersetzen",
+      "title": "spaetleiste.test.js: Dauerscan-Satz im Dateikopf auf den rows-Fall einschraenken",
       "labels": [
         "nightrun-minor",
         "area:test"
       ],
       "max_rounds": 2,
-      "source_pr": 142,
-      "target_file": "jira-markdown-converter/test/modules/ext/browser/eingabe.test.js",
-      "model": "sonnet"
-    },
-    "M07": {
-      "number": 161,
-      "file": null,
-      "title": "spaetleiste.test.js: Fokus-Fall ehrlich benennen und Vorbedingung pruefen",
-      "labels": [
-        "nightrun-minor",
-        "area:test"
-      ],
-      "max_rounds": 2,
-      "source_pr": 150,
+      "source_pr": 188,
       "target_file": "jira-markdown-converter/test/modules/content/browser/spaetleiste.test.js",
-      "model": "sonnet"
-    },
-    "M08": {
-      "number": 162,
-      "file": null,
-      "title": "fabgate.test.js: Loginseite-Fall auf die Koeder-Textarea fokussieren",
-      "labels": [
-        "nightrun-minor",
-        "area:test"
-      ],
-      "max_rounds": 2,
-      "source_pr": 151,
-      "target_file": "jira-markdown-converter/test/modules/content/browser/fabgate.test.js",
-      "model": "sonnet"
-    },
-    "M09": {
-      "number": 163,
-      "file": null,
-      "title": "content.js: Kommentar ueber insertCode() auf pre.code.panel richtigstellen",
-      "labels": [
-        "nightrun-minor",
-        "area:content"
-      ],
-      "max_rounds": 2,
-      "source_pr": 120,
-      "target_file": "jira-markdown-converter/src/content.js",
       "model": "haiku"
     },
-    "M10": {
-      "number": 164,
+    "N05": {
+      "number": 211,
       "file": null,
-      "title": "editlock.js: Kommentare zu needsConfirmation und contentOf richtigstellen",
-      "labels": [
-        "nightrun-minor",
-        "area:editlock"
-      ],
-      "max_rounds": 2,
-      "source_pr": 154,
-      "target_file": "jira-markdown-converter/src/editlock.js",
-      "model": "haiku"
-    },
-    "M11": {
-      "number": 165,
-      "file": null,
-      "title": "converter.test.js: Leerstring und maskiertes Makro in looksLikeJiraMarkup pruefen",
-      "labels": [
-        "nightrun-minor",
-        "area:test"
-      ],
-      "max_rounds": 2,
-      "source_pr": 116,
-      "target_file": "jira-markdown-converter/test/modules/converter/converter.test.js",
-      "model": "haiku"
-    },
-    "M12": {
-      "number": 166,
-      "file": null,
-      "title": "caret.test.js: Kommentare zu blur() und waitForTimeout richtigstellen",
-      "labels": [
-        "nightrun-minor",
-        "area:test"
-      ],
-      "max_rounds": 2,
-      "source_pr": 136,
-      "target_file": "jira-markdown-converter/test/modules/editors/browser/caret.test.js",
-      "model": "haiku"
-    },
-    "M13": {
-      "number": 167,
-      "file": null,
-      "title": "paste.test.js: doppelten Fall Undo im Rich-Text-Editor entfernen",
-      "labels": [
-        "nightrun-minor",
-        "area:test"
-      ],
-      "max_rounds": 2,
-      "source_pr": 137,
-      "target_file": "jira-markdown-converter/test/modules/content/browser/paste.test.js",
-      "model": "haiku"
-    },
-    "M14": {
-      "number": 168,
-      "file": null,
-      "title": "TESTS.md: terminierung.test.js im Verzeichnisbaum ergaenzen",
+      "title": "TESTS.md: geloeschten Schlussabsatz im Abschnitt Ebene ext wiederherstellen",
       "labels": [
         "nightrun-minor",
         "documentation"
       ],
       "max_rounds": 2,
-      "source_pr": 115,
+      "source_pr": 195,
       "target_file": ".github/TESTS.md",
-      "model": "haiku"
-    },
-    "M15": {
-      "number": 169,
-      "file": null,
-      "title": "TESTS.md: httpkontext.test.js und stubLegacyClipboard in die Struktur aufnehmen",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 126,
-      "target_file": ".github/TESTS.md",
-      "model": "haiku"
-    },
-    "M16": {
-      "number": 170,
-      "file": null,
-      "title": "TESTS.md: Abschnitt Ebene ext sprachlich und sachlich richtigstellen",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 142,
-      "target_file": ".github/TESTS.md",
-      "model": "haiku"
-    },
-    "M17": {
-      "number": 171,
-      "file": null,
-      "title": "TESTS.md: fixtures.js mit allen zehn exportierten Namen auffuehren",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 152,
-      "target_file": ".github/TESTS.md",
-      "model": "haiku"
-    },
-    "M18": {
-      "number": 172,
-      "file": null,
-      "title": "CHANGELOG.md: Behoben-Zeilen zu #112, #90 und #111 richtigstellen",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 114,
-      "target_file": "jira-markdown-converter/CHANGELOG.md",
-      "model": "haiku"
-    },
-    "M19": {
-      "number": 173,
-      "file": null,
-      "title": "CHANGELOG.md: drei Behoben-Zeilen zu Issue #100 praezisieren",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 148,
-      "target_file": "jira-markdown-converter/CHANGELOG.md",
-      "model": "haiku"
-    },
-    "M20": {
-      "number": 174,
-      "file": null,
-      "title": "README.md: Doppelung und Escape-Aussage bei Bearbeitung einfrieren bereinigen",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 114,
-      "target_file": "jira-markdown-converter/README.md",
-      "model": "haiku"
-    },
-    "M21": {
-      "number": 175,
-      "file": null,
-      "title": "README.md: ueberlange Zeile zur Schreibmarke am Blockrand umbrechen",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 120,
-      "target_file": "jira-markdown-converter/README.md",
-      "model": "haiku"
-    },
-    "M22": {
-      "number": 176,
-      "file": null,
-      "title": "README.md: Absatz zur Zwischenablage auf http-Adressen umbrechen",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 126,
-      "target_file": "jira-markdown-converter/README.md",
-      "model": "haiku"
-    },
-    "M23": {
-      "number": 177,
-      "file": null,
-      "title": "README.md: Source in die Liste der Umschalter-Beschriftungen aufnehmen",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 138,
-      "target_file": "jira-markdown-converter/README.md",
-      "model": "haiku"
-    },
-    "M24": {
-      "number": 178,
-      "file": null,
-      "title": "README.md: harten Umbruch mit einem Backslash schreiben und umbrechen",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 148,
-      "target_file": "jira-markdown-converter/README.md",
-      "model": "haiku"
-    },
-    "M25": {
-      "number": 179,
-      "file": null,
-      "title": "CLAUDE.md: OTRS-Zeile korrigieren und Sonderzeichen durch ASCII ersetzen",
-      "labels": [
-        "nightrun-minor",
-        "documentation"
-      ],
-      "max_rounds": 2,
-      "source_pr": 152,
-      "target_file": "jira-markdown-converter/CLAUDE.md",
       "model": "haiku"
     }
   }
