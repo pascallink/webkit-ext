@@ -177,3 +177,47 @@ Ein Folgelauf arbeitet die nicht umgesetzten MINOR/STYLE-Hinweise des Vorlaufs a
 - **`subtasks=0`**: der Planer meldet, dass ein Hinweis erledigt ist -
   vorher pruefen, ob der Code nicht nur auf einem noch offenen PR liegt
   (dann auf dessen Branch stapeln), erst dann Issue schliessen.
+
+## Gelernte Regeln (seit Lauf 3): lokale Umsetzung
+
+Seit Lauf 3 laeuft **implement** und **fix** zuerst ueber den Skill
+`.claude/skills/lokale-umsetzung/` (aider + `ollama/qwen2.5-coder:14b`);
+Sonnet/Haiku sind Eskalation: Zieldatei ueber ~500 Zeilen (`content.js`,
+`converter.js`, `editors.js`), zwei lokale Fehlversuche, oder mehr als zwei
+Review-Runden. Danach je Sub-Task trotzdem wieder lokal versuchen.
+
+- **Orchestrator arbeitet selbst mit aider**: `local_task.md` schreiben,
+  aider aufrufen, Diff bewerten, Amend/Reset - das ist kein Subagent. Lint,
+  Modul- und Gesamttest, Push und Draft-PR macht dann der Orchestrator.
+- **`--aiderignore` je Ziel**: Tests, Doku und `.github/` stehen im
+  Repo-`.aiderignore`; aider ueberspringt eine explizit genannte Datei, die
+  darin steht. Dazu je Lauf ein Ignore-File mit `**` und `!/<pfad/zieldatei>`
+  (mit pathspec gegen `git ls-files` geprueft: genau eine Datei bleibt).
+  Nebeneffekt: keine Repo-Map, keine Dateierwaehnungen - fuer Tests und
+  Doku richtig, fuer Quellen unter der Grenze die Repo-Map behalten.
+- **Dateierwaehnung frisst die Ausgabe**: nennt die Zieldatei Repo-Dateinamen
+  (CHANGELOG: `CLAUDE.md`, `README.md`, `manifest.json`), fragt aider
+  "Add file?", `--yes` bejaht, die fertige Ausgabe wird verworfen (2 von 3
+  Anlaeufen bei #207). Das Ziel-Ignore-File oben verhindert das.
+- **Wortgleich vorgeben**: Micro-Tasks mit exaktem Codeblock, exakter
+  Einfuegestelle (Nachbarzeilen zitieren) und exakter Zeilenzahl danach
+  liefern in einem Anlauf einen exakten Diff (4 von 5 Tasks). Prosa im
+  Kommentar frei formulieren lassen wird holprig - auch Kommentare
+  wortgleich vorgeben.
+- **Playwright-Tests lokal**: moeglich, wenn der Test wortgleich vorgegeben
+  ist; Fixture-Wissen bleibt beim Planer. Sabotage-Nachweis (Payload leer,
+  Modullauf rot, zurueckdrehen) macht der Orchestrator.
+- **Laufzeit**: 2,5 min (80 Zeilen) bis 13 min (300 Zeilen Doku). Das
+  Bash-Timeout (600 s) reicht oft nicht - der Aufruf landet im Hintergrund,
+  danach `TaskOutput` mit 600000 ms; nie einen zweiten Lauf parallel.
+- **Amend ist Pflicht**: aiders Commit-Message hat keinen Scope
+  (`docs: update ...`), commitlint wuerde blocken.
+- **Pure Kommentar-/Doku-Hinweise** (ein Satz, ein Absatz) plant der
+  Orchestrator selbst (Plan-Datei in 15 Zeilen) statt eines Opus-Planers.
+- **`main` im Worktree**: nicht auscheckbar (gehoert dem Haupt-Checkout);
+  Branches mit `git checkout -b <b> origin/main` anlegen. `gh pr checks
+  --watch` kehrt bei Draft-PRs sofort zurueck - stattdessen 30-s-Polling auf
+  `--json name,bucket,workflow` (Build Extensions + Commit Convention).
+- **Pascal mergt waehrend des Laufs**: Base-Fallback vor jedem
+  `gh pr create` (Base-Branch da und PR offen? sonst `main`) hat in Lauf 3
+  zweimal gegriffen (#216, #219).
