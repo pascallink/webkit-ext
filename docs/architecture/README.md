@@ -11,7 +11,7 @@ wird nie von Hand bearbeitet.
 | --- | --- |
 | `kosten-erfassung.dataflow.json` | Datenweg: Transcript, Preise, CSVs, Report. |
 | `kosten-tracking.workflow.json` | Ablauf: Hooks, pre-commit, Merge-Job, Tageslauf. |
-| `claude-kette.workflow.json` | Ablauf: Plan, Sub-Task, Review, Korrektur-Routing. |
+| `claude-kette.workflow.json` | Ablauf: Plan, Micro-Tasks an das lokale Modell, Review, Korrektur lokal, Eskalation. |
 | `release.workflow.json` | Ablauf: Diagramme, Version, Tag, ZIPs. |
 | `roter-build.sequence.json` | Ablauf eines roten Builds bis zum PR-Kommentar. |
 | `branch-kosten.lifecycle.json` | Zustaende einer Kostenzeile: erfasst, verbucht, verwaist. |
