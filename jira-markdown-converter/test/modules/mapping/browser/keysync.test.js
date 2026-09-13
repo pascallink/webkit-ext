@@ -85,19 +85,44 @@ describe('JiraKeySync - Suche und Textlesen', { skip: !hasPlaywright }, function
   });
 
   /**
-   * Das SERVER-Fixture hat weder #description-val, .user-content-block noch
-   * #descriptionmodule - nur eine Textarea #description. Zusaetzlich zur
-   * leeren Rueckgabe prueft dieser Fall, dass die Textarea selbst nie
-   * gelesen wird, obwohl sie befuellt ist (DoD: nie aus Editor/Textarea).
+   * Das JIRA912-Fixture bildet die Inline-Bearbeitung der Beschreibung
+   * nach (siehe #description-val in mock-jira-912-issue-view.html): im
+   * Bearbeitungsmodus ersetzt sie den Inhalt von #description-val durch
+   * form#description-form mit Textarea - genau der Fall aus Issue #32, in
+   * dem descriptionText() vorher Editorinhalt und Knopfbeschriftungen
+   * gelesen haette. ?state=description startet die Fixture direkt in
+   * diesem Modus (descEdit() statt descRead(), siehe Fixture-Skript).
    */
-  test('descriptionText liefert "" ohne Beschreibungscontainer und liest nie die Textarea', async function () {
+  test('descriptionText liefert "" im Bearbeitungsmodus und liest nie Editor/Textarea', async function () {
     var browser = await browserPromise;
-    var page = await browserLib.newPage(browser, null, fixtures.SERVER);
-    await page.fill('#description', 'Ticket ROV-9 offen');
+    var context = await browser.newContext();
+    var page = await context.newPage();
+    await page.goto(JIRA912_FIXTURE + '?state=description');
+    await page.addScriptTag({ content: browserLib.readSource('src/jiraui.js') });
+    await page.addScriptTag({ content: browserLib.readSource('src/keysync.js') });
     var text = await page.evaluate(function () {
       return window.JiraKeySync.descriptionText(document);
     });
     assert.strictEqual(text, '');
+    await page.close();
+  });
+
+  /**
+   * Gegenprobe zum vorigen Fall auf derselben Fixture: ohne state-Parameter
+   * steht die Beschreibung in der Leseansicht (descRead() beim Start), der
+   * Text aus window.__mock.description muss dort ankommen.
+   */
+  test('descriptionText liest die Leseansicht auf der JIRA912-Fixture', async function () {
+    var browser = await browserPromise;
+    var context = await browser.newContext();
+    var page = await context.newPage();
+    await page.goto(JIRA912_FIXTURE);
+    await page.addScriptTag({ content: browserLib.readSource('src/jiraui.js') });
+    await page.addScriptTag({ content: browserLib.readSource('src/keysync.js') });
+    var text = await page.evaluate(function () {
+      return window.JiraKeySync.descriptionText(document);
+    });
+    assert.ok(text.indexOf('Spielwiese fuer PowerEdit for Jira') !== -1, text);
     await page.close();
   });
 });

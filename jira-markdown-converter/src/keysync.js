@@ -59,19 +59,26 @@
   }
 
   /**
-   * Liest den Text der Beschreibung aus der Leseansicht - niemals aus einem
-   * Editor oder einer Textarea, die stuenden im Bearbeitungsmodus und
-   * wuerden beim naechsten Klick daneben verworfen. Drei Selektoren in
-   * Prioritaet: #description-val (9.12 Standardansicht), .user-content-block
-   * (Rich-Text-Rahmen darin), notfalls #descriptionmodule (aeltere Themes).
-   * Liefert '', wenn kein Beschreibungscontainer im DOM steht.
+   * Liest den Text der Beschreibung ausschliesslich aus der Leseansicht.
+   * Gesucht wird nur der Rich-Text-Rahmen innerhalb des bekannten
+   * Beschreibungscontainers: zuerst '#description-val .user-content-block'
+   * (9.12 Standardansicht), sonst '#descriptionmodule .user-content-block'
+   * (aeltere Themes) - kein dokumentweiter Selektor mehr, der auch einen
+   * fremden .user-content-block traefe. In Jira 9.12 ersetzt die
+   * Inline-Bearbeitung den Inhalt von #description-val durch
+   * form#description-form mit Textarea: steht ein form-, textarea-, input-
+   * oder [contenteditable]-Element im gefundenen Container, oder liegt der
+   * Container in einem '.editable-field.active' (Bearbeitungsmodus), liefert
+   * diese Funktion '' - niemals Editorinhalt oder Knopfbeschriftungen.
+   * Liefert '' auch, wenn kein Beschreibungscontainer im DOM steht.
    */
   function descriptionText(doc) {
     var root = doc || document;
-    var container = root.querySelector('#description-val') ||
-      root.querySelector('.user-content-block') ||
-      root.querySelector('#descriptionmodule');
+    var container = root.querySelector('#description-val .user-content-block') ||
+      root.querySelector('#descriptionmodule .user-content-block');
     if (!container) return '';
+    if (container.querySelector('form, textarea, input, [contenteditable]')) return '';
+    if (container.closest('.editable-field.active')) return '';
     return (container.textContent || '').trim();
   }
 
@@ -177,14 +184,19 @@
 
   /**
    * Letzte Stufe, kein regulaerer Weg in 9.12: ohne Wert steht das Feld
-   * nicht in der Ansicht, der Shifter ist der einzige Weg hinein. Derselbe
-   * Weg wie locateReferenceFallback() in src/otrsflow.js.
+   * nicht in der Ansicht, der Shifter ist der einzige Weg hinein. Gesucht
+   * wird ausschliesslich ueber [data-field-name="<fieldName>"] input - kein
+   * generischer zweiter Versuch mehr ueber '.customfield input', der auch
+   * ein beliebiges fremdes Feld treffen und den Schluessel dort ablegen
+   * wuerde. fieldName landet direkt im Attribut-Selektor: enthaelt er " oder
+   * ] oder \, bricht die Suche vorher ab statt einen kaputten oder
+   * manipulierten Selektor zu bauen.
    */
   function locateFieldFallback(fieldName, doc) {
-    var field = doc.querySelector('[data-field-name="' + fieldName + '"] input');
-    if (!field) {
-      field = doc.querySelector('.customfield input');
+    if (/["\]\\]/.test(fieldName)) {
+      return Promise.reject(new Error('Feldname "' + fieldName + '" enthaelt unzulaessige Zeichen'));
     }
+    var field = doc.querySelector('[data-field-name="' + fieldName + '"] input');
     if (!field) {
       return Promise.reject(new Error('Feld "' + fieldName + '" steht nicht in der Ansicht - der Shifter ist der einzige Weg'));
     }
