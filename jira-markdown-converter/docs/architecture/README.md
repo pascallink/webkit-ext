@@ -16,6 +16,7 @@ wird nie von Hand bearbeitet.
 | `bearbeitung-einfrieren.lifecycle.json` | Zustaende des Einfrierens: aus, wachbereit, eingefroren, offen. |
 | `nachrichtenwege.sequence.json` | Nachrichten zwischen Popup, Service-Worker und Tab, inklusive Nachinjektion. |
 | `testarchitektur.architecture.json` | Testaufbau: Runner, Module, geteilte Helfer, Fixtures. |
+| `datenschutz.dataflow.json` | Nachweis fuer den Store: welche Daten wo bleiben. |
 
 ## Neu erzeugen
 
