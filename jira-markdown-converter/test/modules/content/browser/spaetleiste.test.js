@@ -1,8 +1,12 @@
 /**
  * Leiste an Feldern, die beim ersten Scan noch zu klein oder verdeckt waren
- * (Issue #101): Attributaenderung (rows) und Klick in ein zunaechst
- * uebersprungenes Feld muessen die Leiste nachtraeglich anbauen, ohne dass
- * dabei ein Dauerscan entsteht.
+ * (Issue #101): vier Faelle sichern je einen Nachtrags-Pfad ab. `rows` prueft
+ * den Attributpfad des MutationObserver, der Viewport-Wechsel ohne jeden
+ * DOM-Eintrag den ResizeObserver, der Fokus-Fall das Zusammenspiel aus
+ * focusin-Wachposten, Attributpfad und ResizeObserver, und der Rahmentausch
+ * am Rich-Text-Feld (Issue #101-Nachtrag) denselben ResizeObserver-Pfad nach
+ * einem TinyMCE-Rahmenwechsel. Alle vier duerfen dabei keinen Dauerscan
+ * anstossen.
  * Aufruf: npm run test:content --prefix jira-markdown-converter
  */
 'use strict';
@@ -115,13 +119,35 @@ describe('Leiste an spaet gewachsenen Feldern', { skip: !hasPlaywright }, functi
     await page.close();
   });
 
-  test('Klick in ein uebersprungenes Feld holt die Leiste nach', async function () {
+  test('Uebersprungenes Feld bekommt die Leiste beim Arbeiten im Feld nach', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, SERVER);
     await page.waitForSelector('.jmd-fieldbar');
 
     await anhaengen(page, 'jmd-spaet-fokus');
     await page.waitForTimeout(600);
+
+    // Hier laufen bewusst mehrere Pfade zusammen: der focusin-Wachposten,
+    // der Attributpfad des MutationObserver ueber style und der
+    // ResizeObserver am zu kleinen Feld. Der Fall sichert damit das
+    // Zusammenspiel ab, nicht den focusin-Zweig allein.
+    var vorZustand = await page.evaluate(function () {
+      var field = document.getElementById('jmd-spaet-fokus');
+      var bars = document.querySelectorAll('.jmd-fieldbar');
+      var hatBar = false;
+      for (var i = 0; i < bars.length; i++) {
+        if (bars[i].__jmdField === field) {
+          hatBar = true;
+          break;
+        }
+      }
+      return {
+        button: !!(field && field.dataset.jmdButtonAttached),
+        bar: hatBar
+      };
+    });
+    assert.strictEqual(vorZustand.button, false, 'zu kleines Feld hat schon eine Markierung bekommen');
+    assert.strictEqual(vorZustand.bar, false, 'zu kleines Feld hat schon eine Leiste - der Fall prueft dann nichts');
 
     await page.focus('#jmd-spaet-fokus');
     await page.evaluate(function () {
