@@ -1,6 +1,6 @@
 ---
 name: umsetzer
-description: Setzt einen abgegrenzten Subtask um - Feature, Bugfix oder Refactoring in einem Modul. Endet mit der Uebergabe an den Reviewer. Nutze diesen Agenten fuer die erste Stufe der Kette, nicht fuer Korrekturen aus einem Review.
+description: Setzt einen abgegrenzten Subtask um - Feature, Bugfix oder Refactoring in einem Modul. Endet mit der Uebergabe an den Reviewer. Eskalationspfad der Stufe 0: nutze diesen Agenten nur, wenn der Skill lokale-umsetzung nicht greift (Zieldatei ueber ~500 Zeilen, mehrere Dateien, zweimal lokal gescheitert) - nicht fuer Korrekturen aus einem Review.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---

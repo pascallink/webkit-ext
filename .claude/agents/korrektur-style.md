@@ -1,6 +1,6 @@
 ---
 name: korrektur-style
-description: Arbeitet einen STYLE- oder MINOR-Befund aus einem Review ab - Linter, Formatierung, Umlaute, Doku, Typ-Fixes - in genau einer Zieldatei, ohne Verhaltensaenderung. Nutze diesen Agenten nur fuer das Haiku-Routing der Stufe 2.
+description: Arbeitet einen STYLE- oder MINOR-Befund aus einem Review ab - Linter, Formatierung, Umlaute, Doku, Typ-Fixes - in genau einer Zieldatei, ohne Verhaltensaenderung. Eskalationspfad der Stufe 2: nutze diesen Agenten nur fuer das Haiku-Routing, nachdem der Skill lokale-umsetzung am Befund gescheitert ist.
 tools: Read, Edit, Bash, Grep
 model: haiku
 ---

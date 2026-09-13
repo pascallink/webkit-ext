@@ -2,5 +2,14 @@ node_modules/
 *.visual-check.json
 *.visual-check.html
 *.visual-check.*.png
-.aider*
 .claude/state/
+
+# Aider-Artefakte (Historie, Caches). Die beiden Konfigurationen sind dagegen
+# Teil des Repos - ohne sie fragt aider im Lauf des Skills lokale-umsetzung
+# interaktiv zurueck.
+.aider*
+!.aider.conf.yml
+!.aider.model.settings.yml
+
+# Auftragsdatei der lokalen Umsetzung - immer temporaer, nie in einem Commit.
+local_task.md

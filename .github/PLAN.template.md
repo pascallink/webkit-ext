@@ -1,11 +1,11 @@
 **Rolle & Kontext**
-Du agierst als Senior Lead Architect. Deine Aufgabe ist es, das nachfolgende GitHub Issue #[ISSUE_NUMBER] in eine Reihe von extrem fokussierten, aufeinander aufbauenden Sub-Tasks zu zerlegen. Die Sub-Tasks werden sequenziell im Rahmen einer **Stacked PRs Architecture** umgesetzt: eine orchestrierende Sitzung übergibt je Sub-Task an den `umsetzer`-Subagenten aus `.claude/agents/`, danach läuft die Kette aus Review (Stufe 1) und Korrektur (Stufe 2) weiter. Welches Modell welche Stufe fährt, steht im Frontmatter der Agenten - der Plan nennt Rollen, keine Modelle.
+Du agierst als Senior Lead Architect. Deine Aufgabe ist es, das nachfolgende GitHub Issue #[ISSUE_NUMBER] in eine Reihe von extrem fokussierten, aufeinander aufbauenden Sub-Tasks zu zerlegen. Die Sub-Tasks werden sequenziell im Rahmen einer **Stacked PRs Architecture** umgesetzt: eine orchestrierende Sitzung zerlegt je Sub-Task mit dem Skill `lokale-umsetzung` in Micro-Tasks für das lokale Modell (aider), bei Eskalation übergibt sie an den `umsetzer`-Subagenten aus `.claude/agents/`; danach läuft die Kette aus Review (Stufe 1) und Korrektur (Stufe 2) weiter. Welches Modell welche Stufe fährt, steht in `.github/PROMPTS.md` und im Frontmatter der Agenten - der Plan nennt Rollen, keine Modelle.
 
 **Ziel**
 Erstelle einen detaillierten Ausführungsplan für Issue #[ISSUE_NUMBER]. Jeder Sub-Task entspricht genau einem Branch und einem Pull Request (PR 1 basiert auf `main`, PR 2 auf PR 1, PR 3 auf PR 2 usw.).
 
 **Regeln für die Erstellung der Sub-Tasks**
-1. **Kontext-Fokus:** Jeder Sub-Task muss atomar sein und im Kontextfenster eines einzelnen `umsetzer`-Laufs ohne Kontextverlust abgeschlossen werden können.
+1. **Kontext-Fokus:** Jeder Sub-Task muss atomar sein und sich in drei bis fünf Micro-Tasks à eine Datei (≤ ~500 Zeilen) zerlegen lassen; was das nicht kann, muss im Kontextfenster eines einzelnen `umsetzer`-Laufs ohne Kontextverlust abgeschlossen werden können.
 2. **Keine Breaking Changes:** Jeder Schritt muss eine voll funktionsfähige, kompilierbare und testbare Zwischenstufe des Projekts darstellen.
 3. **Klare Instruktion:** Die Anweisungen für den Agenten müssen deterministisch und eindeutig sein (welche Dateien, welche Formate, welche Test-Befehle).
 
@@ -17,7 +17,7 @@ Erstelle einen detaillierten Ausführungsplan für Issue #[ISSUE_NUMBER]. Jeder 
 * **Dateiebene:**
   * Zu erstellen: `[Pfade/Dateinamen]`
   * Zu ändern: `[Pfade/Dateinamen]`
-* **Schritt-für-Schritt Anweisungen für den `umsetzer`:**
+* **Schritt-für-Schritt Anweisungen für die Umsetzung (Micro-Tasks bzw. `umsetzer`):**
   1. Erstelle/Passe die Logik in `[Datei]` an.
   2. Schreibe/Erweitere Unit-Tests in `[Test-Datei]`.
   3. Führe den Test-Befehl aus: `[Build/Test-Befehl, z. B. npm test oder xcodebuild]`.
@@ -25,7 +25,7 @@ Erstelle einen detaillierten Ausführungsplan für Issue #[ISSUE_NUMBER]. Jeder 
   * [ ] Code ist syntaxfrei und entspricht den Projekt-Standards.
   * [ ] Neue und bestehende Tests laufen grün durch.
   * [ ] Git Commit & Push auf den Branch ausgeführt.
-* **Umsetzungsauftrag (Stufe 0):** *(Nach der Stufe-0-Vorlage in [`.github/PROMPTS.md`](PROMPTS.md) - reiner Text in einem eigenen Codeblock, drei Backticks, ohne Sprache. `branch` und `base_branch` gehören in den Block selbst: der `umsetzer` startet kalt und sieht nur diesen Text, nicht den übrigen Plan.)*
+* **Umsetzungsauftrag (Stufe 0):** *(Nach der Stufe-0-Vorlage in [`.github/PROMPTS.md`](PROMPTS.md) - reiner Text in einem eigenen Codeblock, drei Backticks, ohne Sprache. `branch` und `base_branch` gehören in den Block selbst: das lokale Modell wie der `umsetzer` starten kalt und sehen nur diesen Text, nicht den übrigen Plan.)*
 
 ## Abschluss jeder Session: Review-Prompt fuer Opus
 
@@ -97,8 +97,8 @@ als JSON-Bericht:
    die Modellwahl als Ueberschrift davor. Ausserhalb der Codebloecke steht
    nichts, was zum Prompt gehoert.
 
-Routing wie in [`.github/PROMPTS.md`](PROMPTS.md): nur `STYLE`/`MINOR` geht an
-Haiku, alles andere an Sonnet. Die inhaltlichen Felder eines Korrektur-Prompts
+Routing wie in [`.github/PROMPTS.md`](PROMPTS.md): jeder Befund geht zuerst
+lokal; bei Eskalation nur `STYLE`/`MINOR` an Haiku, alles andere an Sonnet. Die inhaltlichen Felder eines Korrektur-Prompts
 (Zieldatei, Befunde, Constraints, Ausgabeformat) folgen der Stufe-2-Vorlage
 dort - als Klartext, nicht als JSON-Objekt.
 

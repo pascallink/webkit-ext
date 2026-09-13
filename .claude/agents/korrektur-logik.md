@@ -1,6 +1,6 @@
 ---
 name: korrektur-logik
-description: Arbeitet einen BUG-, SECURITY- oder PERFORMANCE-Befund aus einem Review ab, inklusive Testanpassung, in genau einer Zieldatei. Nutze diesen Agenten fuer das Sonnet-Routing der Stufe 2 und immer dann, wenn der Befund nicht eindeutig STYLE oder MINOR ist.
+description: Arbeitet einen BUG-, SECURITY- oder PERFORMANCE-Befund aus einem Review ab, inklusive Testanpassung, in genau einer Zieldatei. Eskalationspfad der Stufe 2: nutze diesen Agenten fuer das Sonnet-Routing, nachdem der Skill lokale-umsetzung am Befund gescheitert ist oder die Eignungsgrenze (eine Datei, ~500 Zeilen) ueberschritten ist - und immer dann, wenn der Befund nicht eindeutig STYLE oder MINOR ist.
 tools: Read, Edit, Bash, Grep
 model: sonnet
 ---
