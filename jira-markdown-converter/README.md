@@ -272,7 +272,7 @@ wird. Fuer Kommentar- und Umgebungsfelder gilt dasselbe.
 
 Solange das Schloss zu ist:
 
-* Ein Klick neben das Feld schliesst es nicht mehr - der Vorgang bleibt so
+* Ein Klick neben das Feld schliesst es nicht mehr – der Vorgang bleibt so
   stehen, wie er ist.
 * Kleine Auswahlfelder (Labels, Versionen, Picker) frieren nie ein.
 * `Escape` im eingefrorenen Feld bricht das Bearbeiten nicht ab;
@@ -280,7 +280,7 @@ Solange das Schloss zu ist:
   wie gewohnt.
 * Wer die Seite verlaesst oder neu laedt, wird vom Browser gefragt, ob er das
   wirklich will.
-* *Speichern* und *Abbrechen* funktionieren normal - genau wie die
+* *Speichern* und *Abbrechen* funktionieren normal – genau wie die
   Werkzeugleiste, die Dialoge und der Umschalter zwischen *Visuell* und
   *Text*; sie bleiben auch dann erreichbar, wenn Jira sie ausserhalb des
   Feldblocks aufbaut. Zum Feld gehoert der ganze Block, den Jira beim
@@ -475,8 +475,9 @@ Den Umschalter erkennt sie zuerst am Schaltflaechen-Selektor von Jira 9.12
 dann an bekannten Selektoren aelterer Versionen und andernfalls an der
 Beschriftung (*Markup*, *Quelltext*, *Source*, *Klartext*, *Plain Text*,
 *Text-Modus*, *Bearbeitungsmodus* ...), weil Jira ihn je nach Version anders
-Wird keiner gefunden oder greift der Klick nicht, faellt die Erweiterung auf
-das formatierte Einfuegen zurueck - es geht also nichts verloren.
+benennt. Wird keiner gefunden oder greift der Klick nicht, faellt die
+Erweiterung auf das formatierte Einfuegen zurueck - es geht also nichts
+verloren.
 
 Ein Klick auf *Text* ist eine **Nutzereinstellung** in Jira und gilt danach
 fuer alle Felder und alle Vorgaenge, bis wieder auf *Visual* umgestellt wird.
