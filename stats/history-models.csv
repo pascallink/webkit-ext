@@ -21,3 +21,6 @@ merged_at,branch,model,input,output,cache_read,cache_write,cost_usd
 2026-09-13T21:35:31Z,claude/issue-32-part-4-sync,claude-opus-5,344,86150,20019431,609031,17.1976
 2026-09-13T21:35:31Z,claude/issue-32-part-4-sync,claude-sonnet-5,1236,29176,42722427,1329241,12.1618
 2026-09-13T21:35:31Z,claude/issue-32-part-4-sync,claude-haiku-4-5-20251001,58,19,130036,36015,0.0582
+2026-09-13T21:43:45Z,claude/issue-32-part-5-highlight,claude-opus-5,418,107543,26576002,965551,24.3370
+2026-09-13T21:43:45Z,claude/issue-32-part-5-highlight,claude-sonnet-5,1612,41558,65484132,1713384,17.7991
+2026-09-13T21:43:45Z,claude/issue-32-part-5-highlight,claude-haiku-4-5-20251001,58,19,130036,36015,0.0582
