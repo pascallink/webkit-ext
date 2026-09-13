@@ -9,7 +9,7 @@
 'use strict';
 
 const fs = require('node:fs');
-const { askClaude } = require('./lib/anthropic');
+const { askClaude, isModelUnavailable } = require('./lib/anthropic');
 
 const TAIL_LINES = 100;
 const MAX_LOG_CHARS = 12000;
@@ -132,6 +132,13 @@ async function main() {
 }
 
 main().catch((err) => {
+  // Wie in pr-summary.js: eine fehlende Analyse ist Beiwerk. Steht das Modell
+  // nicht zur Verfuegung, warnen statt scheitern - der rote Build, auf den
+  // dieser Job reagiert, ist das eigentliche Signal.
+  if (isModelUnavailable(err)) {
+    console.log(`::warning title=Build-Analyse uebersprungen::${err.message}`);
+    return;
+  }
   console.error(err.message);
   process.exit(1);
 });

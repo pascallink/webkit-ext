@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Kostenreport</title>
+<style>
+:root { color-scheme: light dark; }
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  margin: 2rem;
+  background: #ffffff;
+  color: #111111;
+}
+h1, h2 { font-weight: 600; }
+p.hinweis-kopf { color: #444444; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; }
+th, td { padding: 0.4rem 0.6rem; border-bottom: 1px solid #dddddd; text-align: left; }
+th.num, td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+tbody tr:nth-child(even) { background: #f6f6f6; }
+tr.gruppe th { background: #e0e0e0; font-weight: 600; }
+td.hinweis, tr.gruppe + tr td.hinweis { font-style: italic; color: #555555; }
+span.reason { color: #666666; font-style: italic; }
+@media (prefers-color-scheme: dark) {
+  body { background: #1b1b1b; color: #eeeeee; }
+  p.hinweis-kopf { color: #bbbbbb; }
+  th, td { border-bottom-color: #333333; }
+  tbody tr:nth-child(even) { background: #262626; }
+  tr.gruppe th { background: #333333; }
+  td.hinweis { color: #aaaaaa; }
+  span.reason { color: #999999; }
+}
+</style>
+</head>
+<body>
+<h1>Kostenreport</h1>
+<p class="hinweis-kopf">Erzeugt am 2026-09-13T11:13:18Z - Schaetzung zu Listenpreisen, keine Rechnung.</p>
+<p>Gesamtsumme: <strong>$60.1419</strong></p>
+
+<h2>Kosten je Modell</h2>
+<table>
+<thead>
+<tr>
+<th>Modell</th>
+<th class="num">Input</th>
+<th class="num">Output</th>
+<th class="num">Cache-Read</th>
+<th class="num">Cache-Write</th>
+<th class="num">Sessions</th>
+<th class="num">Kosten USD</th>
+<th class="num">Anteil</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>claude-opus-5</td>
+<td class="num">942</td>
+<td class="num">348117</td>
+<td class="num">65144337</td>
+<td class="num">1664552</td>
+<td class="num">-</td>
+<td class="num">$57.1015</td>
+<td class="num">94.9 %</td>
+</tr>
+<tr>
+<td>claude-sonnet-5</td>
+<td class="num">334</td>
+<td class="num">13627</td>
+<td class="num">8747356</td>
+<td class="num">423329</td>
+<td class="num">-</td>
+<td class="num">$2.9448</td>
+<td class="num">4.9 %</td>
+</tr>
+<tr>
+<td>claude-haiku-4-5-20251001</td>
+<td class="num">258</td>
+<td class="num">68</td>
+<td class="num">604129</td>
+<td class="num">27673</td>
+<td class="num">-</td>
+<td class="num">$0.0956</td>
+<td class="num">0.2 %</td>
+</tr>
+<tr>
+<td>&lt;synthetic&gt;</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">0</td>
+<td class="num">-</td>
+<td class="num">$0.0000</td>
+<td class="num">0.0 %</td>
+</tr>
+</tbody>
+</table>
+
+<h2>Kosten je Branch</h2>
+<table>
+<thead>
+<tr>
+<th>Branch</th>
+<th class="num">Sessions</th>
+<th>Modelle</th>
+<th>Letzte Aktivitaet</th>
+<th class="num">Kosten USD</th>
+</tr>
+</thead>
+<tbody>
+<tr class="gruppe"><th colspan="5">Offene Branches</th></tr>
+<tr><td class="hinweis" colspan="5">Keine Branches in dieser Gruppe.</td></tr>
+</tbody>
+<tbody>
+<tr class="gruppe"><th colspan="5">Verbuchte Branches</th></tr>
+<tr>
+<td>feature/issue-49-part-2 <span class="reason">(abandoned)</span></td>
+<td class="num">1</td>
+<td>claude-opus-5, claude-sonnet-5</td>
+<td>2026-09-13T11:13:18Z</td>
+<td class="num">$2.3430</td>
+</tr>
+<tr>
+<td>fix/issue-49-stdin-schalter <span class="reason">(abandoned)</span></td>
+<td class="num">1</td>
+<td>claude-opus-5, claude-sonnet-5, &lt;synthetic&gt;</td>
+<td>2026-09-13T11:13:18Z</td>
+<td class="num">$7.5403</td>
+</tr>
+<tr>
+<td>claude/xss-vulnerabilities-test-fixtures-0n8t11</td>
+<td class="num">1</td>
+<td>claude-opus-5, &lt;synthetic&gt;</td>
+<td>2026-09-13T10:44:38Z</td>
+<td class="num">$2.0511</td>
+</tr>
+<tr>
+<td>claude/offene-code-issues-dxkmwn</td>
+<td class="num">1</td>
+<td>claude-opus-5</td>
+<td>2026-09-13T10:15:22Z</td>
+<td class="num">$22.8944</td>
+</tr>
+<tr>
+<td>claude/session-costs-csv-commits-deaual</td>
+<td class="num">1</td>
+<td>claude-opus-5</td>
+<td>2026-09-13T08:43:14Z</td>
+<td class="num">$3.0567</td>
+</tr>
+<tr>
+<td>claude/issue-49-part-4-o41efo</td>
+<td class="num">1</td>
+<td>claude-opus-5, claude-sonnet-5, claude-haiku-4-5-20251001, &lt;synthetic&gt;</td>
+<td>2026-09-13T05:57:21Z</td>
+<td class="num">$11.3830</td>
+</tr>
+<tr>
+<td>claude/issue-49-part-3-costs-k9g0fj</td>
+<td class="num">1</td>
+<td>claude-opus-5, claude-sonnet-5</td>
+<td>2026-09-12T17:41:29Z</td>
+<td class="num">$10.8734</td>
+</tr>
+</tbody>
+</table>
+
+<h2>Trend</h2>
+<table>
+<thead>
+<tr><th>Zeitraum</th><th class="num">Kosten USD</th></tr>
+</thead>
+<tbody>
+<tr><td>Gestern</td><td class="num">$10.8734</td></tr>
+<tr><td>7 Tage</td><td class="num">$60.1419</td></tr>
+<tr><td>30 Tage</td><td class="num">$60.1419</td></tr>
+</tbody>
+</table>
+</body>
+</html>

@@ -1,8 +1,11 @@
 name: Haiku PR Summary
 
+# Nur bei Aenderungen am PR. Beim Oeffnen steht die Beschreibung aus
+# .github/pull_request_template.md schon da - ein Lauf dort erzeugt nur
+# denselben Text ein zweites Mal.
 on:
   pull_request:
-    types: [opened, reopened, ready_for_review]
+    types: [synchronize]
 
 # Nur der PR-Body wird geschrieben - kein Code, keine Checks.
 permissions:

@@ -6,3 +6,11 @@ merged_at,branch,model,input,output,cache_read,cache_write,cost_usd
 2026-09-13T05:57:21Z,claude/issue-49-part-4-o41efo,claude-haiku-4-5-20251001,258,68,604129,27673,0.0956
 2026-09-13T05:57:21Z,claude/issue-49-part-4-o41efo,<synthetic>,0,0,0,0,0.0000
 2026-09-13T08:43:14Z,claude/session-costs-csv-commits-deaual,claude-opus-5,60,32708,2761396,85801,3.0567
+2026-09-13T10:15:22Z,claude/offene-code-issues-dxkmwn,claude-opus-5,354,97005,32465815,423460,22.8944
+2026-09-13T10:44:38Z,claude/xss-vulnerabilities-test-fixtures-0n8t11,claude-opus-5,46,15232,1967258,68643,2.0511
+2026-09-13T10:44:38Z,claude/xss-vulnerabilities-test-fixtures-0n8t11,<synthetic>,0,0,0,0,0.0000
+2026-09-13T11:13:18Z,feature/issue-49-part-2,claude-opus-5,46,14097,2078309,74359,2.1354
+2026-09-13T11:13:18Z,feature/issue-49-part-2,claude-sonnet-5,46,262,593111,34487,0.2076
+2026-09-13T11:13:18Z,fix/issue-49-stdin-schalter,claude-opus-5,128,53887,6513729,262726,7.0470
+2026-09-13T11:13:18Z,fix/issue-49-stdin-schalter,claude-sonnet-5,92,5950,1075741,87392,0.4933
+2026-09-13T11:13:18Z,fix/issue-49-stdin-schalter,<synthetic>,0,0,0,0,0.0000
