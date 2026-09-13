@@ -15,7 +15,8 @@ Parameter `model`: `opus` | `sonnet` | `haiku`, `subagent_type`:
   `templates/*.md` (Agenten-Vorlagen mit `{{PLATZHALTERN}}`).
 - STATE: `$HOME/nightrun-webkit-ext/` mit `state.json`, `log.md`, `plans/`,
   `reviews/`, `SUMMARY.md`. Ausserhalb des Repos, nie committen.
-- Root-Base: `claude/analyse-issues-mockup-912` (offener PR #87). Niemand
+- Root-Base: `root_base` aus `issues.json` (Lauf 1: `claude/analyse-issues-mockup-912`,
+  seit dem Merge von PR #180 `main` bzw. der oberste Branch des Vorlaufs). Niemand
   mergt - auch du nicht. PRs werden **gestapelt**: jeder neue Branch geht vom
   letzten mergefaehigen Branch ab, sein PR zielt auf diesen Branch.
 - Mergefaehig = Workflow *Build Extensions* (`build`) gruen UND Workflow
@@ -131,3 +132,48 @@ Notiz | offene Fragen`, darunter die Merge-Reihenfolge (von der Root-Base
 aufwaerts, jeder PR nach dem darunter), geparkte PRs mit Grund. Denselben
 Text als Kommentar auf PR #87 posten (`gh pr comment 87 --body-file`). Dann
 in zwei Saetzen an den Nutzer berichten und den Lauf beenden.
+
+## Folgelauf (Lauf N)
+
+Ein Folgelauf arbeitet die nicht umgesetzten MINOR/STYLE-Hinweise des Vorlaufs ab.
+
+1. **Hinweise sammeln** (Agent `opus`): je PR des Vorlaufs zaehlt nur das
+   Review mit der hoechsten Runde; ist es APPROVED und enthaelt
+   Korrektur-Prompts, sind genau diese offen. Jeden Hinweis gegen den obersten
+   Branch des Vorlaufs pruefen (erledigte ueberspringen, in
+   `STATE/issues-minor<N>-erledigt.md` notieren), je offenem Hinweis ein
+   GitHub-Issue (Label `nightrun-minor` + `area:*`, Body = Original-Prompt)
+   und `STATE/issues-minor<N>.json` im Format von `issues.json` schreiben:
+   `root_base` = oberster Branch des Vorlaufs (oder `main`, wenn alles
+   gemergt ist), `order` zuerst Sonnet-Prompts nach Zieldatei gruppiert,
+   dann Haiku, `max_rounds: 2`.
+2. **Liste einchecken**: alte `issues.json` als `issues-round<N-1>.json`
+   aufbewahren, neue Liste als `issues.json`, Zeile in der README-Tabelle
+   "Laeufe", Commit `docs(jira): nachtlauf-liste fuer lauf <N>`.
+3. **State neu**: `state.json`, `log.md`, `SUMMARY.md` als `*-round<N-1>`
+   sichern, dann Start wie oben.
+4. **Ende**: SUMMARY als Kommentar auf den untersten PR des neuen Stacks.
+
+## Gelernte Regeln (seit Lauf 2)
+
+- **Eigenes Worktree**: Agenten arbeiten in
+  `/Volumes/sources/tools/webkit-ext-nightrun` (`git worktree add`, danach
+  `npm ci --prefix jira-markdown-converter`), nie im Haupt-Checkout des
+  Nutzers. Alle Vorlagen bekommen diesen Pfad als `{{REPO}}`.
+- **Gleiche Zieldatei = eine Gruppe**: Hinweise zu derselben Doku-Datei
+  (TESTS.md, CHANGELOG.md, README.md) als ein PR mit `Closes` je Issue.
+- **Base-Fallback**: Vor `gh pr create` prueft der letzte Sub-Task, ob die
+  Base noch existiert bzw. der Basis-PR noch offen ist; sonst `--base` auf
+  `root_base`. Pascal mergt waehrend des Laufs.
+- **Trailer nur im Body**: `Co-Authored-By` als letzte Zeile des Bodys, nie
+  in der Betreffzeile; Betreff hoechstens 65 Zeichen.
+- **Testlaeufe im Vordergrund**: Agenten starten keine Hintergrundlaeufe und
+  warten nicht auf Monitore; sonst enden sie ohne `RESULT`-Zeile.
+- **Fremde Aenderungen**: liegen im Worktree fremde Dateien (z. B. `.aider*`),
+  lokal ueber `.git/info/exclude` ausblenden, nie stashen oder loeschen.
+- **Konflikt auf einem gestapelten Branch**: bei nur einer Doku-Datei
+  rebase/merge durch einen `sonnet`-Agenten statt parken; Branch mit
+  aufgesetzten PRs nur mergen (kein Force-Push).
+- **`subtasks=0`**: der Planer meldet, dass ein Hinweis erledigt ist -
+  vorher pruefen, ob der Code nicht nur auf einem noch offenen PR liegt
+  (dann auf dessen Branch stapeln), erst dann Issue schliessen.
