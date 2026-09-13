@@ -383,7 +383,11 @@ describe('Jira-Markup erkennen', function () {
     assert.ok(!jira.looksLikeJiraMarkup('**fett**'));
     assert.ok(!jira.looksLikeJiraMarkup('[a](b)'));
     assert.ok(!jira.looksLikeJiraMarkup('Ein normaler Satz ohne Markup.'));
-    assert.ok(!jira.looksLikeJiraMarkup('\x27\x27'));
+    assert.ok(!jira.looksLikeJiraMarkup(''));
+    // Bereits maskiertes Makro (escapeText hat den Backslash vor die Klammer
+    // gesetzt) hat die Konvertierung schon durchlaufen und darf nicht erneut
+    // als Jira-Markup zaehlen.
+    assert.ok(!jira.looksLikeJiraMarkup('\\{code:java\\}'));
     assert.ok(!jira.looksLikeJiraMarkup(null));
   });
 });
