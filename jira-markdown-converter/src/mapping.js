@@ -26,16 +26,77 @@
   var MAX_KEY_LENGTH = 64;
 
   // Geschuetzte Bereiche, in denen ein Treffer liegen bleibt: Fenced-Code
-  // ({code}/{code:...}), {noformat} und Inline-Monospace ({{...}}).
-  var PROTECTED_RE = /\{code(?::[^}\r\n]*)?\}[\s\S]*?\{code\}|\{noformat\}[\s\S]*?\{noformat\}|\{\{[\s\S]*?\}\}/g;
+  // ({code}/{code:...}), {noformat} und Inline-Monospace ({{...}}). Die
+  // beiden letzten Alternativen vor {{...}} greifen erst, wenn kein
+  // geschlossener Block gefunden wird - ein nicht geschlossener {code}-
+  // oder {noformat}-Block schuetzt sonst gar nichts, obwohl Jira den Rest
+  // des Textes trotzdem als Block darstellt.
+  var PROTECTED_RE = /\{code(?::[^}\r\n]*)?\}[\s\S]*?\{code\}|\{noformat\}[\s\S]*?\{noformat\}|\{code(?::[^}\r\n]*)?\}[\s\S]*$|\{noformat\}[\s\S]*$|\{\{[\s\S]*?\}\}/g;
 
   // Direkt hinter dem Treffer - optional durch genau ein Leerzeichen getrennt -
   // bereits eine runde Klammer: dann gilt der Treffer als schon angereichert.
   var ALREADY_ENRICHED_RE = /^ ?\(/;
 
+  /** Prueft, ob das Zeichen an index durch eine ungerade Zahl Backslashes maskiert ist. */
+  function isEscapedAt(text, index) {
+    var count = 0;
+    var i = index - 1;
+    while (i >= 0 && text.charAt(i) === '\\') {
+      count++;
+      i--;
+    }
+    return (count % 2) === 1;
+  }
+
   /**
-   * Liefert den getrimmten Musterstring, oder '' wenn er leer, zu lang oder
-   * nicht als RegExp kompilierbar ist. Wirft nie.
+   * Erkennt eine quantifizierte Gruppe mit gefaehrlichem Inhalt, etwa
+   * (a+)+ - so ein Muster fuehrt bei laengeren Eingaben zu katastrophalem
+   * Backtracking und laesst findKeys()/enrich() minutenlang haengen. Sucht
+   * ein schliessendes ')' direkt gefolgt von einem Quantor, zaehlt
+   * rueckwaerts bis zur zugehoerigen oeffnenden Klammer (mit Backslash
+   * maskierte Klammern zaehlen nicht mit) und prueft den so gefundenen
+   * Gruppeninhalt auf einen weiteren unmaskierten Quantor oder eine
+   * Alternative.
+   */
+  function hasCatastrophicBacktracking(text) {
+    var i, j, k;
+    for (i = 0; i < text.length; i++) {
+      if (text.charAt(i) !== ')' || isEscapedAt(text, i)) continue;
+      var next = text.charAt(i + 1);
+      if (next !== '*' && next !== '+' && next !== '?' && next !== '{') continue;
+
+      var depth = 1;
+      var openIndex = -1;
+      for (j = i - 1; j >= 0; j--) {
+        var ch = text.charAt(j);
+        if (isEscapedAt(text, j)) continue;
+        if (ch === ')') {
+          depth++;
+        } else if (ch === '(') {
+          depth--;
+          if (depth === 0) {
+            openIndex = j;
+            break;
+          }
+        }
+      }
+      if (openIndex === -1) continue;
+
+      var inner = text.slice(openIndex + 1, i);
+      for (k = 0; k < inner.length; k++) {
+        var innerChar = inner.charAt(k);
+        if ((innerChar === '*' || innerChar === '+' || innerChar === '{' || innerChar === '|') && !isEscapedAt(inner, k)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Liefert den getrimmten Musterstring, oder '' wenn er leer, zu lang,
+   * nicht als RegExp kompilierbar ist oder eine quantifizierte Gruppe mit
+   * katastrophalem Backtracking enthaelt. Wirft nie.
    */
   function normalizePattern(source) {
     var text = typeof source === 'string' ? source.trim() : '';
@@ -45,6 +106,7 @@
     } catch (error) {
       return '';
     }
+    if (hasCatastrophicBacktracking(text)) return '';
     return text;
   }
 
@@ -134,7 +196,8 @@
     var match;
     while ((match = regex.exec(source)) !== null) {
       var value = match[0];
-      if (!seen[value]) {
+      // Ein Treffer der Laenge 0 ist kein echter Schluessel und faellt raus.
+      if (value !== '' && !seen[value]) {
         seen[value] = true;
         result.push(value);
       }

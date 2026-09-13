@@ -107,6 +107,10 @@ describe('Mapping.compile', function () {
     assert.deepStrictEqual('REFI-9'.match(Mapping.compile(zuLang)), ['REFI-9']);
   });
 
+  test('Muster mit verschachtelten Quantoren faellt auf den Default zurueck', function () {
+    assert.deepStrictEqual('REFI-9'.match(Mapping.compile('(a+)+$')), ['REFI-9']);
+  });
+
   test('jeder Aufruf liefert ein frisches RegExp (lastIndex haengt nicht)', function () {
     var erste = Mapping.compile('ROV-\\d+');
     erste.exec('ROV-1 ROV-2');
@@ -152,6 +156,18 @@ describe('Mapping.findKeys', function () {
 
   test('eigenes Muster wird verwendet', function () {
     assert.deepStrictEqual(Mapping.findKeys('KD-42 ROV-1', 'KD-\\d+'), ['KD-42']);
+  });
+
+  test('Treffer der Laenge 0 fallen raus', function () {
+    assert.deepStrictEqual(Mapping.findKeys('abc 12', '[A-Z]*-?\\d*'), ['12']);
+  });
+
+  test('ein Muster mit verschachtelten Quantoren kehrt sofort zurueck', function () {
+    var text = new Array(121).join('a');
+    var start = Date.now();
+    var result = Mapping.findKeys(text, '(a+)+$');
+    assert.ok(Date.now() - start < 1000, 'findKeys darf nicht backtracken');
+    assert.deepStrictEqual(result, []);
   });
 });
 
@@ -211,6 +227,30 @@ describe('Mapping.enrich', function () {
     var result = Mapping.enrich(text, map, null);
     assert.strictEqual(result.count, 1);
     assert.strictEqual(result.text, '{noformat}ROV-1234{noformat} und ROV-1234 (JIRA-567)');
+  });
+
+  test('Treffer in einem nicht geschlossenen {code}-Block bleiben unangetastet', function () {
+    var map = { 'ROV-1': ['ABC-1'] };
+    var text = '{code}\nROV-1 im Block\n';
+    var result = Mapping.enrich(text, map, null);
+    assert.strictEqual(result.count, 0);
+    assert.strictEqual(result.text, text);
+  });
+
+  test('ein geschlossener {code}-Block schuetzt weiterhin zuerst, danach greift der Treffer', function () {
+    var map = { 'ROV-1': ['ABC-1'] };
+    var text = '{code}\nROV-1\n{code}\nROV-1 danach';
+    var result = Mapping.enrich(text, map, null);
+    assert.strictEqual(result.count, 1);
+    assert.strictEqual(result.text, '{code}\nROV-1\n{code}\nROV-1 (ABC-1) danach');
+  });
+
+  test('Treffer in einem nicht geschlossenen {noformat}-Block bleiben unangetastet', function () {
+    var map = { 'ROV-1': ['ABC-1'] };
+    var text = '{noformat}\nROV-1 im Block\n';
+    var result = Mapping.enrich(text, map, null);
+    assert.strictEqual(result.count, 0);
+    assert.strictEqual(result.text, text);
   });
 
   test('Treffer in {{...}} (Inline-Monospace) bleiben unangetastet', function () {
