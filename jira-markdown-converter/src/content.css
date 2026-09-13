@@ -439,27 +439,9 @@
   cursor: pointer;
 }
 
-/* Customer-Key-Highlighting ------------------------------------------ */
-
-.jmd-customer-key-highlight {
-  background-color: #fffbdd;
-  color: #0052cc;
-  padding: 0 2px;
-  border-radius: 3px;
-  border: 1px solid #dfe1e6;
-  font-weight: 600;
-  cursor: help;
-}
-
 /* Dunkles Jira-Theme ------------------------------------------------- */
 
 @media (prefers-color-scheme: dark) {
-  .jmd-customer-key-highlight {
-    background-color: #3a3200;
-    color: #4c9aff;
-    border-color: #4c4a2d;
-  }
-
   .jmd-panel {
     background: #1d2125;
     border-color: #333b43;

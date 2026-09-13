@@ -531,86 +531,6 @@
   }
 
   /**
-   * Highlighting von Customer-Keys in der Leseansicht (Issue #32, Part 5).
-   * Sucht Kunden-Schluessel in der Beschreibung und hebt sie visuell hervor.
-   */
-  function highlightCustomerKeysInDescription() {
-    // Nur auf Vorgangsseiten und wenn Highlighting aktiviert ist
-    if (!settings.customerKeyHighlight || !isIssuePage()) {
-      return;
-    }
-
-    // Beschreibungstext aus der Leseansicht holen
-    var descriptionText = KeySync.descriptionText(document);
-    if (!descriptionText) {
-      return;
-    }
-
-    // Kunden-Schluessel im Text finden
-    var keys = KeySync.keysInDescription(descriptionText, settings.customerKeyPattern);
-    if (!keys.length) {
-      return;
-    }
-
-    // Beschreibungscontainer finden
-    var container = document.querySelector('#description-val .user-content-block') ||
-                  document.querySelector('#descriptionmodule .user-content-block');
-    if (!container) {
-      return;
-    }
-
-    // Nur im Lese-Modus (keine Form-/Edit-Elemente im Container)
-    if (container.querySelector('form, textarea, input, [contenteditable]') ||
-        container.closest('.editable-field.active')) {
-      return;
-    }
-
-    // Containerinhalt leeren und neu aufbauen mit highlighted keys
-    container.textContent = '';
-
-    // Falls keine Keys zum Highlighting vorhanden sind, einfach den Originaltext hinzufuegen
-    if (keys.length === 0) {
-      container.appendChild(document.createTextNode(descriptionText));
-      return;
-    }
-
-    // Einen kombinierten Regex fuer alle Keys erstellen
-    var keyPatterns = keys.map(function(key) {
-      // Spezialzeichen in Keys escapen fuer RegExp
-      var escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return '(?<!\\\\b)(' + escapedKey + ')(?!\\\\b)';
-    });
-
-    var combinedPattern = keyPatterns.join('|');
-    if (!combinedPattern) {
-      container.appendChild(document.createTextNode(descriptionText));
-      return;
-    }
-
-    var masterPattern = new RegExp(combinedPattern, 'g');
-    var lastEnd = 0;
-    var match;
-
-    // Durch den Text iterieren und nicht-matching Teile sowie highlighted Keys hinzufuegen
-    while ((match = masterPattern.exec(descriptionText)) !== null) {
-      // Text vor dem aktuellen Match hinzufuegen
-      container.appendChild(document.createTextNode(descriptionText.slice(lastEnd, match.index)));
-
-      // Highlight-Span fuer den aktuellen Match erstellen und hinzufuegen
-      var highlightSpan = document.createElement('span');
-      highlightSpan.className = 'jmd-customer-key-highlight';
-      highlightSpan.setAttribute('title', 'Kunden-Schluessel: ' + match[0]);
-      highlightSpan.textContent = match[0];
-      container.appendChild(highlightSpan);
-
-      lastEnd = masterPattern.lastIndex;
-    }
-
-    // Restlichen Text nach dem letzten Match hinzufuegen
-    container.appendChild(document.createTextNode(descriptionText.slice(lastEnd)));
-  }
-
-  /**
    * Der schwebende Button erscheint nur, wo es ein Ziel gibt: auf einer
    * Vorgangsseite (das Feld kommt dort oft erst nach dem Scan) oder sobald
    * ein Editor-Ziel im DOM steht. So bleibt das Dashboard und jede andere
@@ -2189,8 +2109,6 @@
         if (panel && panel.classList.contains('jmd-panel--open')) {
           updateTargetLabel();
         }
-        // Highlighting von Customer-Keys in der Leseansicht
-        highlightCustomerKeysInDescription();
       } catch (error) {
         /* Jira baut viel um - Fehler hier nie hochblubbern lassen */
       }
