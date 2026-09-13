@@ -43,6 +43,45 @@ function hatLeiste(page, id) {
   }, id, { timeout: 2000 });
 }
 
+function fuegeRTEFeldEin(page, id) {
+  return page.evaluate(function (fieldId) {
+    var group = document.createElement('div');
+    group.className = 'field-group';
+    var frame = document.createElement('iframe');
+    frame.id = fieldId + '_ifr';
+    frame.setAttribute('style', 'height: 4vh');
+    var textarea = document.createElement('textarea');
+    textarea.id = fieldId;
+    textarea.setAttribute('style', 'display:none');
+    group.appendChild(frame);
+    group.appendChild(textarea);
+    document.body.appendChild(group);
+
+    var doc = frame.contentDocument;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><body contenteditable="true"></body></html>');
+    doc.close();
+  }, id);
+}
+
+function tauscheRahmen(page, id) {
+  return page.evaluate(function (fieldId) {
+    var alterRahmen = document.getElementById(fieldId + '_ifr');
+    var group = alterRahmen.parentNode;
+    alterRahmen.remove();
+
+    var neuerRahmen = document.createElement('iframe');
+    neuerRahmen.id = fieldId + '_ifr';
+    neuerRahmen.setAttribute('style', 'height: 4vh');
+    group.appendChild(neuerRahmen);
+
+    var doc = neuerRahmen.contentDocument;
+    doc.open();
+    doc.write('<!DOCTYPE html><html><body contenteditable="true"></body></html>');
+    doc.close();
+  }, id);
+}
+
 describe('Leiste an spaet gewachsenen Feldern', { skip: !hasPlaywright }, function () {
   test('Leiste erscheint, wenn rows von 1 auf 8 wechselt', async function () {
     var browser = await browserPromise;
@@ -121,6 +160,39 @@ describe('Leiste an spaet gewachsenen Feldern', { skip: !hasPlaywright }, functi
     // Grosser Sprung, kein einziger DOM-Eintrag - nur die Fensterhoehe wechselt.
     await page.setViewportSize({ width: 800, height: 2000 });
     await hatLeiste(page, 'jmd-vh');
+
+    await page.close();
+  });
+
+  test('Leiste erscheint nach Rahmentausch am Rich-Text-Feld', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, fixtures.RTE);
+
+    // Klein genug, dass 4vh sicher unter 48px bleibt.
+    await page.setViewportSize({ width: 800, height: 400 });
+    await page.waitForSelector('.jmd-fieldbar');
+
+    await fuegeRTEFeldEin(page, 'jmd-rahmen');
+    await page.waitForTimeout(600);
+
+    var vorZustand = await page.evaluate(function () {
+      var field = document.getElementById('jmd-rahmen');
+      return {
+        button: !!(field && field.dataset.jmdButtonAttached),
+        beobachtet: !!(field && field.dataset.jmdGrowthWatched)
+      };
+    });
+    assert.strictEqual(vorZustand.button, false, 'zu kleines Rich-Text-Feld hat schon eine Markierung bekommen');
+    assert.strictEqual(vorZustand.beobachtet, true, 'zu kleines Feld wird nicht beobachtet');
+
+    // Jira tauscht den TinyMCE-Rahmen aus, die Textarea bleibt - der Rahmen
+    // ist weiter zu klein, es aendert sich sonst nichts am DOM.
+    await tauscheRahmen(page, 'jmd-rahmen');
+    await page.waitForTimeout(600);
+
+    // Grosser Sprung, kein einziger DOM-Eintrag - nur die Fensterhoehe wechselt.
+    await page.setViewportSize({ width: 800, height: 2000 });
+    await hatLeiste(page, 'jmd-rahmen');
 
     await page.close();
   });

@@ -1343,7 +1343,7 @@
     if (field.dataset.jmdGrowthWatched) return;
     field.dataset.jmdGrowthWatched = '1';
 
-    var entry = { field: field, observer: null };
+    var entry = { field: field, box: box, observer: null };
     entry.observer = new ResizeObserver(function () {
       try {
         if (box.getBoundingClientRect().height < 48) return;
@@ -1369,12 +1369,17 @@
   /**
    * Loest Beobachtungen fuer Felder, die Jira beim Umbau des DOM bereits
    * entfernt hat - sonst haeufen sich bei jedem Neuaufbau weitere
-   * ResizeObserver an, ohne dass ihr Feld je wieder waechst.
+   * ResizeObserver an, ohne dass ihr Feld je wieder waechst. Die beobachtete
+   * Box kann dabei auch verschwinden, waehrend das Feld selbst stehen bleibt
+   * (Jira baut den TinyMCE-Rahmen neu auf) - auch dann muss der Eintrag
+   * fallen, sonst bleibt jmdGrowthWatched haengen und der naechste Scan
+   * ueberspringt das Feld dauerhaft, ohne den neuen Rahmen zu beobachten.
    */
   function cleanupGrowthWatchers() {
     for (var i = growthWatchers.length - 1; i >= 0; i--) {
-      if (!growthWatchers[i].field.isConnected) {
-        stopWatchingGrowth(growthWatchers[i]);
+      var entry = growthWatchers[i];
+      if (!entry.field.isConnected || !entry.box || !entry.box.isConnected) {
+        stopWatchingGrowth(entry);
       }
     }
   }
