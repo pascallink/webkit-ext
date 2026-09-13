@@ -38,6 +38,30 @@
     doc.write('<!DOCTYPE html><html><body contenteditable="true"></body></html>');
     doc.close();
 
+    /* Fremd-HTML aus der Zwischenablage nie ueber innerHTML oder
+       insertAdjacentHTML einsetzen: DOMParser liefert ein untaetiges
+       Dokument, das keine Ressourcen laedt und keine Event-Attribute
+       ausfuehrt. Erst dort wird gesaeubert, dann wandern die Knoten
+       herueber - appendChild uebernimmt sie und leert die Quelle, die
+       Schleife laeuft also ab. Bewusst in dieser Datei und nicht geteilt:
+       die Fixtures sind selbsttragend, jede bringt ihre Mock-Logik mit. */
+    function appendSafely(target, html) {
+      var parsed = new DOMParser().parseFromString(html, 'text/html').body;
+      Array.prototype.forEach.call(parsed.querySelectorAll('script,style'), function (node) {
+        node.parentNode.removeChild(node);
+      });
+      Array.prototype.forEach.call(parsed.querySelectorAll('*'), function (node) {
+        Array.prototype.slice.call(node.attributes).forEach(function (attr) {
+          var name = attr.name.toLowerCase();
+          if (name.indexOf('on') === 0) { node.removeAttribute(attr.name); return; }
+          if ((name === 'href' || name === 'src') && /^\s*javascript:/i.test(attr.value)) {
+            node.removeAttribute(attr.name);
+          }
+        });
+      });
+      while (parsed.firstChild) target.appendChild(parsed.firstChild);
+    }
+
     window.__pastes = [];
     doc.body.addEventListener('paste', function (event) {
       var data = event.clipboardData;
@@ -57,7 +81,7 @@
       }
       event.preventDefault();
       if (html) {
-        doc.body.insertAdjacentHTML('beforeend', html);
+        appendSafely(doc.body, html);
       } else {
         text.split('\n').forEach(function (line) {
           var p = doc.createElement('p');
