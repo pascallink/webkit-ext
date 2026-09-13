@@ -1,17 +1,23 @@
 #!/usr/bin/env node
 /**
- * Erzeugt aus dem PR-Diff eine kompakte Beschreibung (Anthropic Messages API)
- * und schreibt sie in den PR-Body. Laeuft ohne Dependencies auf Node >= 18 (global fetch).
+ * Haelt den Stand-Abschnitt im PR-Body aktuell: liest den PR-Diff, laesst das
+ * Modell daraus eine knappe Stichpunktliste bauen und ersetzt damit den Block
+ * zwischen den Markern. Laeuft ohne Dependencies auf Node >= 18 (global fetch).
+ *
+ * Nur bei Aenderungen am PR (pull_request: synchronize). Beim Oeffnen traegt
+ * .github/pull_request_template.md die Beschreibung - dort waere jeder Lauf
+ * derselbe Text ein zweites Mal.
  */
 'use strict';
 
 const { execFileSync } = require('node:child_process');
-const { askClaude } = require('./lib/anthropic');
+const { askClaude, isModelUnavailable } = require('./lib/anthropic');
 const { get, mergeIntoBody, patchBody } = require('./lib/github');
 
-// Token-Bremsen: kleiner Diff rein, kurze Antwort raus.
+// Token-Bremsen: kleiner Diff rein, kurze Antwort raus. Die Liste ersetzt
+// keine Beschreibung, sie haelt sie aktuell - darum knapper als frueher.
 const MAX_DIFF_CHARS = 40000;
-const MAX_TOKENS = 400;
+const MAX_TOKENS = 250;
 
 const MARKER = 'haiku-summary';
 
@@ -29,12 +35,17 @@ const EXCLUDES = [
   ':(exclude)**/dist/**',
 ];
 
+// Der Block erfasst den Stand des PR, er wiederholt die Beschreibung nicht.
+// Stil und Kuerze folgen .github/pull_request_template.md: Stichpunkte, keine
+// Saetze. ASCII, weil das Repo Deutsch ohne Umlaute schreibt - die Regel gilt
+// auch fuer erzeugten Text.
 const SYSTEM_PROMPT = [
-  'Du schreibst PR-Beschreibungen aus einem Git-Diff.',
-  'Antworte nur mit Markdown, kein Vorwort, keine Anrede, keine Codebloecke.',
-  'Format: 1-2 Saetze Zusammenfassung, danach "### Änderungen" mit max. 5 Bulletpoints.',
+  'Du fuehrst den Stand-Abschnitt einer PR-Beschreibung nach, aus einem Git-Diff.',
+  'Die Beschreibung selbst steht schon im PR - wiederhole sie nicht und bewerte sie nicht.',
+  'Antworte nur mit einer Markdown-Liste, kein Vorwort, keine Ueberschrift, keine Codebloecke.',
+  'Hoechstens 5 Stichpunkte, je hoechstens 8 Woerter, Form "- `datei`: Aenderung".',
   'Nur was der Diff belegt. Keine Vermutungen, kein Lob, keine Review-Hinweise.',
-  'Harte Grenze: 150 Wörter gesamt.',
+  'Schreibe Deutsch in reinem ASCII: ue, ae, oe statt Umlauten, ss statt Eszett.',
 ].join(' ');
 
 function env(name, required = true) {
@@ -79,7 +90,7 @@ async function generateSummary({ title, stat, diff, truncated }) {
 }
 
 function summaryBlock(summary) {
-  return `## Zusammenfassung (automatisch generiert)\n\n${summary}`;
+  return `**Stand (automatisch nachgefuehrt):**\n\n${summary}`;
 }
 
 async function main() {
@@ -107,7 +118,21 @@ async function main() {
   console.log(`PR #${prNumber} aktualisiert.`);
 }
 
-main().catch((err) => {
-  console.error(err.message);
-  process.exit(1);
-});
+module.exports = { summaryBlock, SYSTEM_PROMPT, MAX_DIFF_CHARS, MAX_TOKENS, MARKER };
+
+/* istanbul ignore next */
+if (require.main === module) {
+  main().catch((err) => {
+    // Ein fehlender Stand-Block ist Beiwerk. Steht das Modell nicht zur
+    // Verfuegung - kein Schluessel, kein Guthaben, Ratsperre, Stoerung -, ist
+    // das nichts, was dieser PR loesen kann: warnen und den Lauf gruen lassen,
+    // statt ein rotes X an jeden PR zu haengen. Fehler im eigenen Code
+    // scheitern weiter hart.
+    if (isModelUnavailable(err)) {
+      console.log(`::warning title=PR-Stand nicht nachgefuehrt::${err.message}`);
+      return;
+    }
+    console.error(err.message);
+    process.exit(1);
+  });
+}

@@ -12,8 +12,21 @@ an der CI, nicht in jeder Sitzung.
 | `release.yml` | Push eines Tags `x.y.0` oder `vx.y.0` | Baut die ZIPs und legt das Release damit an - nur bei einer neuen Minor-Version `x.y.0` |
 | `commitlint.yml` | Jeder PR | Prueft die Commit-Konvention |
 | `ai-build-checker.yml` | `workflow_run` nach rotem `Build Extensions` | Baut nichts selbst: analysiert das Log des fehlgeschlagenen Jobs und postet es als PR-Kommentar |
-| `haiku-pr-summary.yml` | PR `opened`/`reopened`/`ready_for_review` | Schreibt eine generierte Zusammenfassung in den PR-Body |
+| `haiku-pr-summary.yml` | PR `synchronize` | Fuehrt den Stand-Block im PR-Body nach - **nicht beim Oeffnen**, dort traegt die Vorlage die Beschreibung |
 | `cost-report.yml` | PR `closed` (gemergt), taeglich 0:00 UTC, `workflow_dispatch` | Verbucht Session-Kosten je gemergtem Branch bzw. erzeugt den Tagesreport - Details siehe "Kosten-Tracking" unten |
+
+Die beiden Jobs mit Modellaufruf (`haiku-pr-summary.yml`, `ai-build-checker.yml`)
+liefern Beiwerk, keinen Pruefbefund. Ist das Modell nicht erreichbar - fehlender
+Schluessel, leeres Guthaben, Ratsperre, Stoerung -, setzen sie eine
+`::warning::`-Anmerkung und enden gruen; ein Fehler im eigenen Code laesst sie
+weiter hart scheitern. Die Einteilung sitzt in `scripts/lib/anthropic.js`
+(`ModelUnavailableError`), damit beide Jobs dieselbe Grenze ziehen.
+
+`haiku-pr-summary.yml` laeuft bewusst nur auf `synchronize`: beim Oeffnen steht
+die Beschreibung aus `.github/pull_request_template.md` schon im Body, ein Lauf
+dort erzeugt denselben Text ein zweites Mal. Der Block zwischen den Markern
+haelt nur den Stand nach - Stichpunkte, keine Saetze, kein Ersatz fuer die
+Beschreibung.
 
 `build-extension.yml` ruft je Projekt `npm test --prefix <projekt> --if-present`
 auf - seit der Modulaufteilung in Issue #55 ist das weiterhin der Gesamtlauf
