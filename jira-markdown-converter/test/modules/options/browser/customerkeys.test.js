@@ -133,4 +133,44 @@ describe('Optionsseite: Kunden-Schluessel', { skip: !hasPlaywright }, function (
     assert.strictEqual(pattern, 'ROV-\\d+');
     await page.close();
   });
+
+  test('Datei-Eingabe laedt den Inhalt in ckJson, importiert aber nicht selbst', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.optionsPage(browser);
+    await page.setInputFiles('#ckFile', {
+      name: 'customer-keys.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify({ 'ROV-7': ['JIRA-7'] }), 'utf-8')
+    });
+    await page.waitForFunction(function () {
+      return document.getElementById('ckJson').value.indexOf('ROV-7') !== -1;
+    }, null, { timeout: 2000 });
+    // Geladen heisst noch nicht uebernommen - der Storage bleibt leer, bis
+    // der Nutzer auf "Import aus dem Feld" klickt.
+    var stored = await page.evaluate(function () {
+      return window.__local.customerKeyMap && window.__local.customerKeyMap['ROV-7'];
+    });
+    assert.ok(!stored);
+
+    await page.click('#ckImport');
+    await page.waitForFunction(function () {
+      return !!(window.__local.customerKeyMap && window.__local.customerKeyMap['ROV-7']);
+    }, null, { timeout: 2000 });
+    await page.close();
+  });
+
+  test('Datei ueber der Groessengrenze wird abgelehnt, ohne gelesen zu werden', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.optionsPage(browser);
+    await page.setInputFiles('#ckFile', {
+      name: 'zu-gross.json',
+      mimeType: 'application/json',
+      buffer: Buffer.alloc(1048577, 0x20)
+    });
+    await page.waitForFunction(function () {
+      return document.getElementById('ckStatus').textContent.indexOf('zu gross') !== -1;
+    }, null, { timeout: 2000 });
+    assert.strictEqual(await page.inputValue('#ckJson'), '');
+    await page.close();
+  });
 });
