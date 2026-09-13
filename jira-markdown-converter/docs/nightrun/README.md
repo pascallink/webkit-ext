@@ -17,6 +17,8 @@ das naechste Issue. Gemergt wird nichts; die PRs stapeln sich auf
 | `templates/fixer.md` | Haiku/Sonnet: genau ein Korrektur-Prompt. |
 | `templates/ci-fixer.md` | Sonnet: Commitlint- oder Build-Fehler beheben. |
 | `templates/cleanup.md` | Haiku: Working Tree per Stash saeubern. |
+| `tools/st.py` | State-Helfer des Orchestrators: `init <issues.json>`, `set k=v ...`, `calls <doc...>`, `log "<text>"`, `show` auf `~/nightrun-webkit-ext/state.json`. |
+| `tools/render.py` | Rendert eine Vorlage aus `templates/` mit `KEY=VALUE`-Platzhaltern (`REPO` zeigt auf das Worktree). |
 
 ## Start im neuen Chat
 
