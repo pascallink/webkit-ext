@@ -56,16 +56,19 @@ jira-markdown-converter/test/
     page-stub.js                chrome-Stub als Quelltext-String fuer die Seite
     browser.js                 withBrowser, newPage, optionsPage, popupPage,
                                 SOURCES/STYLES aus manifest.json
-    dom.js                     pasteInto, stubClipboard, setCaret, setRichCaret
+    dom.js                     pasteInto, stubClipboard, stubLegacyClipboard,
+                                setCaret, setRichCaret
     extension.js               launchExtension, extensionCopy, serveFixtures
     fixtures.js                 CLOUD, SERVER, RTE, INLINE, ISSUE, OTRS,
-                                JIRA912 - Pfade
+                                JIRA912, DASHBOARD, LOGIN, FOREIGN - Pfade
   fixtures/                    die 10 HTML-Mocks, unveraendert und schreibgeschuetzt
   modules/
     converter/    converter.test.js  blocks.test.js  html.test.js
+                  terminierung.test.js
     settings/     settings.test.js   storage.test.js   browser/toggle.test.js
     editors/      browser/{server,rte,caret}.test.js
-    content/      browser/{fab,panel,paste,blockmakros,fieldbar,robustheit}.test.js
+    content/      browser/{fab,fabgate,panel,paste,blockmakros,fieldbar,
+                  httpkontext,robustheit,spaetleiste,standalone}.test.js
     dialogs/      browser/{code,panel,placeholder}.test.js
     editlock/     browser/{inline,description,dialogs,versteckt}.test.js
     options/      browser/templates.test.js
@@ -269,19 +272,23 @@ Storage, Popup und Optionsseite - im echten Kontext. Quellen sind nicht einzelne
 `src/`-Dateien, sondern die komplette Extension.
 
 Start ueber `launchPersistentContext()` in `test/lib/extension.js`: Das
-Manifest wird in einen `fs.mkdtemp()`-Verzeichnis kopiert, dort mit den
+Manifest wird in ein `fs.mkdtemp()`-Verzeichnis kopiert, dort mit den
 Hosts fuer die Test-Fixtures (`http://127.0.0.1:<port>/*`) ausgestattet und
 geladen. Der tatsaechliche Port wird nach dem `listen()` des Fixtures-Servers
-ausgelesen und nachtraegglich ins Manifest gepflegt - der Port muss vor dem
+ausgelesen und nachtraeglich ins Manifest gepflegt - der Port muss vor dem
 `chromium.launchPersistentContext()` feststehen. Das Original-Manifest im
 Repo bleibt unveraendert, die Kopie wird im `after()` der Test-Datei
 geloescht.
 
-Fuer lokale Tests (mit echtem Edge statt Chromium) wird die Umgebungsvariable
-`PW_CHANNEL=msedge` gesetzt. `canRunExtension()` prueft Spielraum und
-Umgebung (Playwright installiert, Display vorhanden, Service-Worker sichtbar
-in 15 s) und ueberspringt die Tests grazioes mit klarer Meldung, anstatt rot
-zu werden.
+Fuer lokale Tests (mit echtem Edge statt Chromium) wertet
+`test/lib/extension.js` zuerst `CHROMIUM_PATH` aus - die Variable hat Vorrang
+vor `PW_CHANNEL` und darf auf ein installiertes Edge zeigen. Ist sie nicht
+gesetzt, entscheidet `PW_CHANNEL` (Vorgabe `chromium`), also etwa
+`PW_CHANNEL=msedge`.
 
-Weiterhin gilt: kein `npx playwright install`, die Version bleibt auf 1.56.0
-gepinnt (s. o.).
+`canRunExtension()` prueft ausschliesslich die Umgebung: Playwright
+installiert, Browser startbar (Binary oder Channel, zum Beispiel kein
+Display) und Service-Worker binnen 15 s sichtbar. Fehlt davon etwas, werden
+die Tests mit klarer Meldung uebersprungen statt rot zu werden. Ein Defekt
+der Erweiterung selbst - kaputtes Manifest, Fehler beim Kopieren in das
+temporaere Verzeichnis - ist kein Umgebungsfehler und macht den Lauf rot.
