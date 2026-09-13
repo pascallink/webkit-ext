@@ -7,6 +7,11 @@
  * zweite Eintrag "Aus Beschreibung uebernehmen" steht in
  * test/modules/mapping/browser/keysync.test.js und der dortigen
  * Content-Verdrahtung.
+ *
+ * Sichtbarkeit des Knopfes (showCustomerKeysButton()): aktiv, sobald
+ * mindestens eine der beiden Funktionen etwas zu tun hat - Zuordnungstabelle
+ * gepflegt (Anreichern) oder Vorgangsseite mit Custom-Field-Name (Uebernahme).
+ * Ohne Zuordnung bricht "Im Feld ergaenzen" darum nicht mehr stumm ab.
  * Aufruf: npm run test:content --prefix jira-markdown-converter
  */
 'use strict';
@@ -39,12 +44,34 @@ async function pickEnrich(page, button) {
 }
 
 describe('Kunden-Schluessel in der Feldleiste', { skip: !hasPlaywright }, function () {
-  test('ohne Zuordnungen ist der Knopf deaktiviert', async function () {
+  test('ohne Zuordnungen und ausserhalb einer Vorgangsseite ist der Knopf deaktiviert', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, null, SERVER);
     await page.waitForSelector('.jmd-fieldbar');
     var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
     assert.strictEqual(await button.isDisabled(), true);
+    await page.close();
+  });
+
+  test('ohne Zuordnung aber auf einer Vorgangsseite ist der Knopf wegen der Uebernahme aktiv', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER, 'ROV-1');
+    await page.waitForSelector('.jmd-fieldbar');
+    var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
+    assert.strictEqual(await button.isDisabled(), false);
+    await page.close();
+  });
+
+  test('im Feld ergaenzen ohne Zuordnung meldet eine Warnung statt stumm abzubrechen', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser, null, SERVER, 'ROV-1');
+    await page.waitForSelector('.jmd-fieldbar');
+    await page.fill('#description', 'ROV-1234 offen');
+    var button = page.locator('.jmd-fieldbar').first().locator(KEYS_BUTTON);
+    await pickEnrich(page, button);
+    var toastText = await page.textContent('.jmd-toast__text');
+    assert.strictEqual(toastText, 'Noch keine Zuordnung angelegt - in den Einstellungen pflegen.');
+    assert.strictEqual(await page.inputValue('#description'), 'ROV-1234 offen');
     await page.close();
   });
 

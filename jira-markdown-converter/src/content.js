@@ -70,6 +70,7 @@
   var pickingTarget = false;
   var toastTimer = null;
   var menu = null;           // offenes Dropdown-Menue (Panel- oder eigene Vorlagen)
+  var customerKeySyncRunning = false; // Wiedereintrittssperre fuer syncCustomerKey()
 
   /* ------------------------------------------------------------------ *
    * Konvertierung
@@ -335,11 +336,17 @@
 
   /**
    * Durchsucht den Feldinhalt nach Kunden-Schluesseln und ergaenzt die
-   * zugeordneten Jira-Keys. Ohne Zuordnungstabelle passiert nichts - der
-   * Knopf ist dann ohnehin deaktiviert, siehe showCustomerKeysButton().
+   * zugeordneten Jira-Keys. Ohne Zuordnungstabelle gibt es nichts zu
+   * ergaenzen - der Knopf kann trotzdem aktiv sein, wenn die Uebernahme aus
+   * der Beschreibung verfuegbar ist (siehe showCustomerKeysButton()), darum
+   * eine Rueckmeldung statt eines stummen Abbruchs.
    */
   function enrichCustomerKeys(field) {
-    if (!field || !settings.customerKeyMap || !Object.keys(settings.customerKeyMap).length) return;
+    if (!field) return;
+    if (!settings.customerKeyMap || !Object.keys(settings.customerKeyMap).length) {
+      toast('Noch keine Zuordnung angelegt - in den Einstellungen pflegen.', true);
+      return;
+    }
 
     if (isPlainField(field)) {
       enrichPlainField(field);
@@ -377,8 +384,17 @@
    * Kunden-Schluesseln. Bei genau einem Treffer setzt KeySync.run() Label und
    * Custom Field. Bei mehreren verschiedenen Treffern wird nicht geraten -
    * der Ablauf bricht ab und fordert die manuelle Eingabe.
+   *
+   * Der Ablauf steuert globale Tastenkuerzel und AUI-Dialoge - eine parallele
+   * zweite Ausfuehrung wuerde sich mit der ersten ueberschneiden, darum eine
+   * Wiedereintrittssperre ueber customerKeySyncRunning.
    */
   function syncCustomerKey() {
+    if (customerKeySyncRunning) {
+      toast('Kunden-Schluessel-Abgleich laeuft bereits.', true);
+      return;
+    }
+
     var text = KeySync.descriptionText(document);
     var keys = KeySync.keysInDescription(text, settings.customerKeyPattern);
 
@@ -391,12 +407,16 @@
       return;
     }
 
+    customerKeySyncRunning = true;
     KeySync.run({ key: keys[0], fieldName: settings.customerKeyFieldName, doc: document })
       .then(function () {
         toast('Kunden-Schluessel ' + keys[0] + ' uebernommen.');
       })
       .catch(function (error) {
         toast(error.message, true);
+      })
+      .then(function () {
+        customerKeySyncRunning = false;
       });
   }
 
@@ -630,13 +650,25 @@
     }
   }
 
-  /** Ohne Zuordnungstabelle bleibt der Button deaktiviert - nichts zum Anreichern. */
+  /**
+   * Der Knopf ist aktiv, sobald mindestens eine der beiden Dropdown-
+   * Funktionen etwas zu tun hat: Anreichern (Zuordnungstabelle gepflegt)
+   * oder Uebernehmen (Custom-Field-Name gesetzt und Vorgangsansicht, siehe
+   * customerKeyMenuItems()). Nur ohne beides bleibt er deaktiviert.
+   */
   function showCustomerKeysButton(button) {
-    var has = Object.keys(settings.customerKeyMap || {}).length > 0;
-    button.disabled = !has;
-    button.title = has
-      ? 'Kunden-Schluessel im Feld um die zugeordneten Jira-Keys ergaenzen'
-      : 'Noch keine Zuordnung angelegt - in den Einstellungen pflegen';
+    var canEnrich = Object.keys(settings.customerKeyMap || {}).length > 0;
+    var canSync = !!(settings.customerKeyFieldName && isIssuePage());
+    button.disabled = !canEnrich && !canSync;
+    if (canEnrich && canSync) {
+      button.title = 'Kunden-Schluessel im Feld ergaenzen oder aus der Beschreibung uebernehmen';
+    } else if (canEnrich) {
+      button.title = 'Kunden-Schluessel im Feld um die zugeordneten Jira-Keys ergaenzen';
+    } else if (canSync) {
+      button.title = 'Kunden-Schluessel aus der Beschreibung uebernehmen';
+    } else {
+      button.title = 'Noch keine Zuordnung angelegt - in den Einstellungen pflegen';
+    }
   }
 
   /** Zieht den Kunden-Schluessel-Button an allen Leisten nach - neue oder geloeschte Zuordnungen. */
