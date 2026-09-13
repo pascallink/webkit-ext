@@ -44,6 +44,18 @@ describe('Code', function () {
   test('Tilde-Fence', function () {
     eq('~~~python\nprint(1)\n~~~', '{code:python}\nprint(1)\n{code}');
   });
+  test('laengerer Schluss-Fence schliesst den Block', function () {
+    eq('```\na\n`````', '{code}\na\n{code}');
+  });
+  test('kuerzerer Schluss-Fence schliesst den Block nicht', function () {
+    eq('````\na\n```\nb\n````', '{code}\na\n```\nb\n{code}');
+  });
+  test('fremdes Fence-Zeichen schliesst den Block nicht', function () {
+    eq('```\na\n~~~\nb\n```', '{code}\na\n~~~\nb\n{code}');
+  });
+  test('Zeichen hinter dem Schluss-Fence schliessen nicht', function () {
+    eq('```\na\n``` x\nb\n```', '{code}\na\n``` x\nb\n{code}');
+  });
   test('Code-Inhalt wird nicht konvertiert', function () {
     eq('```\n# kein Heading\n- keine Liste\n**kein fett**\n```',
       '{code}\n# kein Heading\n- keine Liste\n**kein fett**\n{code}');
