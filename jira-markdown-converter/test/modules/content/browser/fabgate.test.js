@@ -84,9 +84,16 @@ describe('Gate fuer den schwebenden Button', { skip: !hasPlaywright }, function 
     assert.strictEqual(await page.locator('.jmd-fab').count(), 0);
     assert.strictEqual(await page.locator('.jmd-fieldbar').count(), 0);
 
-    // Das Feld darf nicht einfrieren - der Klick auf den Submit-Knopf muss
-    // bei der Seite ankommen (Zaehler im Fixture).
-    await page.focus('#login-form-username');
+    // Fokus liegt auf der Koeder-Textarea #notiz, nicht auf dem Login-Feld:
+    // #login-form-username ist fuer editors.js gar kein Ziel (kein Editor),
+    // waehrend #notiz ohne die Loginregel eine Feldleiste bekaeme und ueber
+    // den focusin-Zweig in content.js eine Sperre (EditLock.lock()) ausloesen
+    // wuerde - nur dieser Fall prueft das Gate wirklich. Die Zusicherung
+    // prueft die Sperre direkt ueber JiraEditLock.isActive(); der Klickzaehler
+    // belegt seit Issue #112 nur noch, dass der Klick ankommt, denn 'click'
+    // steht nicht mehr in GUARDED und block() ruft kein preventDefault() mehr.
+    await page.focus('#notiz');
+    assert.strictEqual(await page.evaluate(function () { return window.JiraEditLock.isActive(); }), false);
     await page.click('#login-form-submit');
     assert.strictEqual(await page.evaluate(function () { return window.__submits; }), 1);
 
