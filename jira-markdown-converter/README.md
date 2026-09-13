@@ -254,6 +254,32 @@ ausschliesslich auf **Jira Server / Data Center 9.12 LTS** auf -
 er bedient die Formularfelder im AUI-Dialog der Instanz, nicht die
 ProseMirror-Oberflaeche von Jira Cloud.
 
+## Kunden-Schluessel zuordnen
+
+In den Einstellungen unter *Kunden-Schluessel* laesst sich eine Zuordnung von
+Kunden-Schluesseln (z. B. `ROV-1234`) auf einen oder mehrere interne Jira-Keys
+pflegen - als JSON-Tabelle mit Export, Import und einer Datei zum Laden. Die
+Tabelle liegt ausschliesslich im lokalen Speicher dieses Geraets
+(`chrome.storage.local`) und wandert, anders als die uebrigen Einstellungen,
+nicht mit auf andere Rechner oder Profile.
+
+Der Knopf *Keys* in der Buttonleiste am Feld oeffnet dazu ein Dropdown mit
+zwei Eintraegen:
+
+* **Im Feld ergaenzen** durchsucht den Feldinhalt (Textarea oder Rich-Text-
+  Editor) nach Kunden-Schluesseln und haengt hinter jeden Treffer mit
+  Mapping-Eintrag die zugeordneten Jira-Keys in Klammern an.
+* **Aus Beschreibung uebernehmen** liest die Beschreibung des Vorgangs (nur
+  die Leseansicht, nie einen offenen Editor) und traegt einen eindeutig
+  gefundenen Kunden-Schluessel in Kennzeichen (Label) und das hinterlegte
+  Custom Field ein.
+
+Zusaetzlich hebt die Erweiterung Kunden-Schluessel in der Leseansicht optisch
+als Badge hervor - in der Beschreibung und in Kommentaren, nie in einem
+Editor oder einem bearbeitbaren Feld. Mit Mapping-Eintrag steht die Zuordnung
+als Tooltip am Badge. Abschaltbar in den Einstellungen ueber *Kunden-
+Schluessel in der Leseansicht hervorheben*.
+
 ## Bearbeitung einfrieren
 
 Das Hauptfeld eines Vorgangs – die Beschreibung – wechselt in Jira per Klick

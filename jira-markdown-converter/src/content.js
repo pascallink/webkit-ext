@@ -41,11 +41,16 @@
 
   // Ohne mapping.js (z. B. eine veraltete gecachte Ladeliste) gaebe es kein
   // window.JiraMapping - dieselbe Absicherung wie bei EditLock: eine
-  // wirkungslose Huelle haelt enrichCustomerKeys() und die Feldleiste
-  // lauffaehig, statt sie mit einem Wurf zu zerlegen.
+  // wirkungslose Huelle haelt enrichCustomerKeys(), die Feldleiste und
+  // highlightCustomerKeys() lauffaehig, statt sie mit einem Wurf zu
+  // zerlegen. normalizePattern() liefert dabei immer '' - highlightCustomerKeys()
+  // haelt das Muster dann fuer ungueltig und entfernt vorhandene Badges.
   if (!Mapping) {
     Mapping = {
-      enrich: function (text) { return { text: text, count: 0 }; }
+      enrich: function (text) { return { text: text, count: 0 }; },
+      normalizePattern: function () { return ''; },
+      compile: function () { return /$^/g; },
+      targetsFor: function () { return []; }
     };
   }
 
@@ -71,6 +76,7 @@
   var toastTimer = null;
   var menu = null;           // offenes Dropdown-Menue (Panel- oder eigene Vorlagen)
   var customerKeySyncRunning = false; // Wiedereintrittssperre fuer syncCustomerKey()
+  var observer = null;       // MutationObserver aus start() - auch fuer highlightCustomerKeys() erreichbar
 
   /* ------------------------------------------------------------------ *
    * Konvertierung
@@ -434,6 +440,242 @@
       .then(function () {
         customerKeySyncRunning = false;
       });
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Kunden-Schluessel in der Leseansicht hervorheben (Issue #32, Sub-Task 5)
+   *
+   * Rein visuell: umschliesst Treffer in den Lesebereichen (Beschreibung,
+   * Kommentare) mit einem <span class="jmd-customer-key">, niemals einen
+   * Editor oder ein bearbeitbares Feld - dieselbe harte Vorgabe wie bei
+   * enrichRichText() oben, nur mit einer laengeren Ausschlussliste (Issue
+   * #32 Sub-Task 5). Der bestehende MutationObserver aus start() zieht ueber
+   * scheduleScan() nach, statt einen zweiten unabhaengigen Observer zu
+   * betreiben - waehrend der eigenen Schreibvorgaenge haengt
+   * withObserverPaused() ihn kurz aus, sonst wuerde jede eigene Einfuegung
+   * einen neuen Durchlauf ausloesen.
+   * ------------------------------------------------------------------ */
+
+  var CUSTOMER_KEY_CLASS = 'jmd-customer-key';
+  // Obergrenze je Durchlauf: eine sehr lange Beschreibung darf den Scan nicht
+  // spuerbar verzoegern.
+  var MAX_CUSTOMER_KEY_HIGHLIGHTS = 200;
+  // Muster/Zuordnungstabelle des letzten Durchlaufs - erkennt eine Aenderung
+  // zur Laufzeit, damit highlightCustomerKeys() vorhandene Badges mit dem
+  // alten Muster erst entfernt, bevor es mit dem neuen Muster neu aufbaut.
+  var lastHighlightPattern = null;
+  var lastHighlightMap = null;
+  // Wurzeln, unter denen Badges wieder entfernt werden - dieselben Container
+  // wie customerKeyContainers() sucht, nur als reine Root-Selektoren, damit
+  // unhighlightCustomerKeys() auch dann etwas findet, wenn Jira den
+  // ".user-content-block" gerade mitten im Umbau ausgetauscht hat.
+  var CUSTOMER_KEY_ROOTS = ['#description-val', '#descriptionmodule', '#issue_actions_container'];
+  // Beobachtungsoptionen fuer den einen gemeinsamen MutationObserver aus
+  // start() - dieselbe Instanz, die withObserverPaused() kurz abklemmt.
+  var OBSERVER_OPTIONS = {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class', 'hidden', 'rows', 'cols', 'aria-hidden']
+  };
+
+  var CUSTOMER_KEY_SKIP_TAGS = {
+    TEXTAREA: true, INPUT: true, SELECT: true, BUTTON: true, A: true,
+    CODE: true, PRE: true, SCRIPT: true, STYLE: true
+  };
+
+  /**
+   * Lese-Container fuer die Hervorhebung, ausschliesslich: Beschreibung
+   * (zwei Themes, wie in src/keysync.js descriptionText()) und Kommentare
+   * (".user-content-block" innerhalb von "#issue_actions_container") - kein
+   * dokumentweiter Selektor.
+   */
+  function customerKeyContainers() {
+    var containers = [];
+    var description = document.querySelector('#description-val .user-content-block') ||
+      document.querySelector('#descriptionmodule .user-content-block');
+    if (description) containers.push(description);
+
+    var commentsRoot = document.getElementById('issue_actions_container');
+    if (commentsRoot) {
+      var blocks = commentsRoot.querySelectorAll('.user-content-block');
+      for (var i = 0; i < blocks.length; i++) containers.push(blocks[i]);
+    }
+    return containers;
+  }
+
+  /** Traegt eine Klasse mit dem Praefix der eigenen Oberflaeche (mce- oder jmd-)? */
+  function hasOwnUiClass(element) {
+    if (!element.classList) return false;
+    for (var i = 0; i < element.classList.length; i++) {
+      var cls = element.classList[i];
+      if (cls.indexOf('mce-') === 0 || cls.indexOf('jmd-') === 0) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Vorfahr eines Textknotens bis zum Container: Textarea, Input, Select,
+   * Button, Link, Code, Pre, Script, Style, [contenteditable], die eigene
+   * Oberflaeche (Klassen mit dem Praefix mce- oder jmd-, data-jmd-ui - erfasst damit auch einen
+   * bereits umschlossenen "span.jmd-customer-key") bleiben unberuehrt - die
+   * harte Vorgabe aus Issue #32: kein Editor, kein bearbeitbarer Text wird
+   * je angefasst.
+   */
+  function isHighlightSkipped(node, container) {
+    var element = node.parentNode;
+    while (element && element !== container) {
+      if (element.nodeType === 1) {
+        if (CUSTOMER_KEY_SKIP_TAGS[element.tagName]) return true;
+        if (element.hasAttribute && element.hasAttribute('contenteditable')) return true;
+        if (element.hasAttribute && element.hasAttribute('data-jmd-ui')) return true;
+        if (hasOwnUiClass(element)) return true;
+      }
+      element = element.parentNode;
+    }
+    return false;
+  }
+
+  /**
+   * Haengt den MutationObserver aus start() waehrend fn() kurz aus - die
+   * eigenen Badges (einfuegen wie entfernen) sollen keinen neuen Scan
+   * ausloesen. Ohne Observer (Standalone/Loginseite, siehe start()) ist fn()
+   * einfach ein direkter Aufruf.
+   */
+  function withObserverPaused(fn) {
+    if (observer) observer.disconnect();
+    try {
+      fn();
+    } finally {
+      if (observer) observer.observe(document.documentElement, OBSERVER_OPTIONS);
+    }
+  }
+
+  /**
+   * Umschliesst Treffer in einem Textknoten mit einem Badge-Span - der
+   * Knoten wird dafuer aufgeteilt (splitText), nie ueber innerHTML. Hat ein
+   * Treffer Mapping-Eintraege, kommen sie in das title-Attribut ("Jira:
+   * JIRA-1, JIRA-2"), sonst bleibt title leer. Liefert die Zahl der neu
+   * eingesetzten Badges, hoechstens budget.
+   */
+  function highlightTextNode(node, regex, map, budget) {
+    var text = node.nodeValue;
+    regex.lastIndex = 0;
+    var current = node;
+    var consumed = 0;
+    var count = 0;
+    var match;
+
+    while (count < budget && (match = regex.exec(text)) !== null) {
+      var value = match[0];
+      // Endlosschleife bei einem Treffer der Laenge 0 vermeiden (wie
+      // Mapping.findKeys()/enrich()).
+      if (match.index === regex.lastIndex) regex.lastIndex++;
+      if (!value) continue;
+
+      var start = match.index - consumed;
+      var matchNode = current.splitText(start);
+      var afterTail = matchNode.splitText(value.length);
+
+      var span = document.createElement('span');
+      span.className = CUSTOMER_KEY_CLASS;
+      span.textContent = value;
+      var targets = Mapping.targetsFor(map, value);
+      span.title = targets.length ? 'Jira: ' + targets.join(', ') : '';
+      matchNode.parentNode.replaceChild(span, matchNode);
+
+      current = afterTail;
+      consumed = match.index + value.length;
+      count++;
+    }
+
+    return count;
+  }
+
+  /**
+   * Durchsucht einen Lese-Container mit einem TreeWalker (nur Textknoten)
+   * und haengt Badges an, bis budgetLeft erschoepft ist. Die Textknoten
+   * werden vor der ersten Aenderung vollstaendig eingesammelt - der
+   * TreeWalker soll nicht mitten im Umbau durch splitText()/replaceChild()
+   * stolpern.
+   */
+  function highlightContainer(container, regex, map, budgetLeft) {
+    var walker = document.createTreeWalker(container, window.NodeFilter.SHOW_TEXT, null);
+    var node;
+    var nodes = [];
+    while ((node = walker.nextNode())) {
+      if (!node.nodeValue) continue;
+      if (isHighlightSkipped(node, container)) continue;
+      nodes.push(node);
+    }
+
+    var used = 0;
+    for (var i = 0; i < nodes.length && used < budgetLeft; i++) {
+      used += highlightTextNode(nodes[i], regex, map, budgetLeft - used);
+    }
+    return used;
+  }
+
+  /** Ersetzt jeden vorhandenen Badge durch seinen Textinhalt und raeumt den Elternknoten auf. */
+  function unhighlightCustomerKeys() {
+    withObserverPaused(function () {
+      for (var i = 0; i < CUSTOMER_KEY_ROOTS.length; i++) {
+        var root = document.querySelector(CUSTOMER_KEY_ROOTS[i]);
+        if (!root) continue;
+        var spans = root.querySelectorAll('.' + CUSTOMER_KEY_CLASS);
+        for (var j = 0; j < spans.length; j++) {
+          var span = spans[j];
+          var parent = span.parentNode;
+          if (!parent) continue;
+          parent.replaceChild(document.createTextNode(span.textContent), span);
+        }
+        if (spans.length > 0) root.normalize();
+      }
+    });
+  }
+
+  /**
+   * Nur aktiv, wenn settings.customerKeyHighlight an ist und
+   * settings.customerKeyPattern ein gueltiges Muster ergibt - sonst werden
+   * vorhandene Badges wieder entfernt (Schalter aus zur Laufzeit). Aendert
+   * sich Muster oder Zuordnungstabelle gegenueber dem letzten Durchlauf,
+   * werden vorhandene Badges erst verworfen, damit isHighlightSkipped()
+   * keine Textknoten mit veraltetem title-Attribut uebersieht.
+   */
+  function highlightCustomerKeys() {
+    if (!settings.customerKeyHighlight) {
+      unhighlightCustomerKeys();
+      lastHighlightPattern = null;
+      lastHighlightMap = null;
+      return;
+    }
+    var pattern = Mapping.normalizePattern(settings.customerKeyPattern);
+    if (!pattern) {
+      unhighlightCustomerKeys();
+      lastHighlightPattern = null;
+      lastHighlightMap = null;
+      return;
+    }
+
+    var containers = customerKeyContainers();
+    if (!containers.length) return;
+
+    var regex = Mapping.compile(pattern);
+    var map = settings.customerKeyMap || {};
+
+    if (pattern !== lastHighlightPattern || map !== lastHighlightMap) {
+      unhighlightCustomerKeys();
+      lastHighlightPattern = pattern;
+      lastHighlightMap = map;
+    }
+
+    var budget = MAX_CUSTOMER_KEY_HIGHLIGHTS;
+
+    withObserverPaused(function () {
+      for (var i = 0; i < containers.length && budget > 0; i++) {
+        budget -= highlightContainer(containers[i], regex, map, budget);
+      }
+    });
   }
 
   /* ------------------------------------------------------------------ *
@@ -2111,6 +2353,7 @@
         createFab();
         watchRichTextFrames();
         EditLock.cleanup();
+        highlightCustomerKeys();
         if (panel && panel.classList.contains('jmd-panel--open')) {
           updateTargetLabel();
         }
@@ -2237,20 +2480,18 @@
       createFab();
       attachFieldButtons();
       watchRichTextFrames();
+      highlightCustomerKeys();
 
-      var observer = new MutationObserver(onMutations);
       // attributes bleibt eng gefiltert (Issue #101): reine Attribut- oder
       // Groessenaenderungen (rows/cols, style, class, hidden, aria-hidden)
       // erzeugen sonst keinen childList-Eintrag und die Leiste bliebe an
       // spaet gewachsenen Feldern aus. data-jmd-button-attached steht
       // bewusst nicht im Filter, sonst loest die eigene Markierung selbst
-      // wieder einen Scan aus.
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class', 'hidden', 'rows', 'cols', 'aria-hidden']
-      });
+      // wieder einen Scan aus. observer haengt im Modul-Scope, damit
+      // highlightCustomerKeys() ihn ueber withObserverPaused() waehrend der
+      // eigenen Schreibvorgaenge kurz aushaengen kann.
+      observer = new MutationObserver(onMutations);
+      observer.observe(document.documentElement, OBSERVER_OPTIONS);
     }
 
     if (chrome.runtime && chrome.runtime.onMessage) {
@@ -2275,6 +2516,13 @@
       updateFieldbarTemplateButtons();
       updateFieldbarKeyButtons();
       updateFieldbarOtrsButtons();
+      // Schalter customerKeyHighlight/customerKeyPattern/customerKeyMap zur
+      // Laufzeit umgeschaltet (z. B. auf einem zweiten Tab):
+      // highlightCustomerKeys() entfernt vorhandene Badges selbst wieder,
+      // wenn der Schalter jetzt aus ist oder das Muster ungueltig wurde -
+      // bei geaendertem Muster oder geaenderter Zuordnungstabelle werden
+      // vorhandene Badges verworfen und mit dem neuen Stand neu gesetzt.
+      highlightCustomerKeys();
       // Ein offenes Vorlagenmenue kann durch eine Aenderung in einem
       // zweiten Tab veraltet sein (Vorlage geloescht/umbenannt).
       closeMenu();

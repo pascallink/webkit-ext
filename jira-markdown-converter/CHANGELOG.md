@@ -14,6 +14,18 @@ festgehalten. Das Format orientiert sich an
 
 ## [Unreleased]
 
+### Hinzugefuegt
+
+- Kunden-Schluessel-Mapping (Issue #32): Zuordnungstabelle in den
+  Einstellungen (JSON, Export/Import, lokal je Geraet), Muster fuer gueltige
+  Kunden-Schluessel und Name des Custom Fields; der Knopf *Keys* in der
+  Buttonleiste am Feld reichert den Feldinhalt um zugeordnete Jira-Keys an
+  ("Im Feld ergaenzen") und uebernimmt einen aus der Beschreibung erkannten
+  Kunden-Schluessel in Kennzeichen und Custom Field ("Aus Beschreibung
+  uebernehmen"); Kunden-Schluessel in der Leseansicht (Beschreibung,
+  Kommentare) werden zusaetzlich optisch als Badge hervorgehoben, nie in
+  einem Editor oder einem bearbeitbaren Feld.
+
 ### Geaendert
 
 - Die Sperre faellt weg, sobald das Feld nicht mehr bedienbar ist (versteckt,
