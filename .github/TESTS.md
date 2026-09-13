@@ -26,7 +26,7 @@ einem Modul, Schnitt entlang der Verantwortung im Quellcode.
 | `converter` | `src/converter.js` | 152 Node | - |
 | `settings` | `src/settings.js` | 64 Node + 10 Browser | #31, #32 |
 | `editors` | `src/editors.js` | 24 Browser | #31, #32 |
-| `content` | `src/content.js`, `src/content.css` | 68 Browser | #31, #32 |
+| `content` | `src/content.js`, `src/content.css` | 69 Browser | #31, #32 |
 | `dialogs` | `src/codedialog.js`, `src/templatedialog.js`, `src/codedialog.css` | 50 Browser | #31 |
 | `editlock` | `src/editlock.js` | 31 Browser | #63, #89, #90, #111, #112 |
 | `options` | `options/` | 8 Browser | #31, #32 |

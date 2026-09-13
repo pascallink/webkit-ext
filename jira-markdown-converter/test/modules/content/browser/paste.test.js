@@ -243,6 +243,25 @@ describe('Umwandeln an Ort und Stelle', { skip: !hasPlaywright }, function () {
     await page.close();
   });
 
+  test('Nachricht insert-text meldet Fehler statt den Kanal zu schliessen', async function () {
+    var browser = await browserPromise;
+    var page = await browserLib.newPage(browser);
+    await page.focus('#description');
+    var response = await page.evaluate(function () {
+      // Gestubbt wird die Methode auf dem bereits gebundenen
+      // window.JiraEditors, nicht das Objekt selbst - content.js haelt sich
+      // beim Laden einmalig eine Referenz darauf.
+      window.JiraEditors.insert = function () {
+        throw new Error('kaputt');
+      };
+      return new Promise(function (resolve) {
+        window.__onMessage({ type: 'insert-text', text: 'h1. Von aussen', mode: 'replace' }, {}, resolve);
+      });
+    });
+    assert.deepStrictEqual(response, { ok: false, reason: 'error' });
+    await page.close();
+  });
+
   test('Nachricht insert-text mit fertigem Markup schaltet nur um, ohne erneut zu wandeln', async function () {
     var browser = await browserPromise;
     var page = await browserLib.newPage(browser, { switchToMarkup: true }, RTE);
