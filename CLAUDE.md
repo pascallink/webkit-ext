@@ -41,7 +41,9 @@ vorinstallierte Chromium zur gepinnten Playwright-Version passt
 
 Archify-Skill unter `.claude/skills/archify/` (MIT, `tt-a1i/archify`). Je Projekt
 liegen Spezifikation und erzeugtes HTML unter `<projekt>/docs/architecture/` -
-Ablauf und Release-Pflege dort in der `README.md`.
+Ablauf und Release-Pflege dort in der `README.md`. Bei jeder Nutzung des Skills
+`ARCHIFY_UPDATE_CHECK_DISABLED=1` setzen, sonst ruft der Skill unaufgefordert
+einen Fremdhost auf.
 
 ## Repo-Regeln
 
