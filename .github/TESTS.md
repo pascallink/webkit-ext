@@ -292,3 +292,6 @@ Display) und Service-Worker binnen 15 s sichtbar. Fehlt davon etwas, werden
 die Tests mit klarer Meldung uebersprungen statt rot zu werden. Ein Defekt
 der Erweiterung selbst - kaputtes Manifest, Fehler beim Kopieren in das
 temporaere Verzeichnis - ist kein Umgebungsfehler und macht den Lauf rot.
+
+Weiterhin gilt: kein `npx playwright install`, die Version bleibt auf 1.56.0
+gepinnt (s. o.).
