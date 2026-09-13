@@ -1,0 +1,18 @@
+# Dateien, die aider weder in die Repo-Map noch in den Chat nimmt.
+#
+# Die drei grossen Quelldateien liegen ueber der Eignungsgrenze des Skills
+# lokale-umsetzung (whole-Format, ~500 Zeilen). Steht ihr Name in einem
+# Kommentar oder in der Modellantwort, wertet aider das als Dateierwaehnung,
+# --yes fuegt sie hinzu, verwirft die fertige Ausgabe und startet eine zweite
+# Runde mit 1000+ Zeilen im Kontext. Hier ausgeschlossen sind sie nicht
+# erwaehnbar - und wer sie aendern muss, delegiert ohnehin nicht lokal.
+jira-markdown-converter/src/content.js
+jira-markdown-converter/src/converter.js
+jira-markdown-converter/src/editors.js
+
+# Tests und Doku schreibt das lokale Modell nicht (siehe PROMPTS.md,
+# "Micro-Task") - sie kosten nur Repo-Map-Tokens.
+jira-markdown-converter/test/
+jira-markdown-converter/docs/
+.github/
+.claude/

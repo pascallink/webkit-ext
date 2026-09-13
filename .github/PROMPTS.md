@@ -1,12 +1,14 @@
 # Prompt-Vertrag fuer Modell-Uebergaben
 
-Feste Vorlagen fuer die Uebergabe zwischen Sessions: Opus reviewt, Haiku oder
-Sonnet korrigiert. Prosa-Prompts driften und kosten Tokens - die Struktur steht
+Feste Vorlagen fuer die Uebergabe zwischen Sessions: das lokale Modell setzt um
+und korrigiert, Opus reviewt. Prosa-Prompts driften und kosten Tokens - die Struktur steht
 deshalb genau einmal hier, nicht in der Root-`CLAUDE.md`. Wer wann uebergibt,
 steht dort ("Workflow & QA-Regeln"). Das Planungstemplate verweist auf diese
-Datei: [`.github/PLAN.template.md`](PLAN.template.md). Die Subagents unter
-`.claude/agents/` fahren dieselbe Kette ohne Copy-Paste - siehe "Subagents"
-am Ende.
+Datei: [`.github/PLAN.template.md`](PLAN.template.md). Umsetzung und Korrektur
+laufen auf `ollama/qwen2.5-coder:14b` auf Pascals Rechner - Ablauf im Skill
+`.claude/skills/lokale-umsetzung/`, Auftragsformat unter "Micro-Task". Die
+Subagents unter `.claude/agents/` sind der Eskalationspfad, wenn das lokale
+Modell an einem Schritt zweimal scheitert - siehe "Subagents" am Ende.
 
 ## Ausgaberegeln (gelten fuer jede Stufe)
 
@@ -28,12 +30,14 @@ am Ende.
   einem eigenen Codeblock (drei Backticks, ohne Sprache), die Modellwahl als
   Ueberschrift davor. Nichts, was zum Prompt gehoert, steht ausserhalb.
 
-## Stufe 0 - Umsetzungsauftrag (Sonnet)
+## Stufe 0 - Umsetzungsauftrag (lokal)
 
 Eingabe: ein Sub-Task aus dem Ausfuehrungsplan
 ([`.github/PLAN.template.md`](PLAN.template.md)). Ausgabe ist genau dieser
-Block je Sub-Task, damit eine orchestrierende Sitzung ihn unveraendert an den
-`umsetzer` durchreichen kann.
+Block je Sub-Task. Er geht nicht mehr an einen Subagenten, sondern an eine
+orchestrierende Opus-Sitzung, die ihn mit dem Skill `lokale-umsetzung` in
+Micro-Tasks zerlegt und einzeln an das lokale Modell schickt. Unveraendert
+weiterreichbar bleibt er trotzdem: bei Eskalation nimmt ihn der `umsetzer`.
 
 ```
 task: implement_subtask
@@ -116,11 +120,11 @@ die Empfehlung.>
 - Branch und Head-SHA stehen in der Ueberschrift, damit jede Stufe 2 sie
   erbt. Ohne diesen Anker korrigiert die Folge-Session auf irgendeinem Stand.
 
-## Stufe 2 - Korrektur (Haiku oder Sonnet)
+## Stufe 2 - Korrektur (lokal)
 
 Direkt im Anschluss an Stufe 1: 0, 1 oder 2 Prompts, je Prompt genau **eine**
-Zieldatei, jeweils mit Modellwahl als Ueberschrift davor
-(`### Korrektur-Prompt -> Sonnet`).
+Zieldatei, jeweils mit dem Ziel als Ueberschrift davor
+(`### Korrektur-Prompt -> lokal`, bei Eskalation `-> Sonnet` bzw. `-> Haiku`).
 
 ```
 task: apply_refactoring
@@ -148,9 +152,18 @@ Constraints:
 - Abschluss melden: Branch, Commit-SHA, geaenderte Dateien, Testergebnis.
 ```
 
-- **Routing:** ausschliesslich `STYLE`/`MINOR` (Linter, Syntax, Formatierung,
-  Umlaute, Doku- und Typ-Fixes) geht an Haiku. Alles andere - `BUG`,
-  `SECURITY`, `PERFORMANCE`, Testanpassungen, gemischte Korrekturen - an Sonnet.
+- **Routing:** jeder Befund geht zuerst lokal, unabhaengig von Schweregrad und
+  Typ - der Prompt wird dazu in Micro-Tasks zerlegt ("Micro-Task"). Zwei
+  Ausnahmen gehen direkt an einen Subagenten, ohne lokalen Versuch: eine
+  Zieldatei ueber ~500 Zeilen (`src/content.js`, `src/converter.js`,
+  `src/editors.js`) und ein Befund, der mehr als eine Datei anfassen muss.
+  Beides sprengt das whole-Edit-Format des lokalen Modells.
+- **Eskalation:** nach zwei Fehlversuchen an demselben Micro-Task ist Schluss.
+  `STYLE`/`MINOR` (Linter, Syntax, Formatierung, Umlaute, Doku- und Typ-Fixes)
+  geht dann an `korrektur-style` (Haiku), alles andere - `BUG`, `SECURITY`,
+  `PERFORMANCE`, Testanpassungen, gemischte Korrekturen - an `korrektur-logik`
+  (Sonnet). Der eskalierte Prompt nennt zusaetzlich, was lokal gescheitert ist,
+  damit der Agent nicht denselben Weg nochmal geht.
 - **Branch-Vorgabe schlaegt Default:** eine Cloud-Sitzung bekommt vom Harness
   einen eigenen `claude/...`-Branch auf aktuellem `main`. Nennt der Prompt den
   PR-Branch nicht, gewinnt diese Vorgabe - die Korrektur landet am PR vorbei,
@@ -160,17 +173,81 @@ Constraints:
   nicht geliefert, nicht als erledigt.
 - Repo-Regeln bleiben bindend, auch wenn der Prompt sie nicht wiederholt.
 
+## Micro-Task - Auftrag an das lokale Modell
+
+Die Ebene unter Stufe 0 und Stufe 2: ein Stufe-0- oder Stufe-2-Block wird in
+drei bis fuenf Micro-Tasks zerlegt, jeder eine Aenderung an genau einer Datei.
+Der Text unten geht als `local_task.md` per `--message-file` an aider (headless:
+`--yes --no-pretty`), also direkt an `ollama/qwen2.5-coder:14b`. Ablauf, Aufruf, Bewertung und Revert
+stehen im Skill `.claude/skills/lokale-umsetzung/SKILL.md` - hier steht nur
+das Format.
+
+```
+Aufgabe: <ein Satz, was danach funktioniert und vorher nicht.>
+
+Datei: <projekt>/src/<datei>.js
+
+Aenderung:
+1. <Konkrete Anweisung mit Zielzustand: welche Funktion, welches Verhalten,
+   welcher Rueckgabewert in welchem Fall.>
+2. <Naechste Anweisung, gleiche Praezision.>
+
+Erwartetes Verhalten nach der Aenderung:
+- Eingabe <x> ergibt <y>.
+- Eingabe <leer oder ungueltig> ergibt <definierter Fall, kein Wurf>.
+
+Nicht aendern:
+- Keine anderen Dateien anfassen, auch nicht Tests.
+- Bestehende Funktionsnamen, Signaturen und Exporte bleiben wie sie sind.
+- <Weitere Stelle, die in der Naehe liegt und nicht gemeint ist.>
+
+Vorgaben fuer den Code (bindend):
+- ES5: `var`, keine Arrow-Funktionen, kein `let`/`const`, keine Template-Strings.
+- `'use strict'` bleibt oben in der Datei stehen.
+- Kein `require`, kein `import`, keine neue Abhaengigkeit.
+- Wiederverwendbare Module behalten ihren UMD-Wrapper (`module.exports` plus
+  Global) unveraendert.
+- Kommentare und sichtbare Texte auf Deutsch, ohne Umlaute: `ue`, `ae`, `oe`,
+  `ss` statt der Umlaute und des scharfen s.
+- Leere `catch`-Bloecke im Bestand sind Absicht und bleiben leer.
+- Nur die genannte Datei ausgeben, vollstaendig, ohne Auslassungszeichen und
+  ohne Kommentare wie "unveraendert" oder "Rest wie vorher".
+```
+
+- **Pfade ab Git-Root.** Aider laeuft im Repo-Root, nicht im Projektordner:
+  `jira-markdown-converter/src/otrslink.js`, nie `src/otrslink.js`. Ein
+  relativer Pfad zeigt ins Leere und das Modell legt die Datei neu an.
+- **Der Vorgaben-Block bleibt wortgleich in jedem Micro-Task.** Aider liest
+  keine `CLAUDE.md` - was nicht im Auftrag steht, haelt das Modell nicht ein.
+  Das ist der Unterschied zu einem Subagenten, der die Repo-Regeln ohnehin
+  kennt: hier ist Wiederholung Pflicht, nicht Redundanz.
+- **Zielzustand statt Absicht.** "Fehlerbehandlung verbessern" produziert
+  Erfindungen. Welche Funktion bei welcher Eingabe was zurueckgibt, produziert
+  Code.
+- **Verbote gehoeren in den Auftrag.** Ohne den Abschnitt "Nicht aendern"
+  raeumt das Modell in der Nachbarschaft mit auf.
+- **Kein Wrapper, kein Kontext ueber die Kette.** Das Modell sieht nur diesen
+  Text und die Repo-Map. Verweise auf Stufen, Issues, Reviews oder Dateien,
+  die es nicht geoeffnet hat, sind toter Ballast.
+- **Tests schreibt das lokale Modell nicht.** Sie sind ein eigener Micro-Task
+  oder bleiben bei der orchestrierenden Sitzung - Fixture-Wissen aus
+  `test/lib/` steht in keinem Auftrag, der in ein 14B-Fenster passt.
+
 ## Subagents
 
-Dieselbe Kette ohne neuen Chat: `.claude/agents/` haelt je Stufe einen Agenten,
-das Frontmatter setzt Modell und Werkzeuge, der Rumpf die Rolle.
+`.claude/agents/` haelt je Stufe einen Agenten, das Frontmatter setzt Modell
+und Werkzeuge, der Rumpf die Rolle. Umsetzung und Korrektur laufen im
+Normalfall lokal - die beiden Korrektur-Agenten und der `umsetzer` sind
+Eskalationspfad, nicht erste Wahl. Nur das Review ist unveraendert Opus.
 
-| Stufe | Agent | Modell | Zustaendig fuer |
+| Stufe | Ziel | Modell | Zustaendig fuer |
 | --- | --- | --- | --- |
-| 0 Umsetzung | `umsetzer` | Sonnet | ein Subtask, ein Modul, ein Scope |
+| 0 Umsetzung | Skill `lokale-umsetzung` | Qwen 14B lokal | Micro-Tasks eines Subtasks, eine Datei je Lauf |
+| 0 Eskalation | `umsetzer` | Sonnet | Subtask ueber der Eignungsgrenze oder zweimal lokal gescheitert |
 | 1 Review | `reviewer` | Opus | Stufe 1 plus 0 bis 2 Folge-Prompts, ohne Edit |
-| 2 Korrektur | `korrektur-style` | Haiku | `STYLE`/`MINOR`, eine Datei, kein Verhalten |
-| 2 Korrektur | `korrektur-logik` | Sonnet | alles andere, Testanpassung erlaubt |
+| 2 Korrektur | Skill `lokale-umsetzung` | Qwen 14B lokal | jeder Befund, zerlegt in Micro-Tasks |
+| 2 Eskalation | `korrektur-style` | Haiku | `STYLE`/`MINOR`, eine Datei, kein Verhalten |
+| 2 Eskalation | `korrektur-logik` | Sonnet | alles andere, Testanpassung erlaubt |
 
 - **Diese Datei bleibt die Quelle der Formate.** Die Agenten wiederholen sie
   nicht, sie verweisen darauf - der `reviewer` liest sie zu Beginn seines Laufs.
@@ -187,4 +264,11 @@ das Frontmatter setzt Modell und Werkzeuge, der Rumpf die Rolle.
   ihn arbeitet der Agent auf irgendeinem Stand.
 - **Parallel nur getrennt.** Zwei Agenten gleichzeitig auf demselben Branch
   kollidieren im Arbeitsbaum - entweder nacheinander oder je in einem eigenen
-  Worktree.
+  Worktree. Fuer die lokale Umsetzung gilt das doppelt: aider committet in den
+  Arbeitsbaum, in dem es gestartet wurde, und ein zweiter Lauf daneben nimmt
+  die halbfertige Aenderung des ersten mit in seinen Commit.
+- **Das lokale Modell ist kein Agent.** Es hat keine Werkzeuge, keinen
+  Branch-Auftrag und keine Abschlussmeldung - `git`, Tests, Lint und die
+  Bewertung des Diffs bleiben bei der orchestrierenden Sitzung. Deshalb steht
+  der Ablauf im Skill und nicht im Auftrag: was der Micro-Task nicht abdeckt,
+  deckt niemand ab.

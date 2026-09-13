@@ -69,25 +69,32 @@ einen Fremdhost auf.
 
 ## Workflow & QA-Regeln
 
-Kette je Aufgabe: Sonnet setzt um -> Opus reviewt -> Haiku oder Sonnet
-korrigiert. Die Uebergabe laeuft ueber die Vorlagen in
-[`.github/PROMPTS.md`](.github/PROMPTS.md) - dort auch die Ausgaberegeln
-(kein Wrapper-Text, strikte Struktur, beschnittener Kontext) und die Zuordnung
-der Subagents unter `.claude/agents/`.
+Kette je Aufgabe: lokales Modell setzt um -> Opus reviewt -> lokales Modell
+korrigiert. Umsetzung und Korrektur laufen ueber den Skill
+`.claude/skills/lokale-umsetzung/` (aider + `ollama/qwen2.5-coder:14b`), Opus
+zerlegt in Micro-Tasks, bewertet den Diff und verantwortet das Ergebnis. Die
+Vorlagen stehen in [`.github/PROMPTS.md`](.github/PROMPTS.md) - dort auch die
+Ausgaberegeln (kein Wrapper-Text, strikte Struktur, beschnittener Kontext),
+das Micro-Task-Format und die Zuordnung der Subagents unter `.claude/agents/`.
 
-- **Subtask-Abschluss (Sonnet):** jede umsetzende Session endet verpflichtend
-  mit dem Review-Prompt (Stufe 1) fuer Opus.
+- **Umsetzung (lokal):** ein Micro-Task je Datei, hoechstens ~500 Zeilen,
+  aider committet, Opus prueft den Diff. Zwei Fehlversuche am selben Micro-
+  Task, eine Zieldatei ueber der Grenze oder mehr als eine Datei je Befund:
+  Eskalation an den Subagenten `umsetzer` (Sonnet).
+- **Subtask-Abschluss:** jede Umsetzung endet verpflichtend mit dem
+  Review-Prompt (Stufe 1) fuer Opus.
 - **QA & Review (Opus):** prueft Code-Logik, MV3-Konformitaet, Tests und
   Sicherheit; Ergebnis als Stufe-1-Fliesstext, kein JSON-Bericht.
 - **Korrektur-Routing (Opus-Abschluss):** Opus haengt 0, 1 oder 2 Stufe-2-
-  Prompts an, je Prompt genau eine Zieldatei. Nur `STYLE`/`MINOR` geht an
-  Haiku, alles andere an Sonnet.
+  Prompts an, je Prompt genau eine Zieldatei. Jeder Befund geht zuerst lokal;
+  bei Eskalation nur `STYLE`/`MINOR` an Haiku (`korrektur-style`), alles
+  andere an Sonnet (`korrektur-logik`).
 - **Prompt-Ausgabeformat:** jeder Folge-Prompt als reiner Text in einem eigenen
   Codeblock (drei Backticks, ohne Sprache), Modellwahl als Ueberschrift davor,
   nichts davon ausserhalb des Blocks.
-- **Uebergabe per Subagent:** statt die Prompts in eine neue Sitzung zu kopieren,
-  laeuft jede Stufe auch als Subagent aus `.claude/agents/` - gleiche Kette,
-  gleiche Vorlagen, ein Aufruf statt drei Chats.
+- **Uebergabe per Subagent:** Review laeuft als `reviewer` aus
+  `.claude/agents/`; `umsetzer`, `korrektur-style` und `korrektur-logik` sind
+  Eskalationspfad, nicht erste Wahl - gleiche Vorlagen, gleiche Kette.
 
 ## Test-Kontext-Regeln
 
