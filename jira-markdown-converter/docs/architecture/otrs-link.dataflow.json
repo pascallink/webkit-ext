@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "OTRS-Verweis uebernehmen - Datenweg",
+    "output": "jira-markdown-converter/docs/architecture/otrs-link.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      780
+    ]
+  },
+  "stages": [
+    {
+      "label": "Eingabe"
+    },
+    {
+      "label": "Zerlegen"
+    },
+    {
+      "label": "Bestandteile"
+    },
+    {
+      "label": "Drei Schritte"
+    },
+    {
+      "label": "Jira-Vorgang"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "input",
+      "type": "frontend",
+      "label": "OTRS-Dialog",
+      "sublabel": "Link, Anker, Rohtext",
+      "stage": 0,
+      "row": 1,
+      "width": 132
+    },
+    {
+      "id": "parse",
+      "type": "backend",
+      "label": "parse()",
+      "sublabel": "Tags und Entities raus",
+      "stage": 1,
+      "row": 1,
+      "width": 132,
+      "tag": "DOM-frei"
+    },
+    {
+      "id": "reject",
+      "type": "security",
+      "label": "Abbruch",
+      "sublabel": "ok: false, Meldung",
+      "stage": 1,
+      "row": 3,
+      "width": 132
+    },
+    {
+      "id": "ticket",
+      "type": "database",
+      "label": "ticketNumber",
+      "sublabel": "mind. 6 Ziffern",
+      "stage": 2,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "title",
+      "type": "database",
+      "label": "title",
+      "sublabel": "max. 255 Zeichen",
+      "stage": 2,
+      "row": 1,
+      "width": 132
+    },
+    {
+      "id": "url",
+      "type": "database",
+      "label": "url",
+      "sublabel": "http oder https",
+      "stage": 2,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "step1",
+      "type": "backend",
+      "label": "1 Label",
+      "sublabel": "Taste l, sonst Menue",
+      "stage": 3,
+      "row": 0,
+      "width": 132
+    },
+    {
+      "id": "step2",
+      "type": "backend",
+      "label": "2 Kunden Referenz",
+      "sublabel": "Shifter, Taste Punkt",
+      "stage": 3,
+      "row": 1,
+      "width": 132
+    },
+    {
+      "id": "step3",
+      "type": "backend",
+      "label": "3 Web-Link",
+      "sublabel": "Dialog Link",
+      "stage": 3,
+      "row": 2,
+      "width": 132
+    },
+    {
+      "id": "issue",
+      "type": "external",
+      "label": "Vorgang",
+      "sublabel": "AUI-Dialoge im DOM",
+      "stage": 4,
+      "row": 1,
+      "width": 132,
+      "tag": "kein HTTP"
+    }
+  ],
+  "flows": [
+    {
+      "from": "input",
+      "to": "parse",
+      "label": "Roheingabe",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "parse",
+      "to": "ticket",
+      "label": "Nummer",
+      "variant": "emphasis",
+      "labelAt": [
+        398,
+        176
+      ],
+      "route": "vertical-channel",
+      "channelX": 398
+    },
+    {
+      "from": "parse",
+      "to": "title",
+      "label": "Titel",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        423,
+        258
+      ]
+    },
+    {
+      "from": "parse",
+      "to": "url",
+      "label": "Adresse",
+      "variant": "emphasis",
+      "labelAt": [
+        448,
+        334
+      ],
+      "route": "vertical-channel",
+      "channelX": 448
+    },
+    {
+      "from": "parse",
+      "to": "reject",
+      "label": "kein Treffer",
+      "variant": "security",
+      "labelAt": [
+        300,
+        552
+      ]
+    },
+    {
+      "from": "ticket",
+      "to": "step1",
+      "label": "label",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "title",
+      "to": "step2",
+      "label": "reference",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "url",
+      "to": "step3",
+      "label": "url",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "step1",
+      "to": "issue",
+      "label": "Kennzeichen",
+      "variant": "emphasis",
+      "labelAt": [
+        828,
+        210
+      ],
+      "route": "vertical-channel",
+      "channelX": 828
+    },
+    {
+      "from": "step2",
+      "to": "issue",
+      "label": "Feldwert",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        860,
+        258
+      ]
+    },
+    {
+      "from": "step3",
+      "to": "issue",
+      "label": "Verweis",
+      "variant": "emphasis",
+      "labelAt": [
+        878,
+        356
+      ],
+      "route": "vertical-channel",
+      "channelX": 878
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Was aus der Eingabe wird",
+      "items": [
+        "Ticketnummer aus Ticket#<nummer> im Titel oder TicketNumber=<nummer> in der Adresse - ohne Nummer oder ohne gueltige URL bricht parse() ab",
+        "label ist die Ticketnummer, reference und linkText sind derselbe Titel, url die bereinigte Adresse",
+        "stripTags() ersetzt bis zum Fixpunkt und wertet nie innerHTML aus"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Strikt in dieser Reihenfolge",
+      "items": [
+        "Label, dann Kunden Referenz, dann Web-Link - dazwischen je 150 ms Pause ueber JiraUi.delay",
+        "Jeder Schritt versucht zuerst das Tastenkuerzel (1500 ms), danach den sichtbaren DOM-Trigger (5000 ms)",
+        "Nichts laeuft ueber HTTP: JiraUi bedient nur das DOM der offenen Seite, window.JIRA sieht die isolierte Welt nie"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Wenn ein Schritt scheitert",
+      "items": [
+        "Der Fehler traegt den Schritt - bereits gesetzte Werte bleiben stehen, es gibt kein Zuruecknehmen",
+        "War die Kunden Referenz belegt, meldet ein bleibender Hinweis den alten Wert",
+        "Der Dialog bleibt offen, damit die Eingabe nicht verloren geht"
+      ]
+    }
+  ]
+}

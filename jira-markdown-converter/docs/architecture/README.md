@@ -8,6 +8,12 @@ wird nie von Hand bearbeitet.
 | --- | --- |
 | `poweredit-runtime.architecture.json` | Spezifikation - hier wird gepflegt. |
 | `poweredit-runtime.html` | Erzeugtes, eigenstaendiges Diagramm. |
+| `markdown-umwandlung.dataflow.json` | Datenweg: Markdown umwandeln, von der Quelle bis in das Feld. |
+| `einfuegen-vorlagen.dataflow.json` | Datenweg: Vorlage, Panel und Codeblock einfuegen. |
+| `otrs-link.dataflow.json` | Datenweg: OTRS-Verweis zerlegen und in den Vorgang eintragen. |
+| `markdown-einfuegen.workflow.json` | Ablauf: Ausloeser, Weichen und Abbrueche beim Einfuegen. |
+| `vorlagen-pflegen.workflow.json` | Ablauf: Vorlage aendern, speichern, im Tab ankommen. |
+| `bearbeitung-einfrieren.lifecycle.json` | Zustaende des Einfrierens: aus, wachbereit, eingefroren, offen. |
 
 ## Neu erzeugen
 
@@ -35,3 +41,23 @@ entstehenden Sidecars (`*.visual-check.*`) sind per `.gitignore` ausgeschlossen.
 `meta.repository.revision` in der JSON auf den Commit heben, gegen den die
 Quellverweise geprueft wurden - `deliver` verifiziert jeden `sources`-Eintrag
 gegen diesen Stand und bricht bei Abweichung ab.
+
+## Weitere Spezifikationen (Dataflows, Workflows, Lifecycles)
+
+Nur `poweredit-runtime.html` liegt als erzeugtes HTML im Repo, weil es
+verlinkt ist. Die uebrigen Spezifikationen erzeugt man bei Bedarf; jedes HTML
+ist rund 800 KB gross.
+
+Fuer jede Spezifikation (Typ = Endung vor `.json`):
+
+```bash
+export ARCHIFY_UPDATE_CHECK_DISABLED=1
+node <a>/bin/archify.mjs validate <typ> <spezifikation>.json \
+  --quality showcase --json
+node <a>/bin/archify.mjs deliver <typ> <spezifikation>.json \
+  <ziel>.html --quality showcase --json
+```
+
+`<a>` = `.claude/skills/archify`, `<typ>` ist `dataflow`, `workflow` oder
+`lifecycle`. Diese Typen lehnen `--repo-root .` ab (nur `architecture`
+akzeptiert es).

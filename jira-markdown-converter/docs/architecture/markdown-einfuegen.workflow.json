@@ -1,0 +1,276 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Markdown umwandeln und einfuegen - Ablauf",
+    "output": "jira-markdown-converter/docs/architecture/markdown-einfuegen.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "ui",
+      "label": "Bedienung"
+    },
+    {
+      "id": "sw",
+      "label": "Service-Worker"
+    },
+    {
+      "id": "cs",
+      "label": "Content-Script"
+    },
+    {
+      "id": "page",
+      "label": "Jira-Seite"
+    },
+    {
+      "id": "ex",
+      "label": "Abbruch und Hinweis",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "start",
+      "label": "Ausloeser",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "check",
+      "label": "Pruefen",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "write",
+      "label": "Umwandeln und schreiben",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "paste",
+    "target",
+    "guard",
+    "convert",
+    "write"
+  ],
+  "nodes": [
+    {
+      "id": "kuerzel",
+      "lane": "ui",
+      "col": 0,
+      "type": "frontend",
+      "label": "Strg+Shift+M",
+      "sublabel": "Kuerzel oder Menue",
+      "width": 150
+    },
+    {
+      "id": "popupBtn",
+      "lane": "ui",
+      "col": 1,
+      "type": "frontend",
+      "label": "Popup",
+      "sublabel": "In Jira einfuegen",
+      "width": 150
+    },
+    {
+      "id": "send",
+      "lane": "sw",
+      "col": 1,
+      "type": "backend",
+      "label": "sendToTab()",
+      "sublabel": "injiziert bei Bedarf",
+      "width": 150
+    },
+    {
+      "id": "paste",
+      "lane": "page",
+      "col": 0,
+      "type": "external",
+      "label": "Strg+V im Feld",
+      "sublabel": "Automatik an",
+      "width": 150
+    },
+    {
+      "id": "target",
+      "lane": "cs",
+      "col": 2,
+      "type": "frontend",
+      "label": "Zielfeld",
+      "sublabel": "editableFrom()",
+      "width": 150
+    },
+    {
+      "id": "guard",
+      "lane": "cs",
+      "col": 3,
+      "type": "security",
+      "label": "Heuristik",
+      "sublabel": "Markdown erkannt?",
+      "width": 150
+    },
+    {
+      "id": "convert",
+      "lane": "cs",
+      "col": 4,
+      "type": "backend",
+      "label": "convert()",
+      "sublabel": "Optionen aus settings",
+      "width": 150
+    },
+    {
+      "id": "write",
+      "lane": "cs",
+      "col": 5,
+      "type": "frontend",
+      "label": "einfuegen",
+      "sublabel": "insertFormatted()",
+      "width": 150
+    },
+    {
+      "id": "field",
+      "lane": "page",
+      "col": 5,
+      "type": "external",
+      "label": "Feld gefuellt",
+      "sublabel": "textarea oder TinyMCE",
+      "width": 150
+    },
+    {
+      "id": "noField",
+      "lane": "ex",
+      "col": 2,
+      "type": "security",
+      "label": "kein Feld",
+      "sublabel": "Hinweis im Tab",
+      "width": 150
+    },
+    {
+      "id": "isMarkup",
+      "lane": "ex",
+      "col": 3,
+      "type": "security",
+      "label": "Jira-Markup erkannt",
+      "sublabel": "bleibt unveraendert",
+      "width": 150
+    },
+    {
+      "id": "failed",
+      "lane": "ex",
+      "col": 4,
+      "type": "security",
+      "label": "Umwandlung scheitert",
+      "sublabel": "Hinweis statt Verlust",
+      "width": 150
+    }
+  ],
+  "edges": [
+    {
+      "from": "kuerzel",
+      "to": "send",
+      "label": "convert-selection",
+      "variant": "emphasis"
+    },
+    {
+      "from": "send",
+      "to": "target",
+      "label": "Nachricht oder Injektion",
+      "variant": "emphasis"
+    },
+    {
+      "from": "popupBtn",
+      "to": "target",
+      "label": "insert-text",
+      "variant": "dashed"
+    },
+    {
+      "from": "paste",
+      "to": "target",
+      "label": "Zwischenablage",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "target",
+      "to": "guard",
+      "label": "Feld gefunden",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "target",
+      "to": "noField",
+      "label": "nichts erkannt",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "guard",
+      "to": "convert",
+      "label": "Markdown",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "guard",
+      "to": "isMarkup",
+      "label": "Makros erkannt",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "convert",
+      "to": "write",
+      "label": "Jira-Markup",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "from": "convert",
+      "to": "failed",
+      "label": "Wurf im Konverter",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "from": "write",
+      "to": "field",
+      "label": "block oder inline",
+      "variant": "emphasis",
+      "role": "main"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Vier Ausloeser, ein Weg",
+      "items": [
+        "Kuerzel und Kontextmenue laufen ueber den Service-Worker, der die Nachricht schickt und die Content-Scripts bei Bedarf erst injiziert",
+        "Das Popup schickt insert-text an das gemerkte Zielfeld, das Einfuegen mit Strg+V faengt das Content-Script direkt ab",
+        "Ohne freigegebenen Host gibt es keinen Empfaenger - das Popup bietet die Freigabe an, bevor irgendetwas laeuft"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Weichen vor dem Schreiben",
+      "items": [
+        "looksLikeMarkdown() entscheidet, ob die Automatik ueberhaupt eingreift",
+        "Reines Textfeld bekommt Wiki-Markup; bei aktivem Rich-Text-Editor entscheidet switchToMarkup und danach richEditorFormat",
+        "insertModeFor() waehlt block oder inline"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Abbrueche bleiben sichtbar",
+      "items": [
+        "Fertiges Jira-Markup wird nicht ein zweites Mal umgewandelt, sondern unveraendert eingefuegt",
+        "Nach preventDefault() darf nichts stillschweigend verschwinden: scheitert die Umwandlung, sagt ein Hinweis Bescheid",
+        "Ohne Zielfeld endet der Weg mit einer Meldung, nicht mit einem Schreibversuch"
+      ]
+    }
+  ]
+}
