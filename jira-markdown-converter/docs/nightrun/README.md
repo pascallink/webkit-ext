@@ -56,7 +56,8 @@ den Lauf. Geparkte Branches werden nie Base fuer den naechsten PR.
 | --- | --- |
 | `issues-round1.json` | Erster Lauf (12.09.2026): 26 Issues der Fehlersammlung, alle als PR gegen `claude/analyse-issues-mockup-912` gemergt. |
 | `issues-round2.json` | Zweiter Lauf (12./13.09.2026): 25 Review-Hinweise (MINOR/STYLE) aus Lauf 1 als Issues #155-#179, Label `nightrun-minor`, alle als gestapelte PRs #181-#198 umgesetzt. |
-| `issues.json` | Dritter Lauf: offene Review-Hinweise aus Lauf 2 (Erzeugung siehe `PROMPT.md`, Abschnitt Folgelauf). |
+| `issues-round3.json` | Dritter Lauf (13.09.2026): 5 offene Review-Hinweise aus Lauf 2 als Issues #207-#211, PRs #215-#219; ab Sub-Task 2 lokal via aider + `qwen2.5-coder:14b`. |
+| `issues.json` | Vierter Lauf: offene Review-Hinweise aus Lauf 3 (Issue #220, Erzeugung siehe `PROMPT.md`, Abschnitt Folgelauf). |
 
 ## Start eines Folgelaufs im neuen Chat
 
