@@ -5,6 +5,12 @@ festgehalten. Das Format orientiert sich an
 [Keep a Changelog](https://keepachangelog.com/de/1.0.0/), Versionierung an
 [SemVer](https://semver.org/lang/de/).
 
+## [Unveroeffentlicht]
+
+### Kosten
+
+- PR #205 "docs: zehn archify-spezifikationen fuer datenwege und ablaeufe": $28.8247 (1 Session, claude-opus-5, claude-sonnet-5, claude-haiku-4-5-20251001, <synthetic>)
+
 ## [Unreleased]
 
 ### Geaendert
