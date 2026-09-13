@@ -458,17 +458,15 @@
 
   /* ---------------- Sanitizer ohne Netz ---------------- */
   /* Ersatz fuer das fruehere <script src="https://unpkg.com/dompurify...">:
-     der Nachbau muss offline in Playwright laufen. Die einzige Nutzungsstelle
-     saeubert das Ergebnis von wikiToHtml() (unserem eigenen Renderer, kein
-     Fremdinhalt) vor dem Einsetzen in den RTE-Rahmen - Skripte, Event-
-     Attribute und javascript:-Ziele reichen darum als Filter. */
-  function localSanitize(html) {
-    var box = document.createElement('div');
-    box.innerHTML = html;
-    Array.prototype.forEach.call(box.querySelectorAll('script,style'), function (node) {
+     der Nachbau muss offline in Playwright laufen. Geparst wird ueber
+     DOMParser statt ueber innerHTML - das entstehende Dokument ist untaetig,
+     laedt also keine Ressourcen und fuehrt keine Event-Attribute aus, bevor
+     stripUnsafe() Skripte, on*-Attribute und javascript:-Ziele entfernt. */
+  function stripUnsafe(root) {
+    Array.prototype.forEach.call(root.querySelectorAll('script,style'), function (node) {
       node.parentNode.removeChild(node);
     });
-    Array.prototype.forEach.call(box.querySelectorAll('*'), function (node) {
+    Array.prototype.forEach.call(root.querySelectorAll('*'), function (node) {
       Array.prototype.slice.call(node.attributes).forEach(function (attr) {
         var name = attr.name.toLowerCase();
         if (name.indexOf('on') === 0) { node.removeAttribute(attr.name); return; }
@@ -477,7 +475,16 @@
         }
       });
     });
-    return box.innerHTML;
+    return root;
+  }
+
+  /* Liefert den gesaeuberten <body> eines untaetig geparsten Dokuments. */
+  function parseSafely(html) {
+    return stripUnsafe(new DOMParser().parseFromString(html, 'text/html').body);
+  }
+
+  function localSanitize(html) {
+    return parseSafely(html).innerHTML;
   }
 
   /* ---------------- Editor-Modus: globale Nutzereinstellung ---------------- */
@@ -689,7 +696,12 @@
         var range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
         var box = doc.createElement('div');
         if (html) {
-          box.innerHTML = html;
+          // Fremd-HTML aus der Zwischenablage nie ueber innerHTML einsetzen:
+          // untaetig parsen, saeubern, dann die Knoten uebernehmen.
+          var parsed = parseSafely(html);
+          Array.prototype.slice.call(parsed.childNodes).forEach(function (node) {
+            box.appendChild(doc.importNode(node, true));
+          });
           Array.prototype.forEach.call(box.querySelectorAll('div,p,span,td,th,table'), function (el) { el.removeAttribute('style'); });
           Array.prototype.forEach.call(box.querySelectorAll('pre'), function (pre) {
             if (/\bpanel\b/.test(pre.className)) return;
