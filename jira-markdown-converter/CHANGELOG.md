@@ -94,6 +94,14 @@ festgehalten. Das Format orientiert sich an
   in `{noformat}` statt als `{{\{x\}}}`, das Jira 9.12.2 woertlich rendert;
   in einer Tabellenzelle mit maskiertem Strich bleibt es bewusst bei `{{ }}`,
   damit die Spaltenaufteilung haelt (Issue #155, Wurzel aus Issue #98).
+- Inline-Code mit maskierten Jira-Zeichen (`` `\[`, `\]`, `\-`, `\~`, `\^`, `\+` ``)
+  verliert in der `{noformat}`-Form jetzt den Backslash; bisher wurden nur
+  `\{` und `\}` entmaskiert und Jira zeigte die uebrigen Backslashes
+  woertlich (Issue #207, Nachtrag zu Issue #155).
+- Ein getippter Backslash (`\\` im Markdown) vor `{`, `}`, `[`, `]`, `-`,
+  `~`, `^` oder `+` bleibt im Inline-Code in der `{noformat}`-Form erhalten;
+  bisher wurde er wie eine Maskierung mit entfernt (`C:\\-foo` wurde zu
+  `C:-foo`) (Issue #220, Nachtrag zu Issue #207).
 
 ## [1.4.0] - 2026-09-12
 
