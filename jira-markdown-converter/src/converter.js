@@ -880,6 +880,21 @@
     return kept;
   }
 
+  /*
+   * Schlusszeile eines Fenced-Blocks: eine Zeile aus lauter Fence-Zeichen.
+   * Welches Zeichen und wie viele davon noetig sind, entscheidet
+   * closesFence() an der Uebereinstimmung - frueher stand das in einem je
+   * Block frisch gebauten RegExp. Fest verdrahtet ist billiger (kein Neubau
+   * je Block) und haelt den Editortext aus dem Regex-Quelltext heraus.
+   */
+  var CLOSE_FENCE_RE = /^[ \t]*(`{3,}|~{3,})[ \t]*$/;
+
+  function closesFence(line, marker, minLength) {
+    var run = CLOSE_FENCE_RE.exec(line);
+    if (!run) return false;
+    return run[1].charAt(0) === marker && run[1].length >= minLength;
+  }
+
   function protectFencedBlocks(text, ctx) {
     var ph = ctx.placeholders;
     var fence = /^([ \t]*)(`{3,}|~{3,})[ \t]*([^\n`]*)$/;
@@ -898,12 +913,11 @@
       var minLength = open[2].length;
       var indent = open[1].length;
       var language = ctx.options.keepCodeLanguage ? mapLanguage(open[3]) : '';
-      var closeRe = new RegExp('^[ \\t]*' + marker + '{' + minLength + ',}[ \\t]*$');
       var body = [];
       var closed = false;
       i++;
       while (i < lines.length) {
-        if (closeRe.test(lines[i])) {
+        if (closesFence(lines[i], marker, minLength)) {
           closed = true;
           i++;
           break;
