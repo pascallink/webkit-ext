@@ -411,9 +411,12 @@
           <div id="customfield_10027-description" class="description"><p></p></div>
         </div>
         <!-- [belegt] Summary aus dem Shifter oeffnet dasselbe #modal-field-view, nur mit
-             anderem Rumpf: kein input[id^="customfield_"], darum kein Ziel fuer den Flow. -->
+             anderem Rumpf: kein input[id^="customfield_"], darum kein Ziel fuer den Flow.
+             [abweichend] Die id lautet summary-field-view statt summary: #summary ist im
+             Dialog "Vorgang bearbeiten" schon belegt, zwei gleiche ids im Dokument machen
+             den Zugriff mehrdeutig (getElementById und Playwright-Locator). -->
         <div class="field-group" data-mock-field="summary">
-          <input id="summary" class="text long-field" name="summary" type="text" value="REFI PU 47.2 - Probleme mit ...">
+          <input id="summary-field-view" class="text long-field" name="summary" type="text" value="REFI PU 47.2 - Probleme mit ...">
         </div>
       </div>
       <div class="buttons-container form-footer">

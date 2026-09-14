@@ -25,6 +25,10 @@
 
   var DEFAULT_TIMEOUT = 5000;
   var DEFAULT_SHORTCUT_TIMEOUT = 1500;
+  // Erster Anlauf auf den Klassen-Anker: laesst der Slug den Treffer nicht
+  // finden, greift der Textabgleich nach dieser Frist statt erst nach dem
+  // vollen Budget - mit offenem Shifter ueber der Seite ist Leerlauf teuer.
+  var SUGGESTION_ANCHOR_TIMEOUT = 1500;
 
   var SHIFTER_DIALOG = '#shifter-dialog';
   var SHIFTER_FIELD = '#shifter-dialog-field';
@@ -314,20 +318,42 @@
    * Liste: der Shifter zeigt seine Vorschlaege schon vor der Eingabe, ein
    * blindes querySelector('.aui-list-item') greift damit den falschen
    * (z.B. "Summary") und oeffnet den falschen Dialog.
+   *
+   * Reihenfolge: kurzer Anlauf auf den Klassen-Anker, dann Textabgleich,
+   * dann das Restbudget nochmal auf den Anker. Der Textabgleich braucht
+   * seinen fruehen Platz, weil slugify() jedes Zeichen ausserhalb [a-z0-9]
+   * wegwirft - ein Feldname mit Umlaut ergibt einen Slug, den Jira so nicht
+   * ableitet. Der zweite Wait bleibt, damit eine langsam aufgebaute
+   * Trefferliste nicht vorzeitig als "kein Treffer" gilt.
    */
   function waitForSuggestion(query, root, timeout) {
     var slug = slugify(query);
-    var bySlug = slug
-      ? waitForElement(SHIFTER_SUGGESTIONS + ' li.aui-list-item-li-' + slug, { root: root, visible: true, timeout: timeout })
-      : Promise.reject(new Error('Kein Klassen-Anker fuer "' + query + '"'));
-    return bySlug.catch(function () {
-      // Ohne abgeleitete Klasse bleibt der Text. Die Liste steht nach dem
-      // abgelaufenen Wait still - ein einziger Blick reicht, Polling laese
-      // nur denselben Zustand nochmal.
+    if (!slug) {
+      var direkt = matchSuggestion(root, query);
+      if (direkt) return Promise.resolve(direkt);
+      return Promise.reject(new Error('Kein Shifter-Treffer fuer "' + query + '"'));
+    }
+
+    var selector = SHIFTER_SUGGESTIONS + ' li.aui-list-item-li-' + slug;
+    var ersteFrist = Math.min(timeout, SUGGESTION_ANCHOR_TIMEOUT);
+    var restFrist = timeout - ersteFrist;
+
+    function ueberText() {
       var match = matchSuggestion(root, query);
       if (!match) throw new Error('Kein Shifter-Treffer fuer "' + query + '"');
       return match;
-    });
+    }
+
+    return waitForElement(selector, { root: root, visible: true, timeout: ersteFrist })
+      .catch(function () {
+        try {
+          return ueberText();
+        } catch (error) {
+          if (restFrist <= 0) throw error;
+          return waitForElement(selector, { root: root, visible: true, timeout: restFrist })
+            .catch(ueberText);
+        }
+      });
   }
 
   /**

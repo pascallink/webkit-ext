@@ -1,2 +1,2 @@
 branch,session_id,model,input,output,cache_read,cache_write,cost_usd
-claude/ortslink-einfuegen-3bld34,3e6403cf-1214-5e8d-b36e-179c47137446,claude-opus-5,122,42985,6142570,229660,6.1872
+claude/ortslink-einfuegen-3bld34,3e6403cf-1214-5e8d-b36e-179c47137446,claude-opus-5,148,47120,7579689,251120,7.1756
