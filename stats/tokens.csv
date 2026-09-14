@@ -1,1 +1,2 @@
 branch,session_id,model,input,output,cache_read,cache_write,cost_usd
+claude/issue-32-json-ergaenzen-zy42m9,42aa5e65-65e3-5580-85bb-c8a3b83d6c2d,claude-opus-5,124,62421,10265644,183569,8.5297
