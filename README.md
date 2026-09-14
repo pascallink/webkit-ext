@@ -42,6 +42,14 @@ versionierte Datei, verlinkt wird dann die
 im Umlauf sind. Die frueher genutzte rollierende Release `latest` faellt weg;
 sie ist immutable und laesst sich nicht mehr aktualisieren.
 
+Wer `"docsBundle"` in seiner `package.json` setzt, bekommt die
+Architekturdiagramme zusaetzlich als
+`foo-docs-1.5.0.zip` - fertig erzeugte, eigenstaendige HTML-Dateien mit einer
+`index.html` als Einstieg, die ohne Internetzugang laufen. Sie stecken
+bewusst **nicht** im Erweiterungs-ZIP: der Store bekommt nur Laufzeitcode.
+Fuer `jira-markdown-converter` gibt es sie dauerhaft unter
+[jira-markdown-converter-docs.zip](https://github.com/pascallink/webkit-ext/releases/latest/download/jira-markdown-converter-docs.zip).
+
 ## Versionierung
 
 Nach jedem Merge auf `main` hebt
