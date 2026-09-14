@@ -24,3 +24,11 @@ merged_at,branch,model,input,output,cache_read,cache_write,cost_usd
 2026-09-13T21:43:45Z,claude/issue-32-part-5-highlight,claude-opus-5,418,107543,26576002,965551,24.3370
 2026-09-13T21:43:45Z,claude/issue-32-part-5-highlight,claude-sonnet-5,1612,41558,65484132,1713384,17.7991
 2026-09-13T21:43:45Z,claude/issue-32-part-5-highlight,claude-haiku-4-5-20251001,58,19,130036,36015,0.0582
+2026-09-14T03:01:33Z,claude/issue-32-part-1-mapping,claude-opus-5,92,37402,4316482,290110,5.7985
+2026-09-14T03:01:33Z,claude/issue-32-part-1-mapping,claude-sonnet-5,206,5111,6446769,372491,2.2721
+2026-09-14T03:01:33Z,claude/issue-32-part-2-options,claude-opus-5,176,57785,10307453,396544,10.1113
+2026-09-14T03:01:33Z,claude/issue-32-part-2-options,claude-sonnet-5,442,12447,14584281,599352,4.5406
+2026-09-14T03:01:33Z,claude/issue-32-part-2-options,claude-haiku-4-5-20251001,58,19,130036,36015,0.0582
+2026-09-14T03:01:33Z,claude/issue-32-part-3-anreichern,claude-opus-5,258,70333,14671322,499210,13.3343
+2026-09-14T03:01:33Z,claude/issue-32-part-3-anreichern,claude-sonnet-5,788,19498,26475858,858517,7.6380
+2026-09-14T03:01:33Z,claude/issue-32-part-3-anreichern,claude-haiku-4-5-20251001,58,19,130036,36015,0.0582
