@@ -12,6 +12,7 @@ festgehalten. Das Format orientiert sich an
 - PR #205 "docs: zehn archify-spezifikationen fuer datenwege und ablaeufe": $28.8247 (1 Session, claude-opus-5, claude-sonnet-5, claude-haiku-4-5-20251001, <synthetic>)
 - PR #226 "feat(jira): CustomerKey-Mapping - Label und Custom Field (#32, Part 4)": $29.4176 (1 Session, claude-opus-5, claude-sonnet-5, claude-haiku-4-5-20251001)
 - PR #228 "feat(jira): CustomerKey-Highlighting in Leseansicht (Issue #32)": $42.1943 (1 Session, claude-opus-5, claude-sonnet-5, claude-haiku-4-5-20251001)
+- PR #229 "docs(jira): kunden-schluessel in die architekturdiagramme aufnehmen": $8.5297 (1 Session, claude-opus-5)
 
 ## [Unreleased]
 
