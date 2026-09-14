@@ -1,11 +1,14 @@
 {
   "name": "poweredit-for-jira",
-  "version": "1.4.25",
+  "version": "1.5.0",
   "description": "PowerEdit for Jira: Browser-Erweiterung fuer die Jira-Ticket-Bearbeitung mit Markdown-Support, Formatierungsvorlagen und Codebloecken.",
   "license": "MIT",
   "homepage": "https://github.com/pascallink/webkit-ext",
   "private": true,
   "stableZipAlias": true,
+  "docsBundle": {
+    "exclude": ["testarchitektur.architecture.json"]
+  },
   "scripts": {
     "test": "node test/run.js",
     "test:all": "node test/run.js",

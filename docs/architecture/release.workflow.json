@@ -28,7 +28,7 @@
     { "id": "bump", "lane": "ci", "col": 3, "type": "cloud", "label": "version-bump.yml", "sublabel": "Patch, [skip ci]", "width": 136 },
     { "id": "release", "lane": "ci", "col": 4, "type": "cloud", "label": "release.yml", "sublabel": "baut und packt", "width": 136 },
     { "id": "dryrun", "lane": "ci", "col": 5, "type": "cloud", "label": "Probelauf", "sublabel": "dry_run vorbelegt", "width": 136 },
-    { "id": "zips", "lane": "art", "col": 5, "type": "database", "label": "ZIPs und Release", "sublabel": "je Projekt eine Datei", "width": 136 },
+    { "id": "zips", "lane": "art", "col": 5, "type": "database", "label": "ZIPs und Release", "sublabel": "Erweiterung und Diagramme", "width": 136 },
     { "id": "badTag", "lane": "ex", "col": 3, "type": "security", "label": "Tag passt nicht", "sublabel": "nur x.y.0 laeuft", "width": 136 },
     { "id": "drift", "lane": "ex", "col": 4, "type": "security", "label": "Versions-Drift", "sublabel": "manifest vs package", "width": 136 },
     { "id": "published", "lane": "ex", "col": 5, "type": "security", "label": "Release existiert", "sublabel": "immutable, Abbruch", "width": 136 }
@@ -62,6 +62,16 @@
         "Patch hebt version-bump.yml nach jedem Merge automatisch an - nur fuer beruehrte Projekte, Commit mit [skip ci]",
         "bump-patch.js haelt manifest.json, package.json und package-lock.json synchron - nie einzeln von Hand anfassen",
         "Minor bedeutet: x.y.0 von Hand setzen, mergen, Tag auf den Merge-Commit setzen und pushen"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Assets je Release",
+      "items": [
+        "<projekt>-<version>.zip: nur Laufzeitcode, test/ docs/ und Entwicklungsdateien fliegen raus",
+        "<projekt>-docs-<version>.zip: die Diagramme als eigenstaendige HTML plus index.html, gebaut von build-docs-bundle.mjs",
+        "Bei stableZipAlias zusaetzlich <projekt>.zip und <projekt>-docs.zip fuer /releases/latest/download/",
+        "Ob ein Projekt ein Buendel bekommt, steuert docsBundle in seiner package.json"
       ]
     },
     {
