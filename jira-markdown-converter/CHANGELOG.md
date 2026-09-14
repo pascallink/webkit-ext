@@ -14,7 +14,10 @@ festgehalten. Das Format orientiert sich an
 - PR #228 "feat(jira): CustomerKey-Highlighting in Leseansicht (Issue #32)": $42.1943 (1 Session, claude-opus-5, claude-sonnet-5, claude-haiku-4-5-20251001)
 - PR #229 "docs(jira): kunden-schluessel in die architekturdiagramme aufnehmen": $8.5297 (1 Session, claude-opus-5)
 
-## [Unreleased]
+## [1.5.0] - 2026-09-14
+
+Erstes Release mit dem OTRS-Link-Helfer: Version 1.4.0 wurde nie getaggt
+und damit nie als ZIP ausgeliefert, ihre Aenderungen stecken hier mit drin.
 
 ### Hinzugefuegt
 
