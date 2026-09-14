@@ -11,8 +11,10 @@ wird nie von Hand bearbeitet.
 | `markdown-umwandlung.dataflow.json` | Datenweg: Markdown umwandeln, von der Quelle bis in das Feld. |
 | `einfuegen-vorlagen.dataflow.json` | Datenweg: Vorlage, Panel und Codeblock einfuegen. |
 | `otrs-link.dataflow.json` | Datenweg: OTRS-Verweis zerlegen und in den Vorgang eintragen. |
+| `kunden-schluessel.dataflow.json` | Datenweg: Zuordnungstabelle pflegen, Feld anreichern, Vorgang und Leseansicht. |
 | `markdown-einfuegen.workflow.json` | Ablauf: Ausloeser, Weichen und Abbrueche beim Einfuegen. |
 | `vorlagen-pflegen.workflow.json` | Ablauf: Vorlage aendern, speichern, im Tab ankommen. |
+| `host-freigabe.workflow.json` | Ablauf: zusaetzlichen Host freigeben und Content-Scripts nachziehen. |
 | `bearbeitung-einfrieren.lifecycle.json` | Zustaende des Einfrierens: aus, wachbereit, eingefroren, offen. |
 | `nachrichtenwege.sequence.json` | Nachrichten zwischen Popup, Service-Worker und Tab, inklusive Nachinjektion. |
 | `testarchitektur.architecture.json` | Testaufbau: Runner, Module, geteilte Helfer, Fixtures. |

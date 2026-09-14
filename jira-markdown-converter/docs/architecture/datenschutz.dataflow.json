@@ -22,7 +22,7 @@
       "label": "Ablage im Browser"
     },
     {
-      "label": "Einzige Ausnahme"
+      "label": "Verlaesst den Browser"
     }
   ],
   "nodes": [
@@ -57,7 +57,7 @@
       "id": "einstellungenEingabe",
       "type": "frontend",
       "label": "Einstellungen",
-      "sublabel": "Schalter, Hosts",
+      "sublabel": "Schalter, Muster, Tabelle",
       "stage": 0,
       "row": 3,
       "width": 132
@@ -120,7 +120,7 @@
       "id": "storageLocal",
       "type": "database",
       "label": "storage.local",
-      "sublabel": "customTemplates",
+      "sublabel": "Vorlagen, Zuordnung",
       "stage": 2,
       "row": 4,
       "width": 132
@@ -132,6 +132,15 @@
       "sublabel": "Microsoft/Google",
       "stage": 3,
       "row": 2,
+      "width": 132
+    },
+    {
+      "id": "keyDatei",
+      "type": "external",
+      "label": "JSON-Datei",
+      "sublabel": "customer-keys.json",
+      "stage": 3,
+      "row": 4,
       "width": 132
     }
   ],
@@ -207,6 +216,18 @@
       "variant": "dashed",
       "route": "straight",
       "labelDy": 53
+    },
+    {
+      "from": "storageLocal",
+      "to": "keyDatei",
+      "label": "Export auf Klick",
+      "classification": "Datei auf dem Rechner, kein Netzweg",
+      "variant": "dashed",
+      "route": "straight",
+      "labelAt": [
+        638,
+        656
+      ]
     }
   ],
   "cards": [
@@ -216,7 +237,8 @@
       "items": [
         "Zwischenablage und Feldinhalt durchlaufen den Konverter nur im Speicher der Seite",
         "OTRS-Eingabe fuellt Label, Kunden Referenz und Web-Link direkt im Jira-Formular",
-        "Einstellungen und eigene Vorlagen liegen in chrome.storage, sync bzw. local"
+        "Einstellungen und eigene Vorlagen liegen in chrome.storage, sync bzw. local",
+        "Muster, Feldname und die Zuordnungstabelle liegen in chrome.storage; der JSON-Import liest eine lokale Datei, er laedt nichts nach"
       ]
     },
     {
@@ -230,11 +252,11 @@
     },
     {
       "dot": "rose",
-      "title": "Die einzige Ausnahme",
+      "title": "Was den Browser verlaesst",
       "items": [
         "Kein fetch, kein XMLHttpRequest, keine Telemetrie in der Erweiterung selbst",
-        "Kein Pfad in diesem Diagramm verlaesst chrome.storage, das DOM oder die Zwischenablage",
-        "chrome.storage.sync synct nur ueber das Microsoft- bzw. Google-Konto - das macht Chrome, nicht die Erweiterung"
+        "chrome.storage.sync synct nur ueber das Microsoft- bzw. Google-Konto - das macht Chrome, nicht die Erweiterung",
+        "Der JSON-Export schreibt die Zuordnungstabelle auf Klick als Datei auf den Rechner - kein Netzweg, kein fremder Empfaenger"
       ]
     }
   ]

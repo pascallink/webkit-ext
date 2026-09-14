@@ -14,7 +14,7 @@
     "repository": {
       "url": "https://github.com/pascallink/webkit-ext",
       "provider": "github",
-      "revision": "c78f55a858c7a4598430c11eb1c59ae5f69a2d81"
+      "revision": "e1ad2c74ac0833845d948ea93046101143cfd3dd"
     },
     "views": [
       {
@@ -61,6 +61,18 @@
           "editors"
         ],
         "note": "Verweis zerlegen, dann strikt sequenziell Label, Custom Field und Web-Link setzen."
+      },
+      {
+        "id": "kunden-schluessel",
+        "label": "Kunden-Schluessel",
+        "focus": [
+          "customerKeys",
+          "content",
+          "settings",
+          "storage",
+          "jiraPage"
+        ],
+        "note": "Zuordnungstabelle aus storage.local, Anreicherung im Feld, Kennzeichen und Custom Field im Vorgang."
       }
     ]
   },
@@ -257,6 +269,31 @@
       ]
     },
     {
+      "id": "customerKeys",
+      "type": "backend",
+      "label": "Kunden-Schluessel",
+      "sublabel": "mapping.js, keysync.js",
+      "tag": "Content-Script",
+      "pos": [
+        820,
+        70
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "sources": [
+        {
+          "path": "jira-markdown-converter/src/mapping.js",
+          "label": "Muster, Tabelle, enrich() - DOM-frei"
+        },
+        {
+          "path": "jira-markdown-converter/src/keysync.js",
+          "label": "Kennzeichen und Custom Field"
+        }
+      ]
+    },
+    {
       "id": "otrs",
       "type": "backend",
       "label": "OTRS-Verknuepfung",
@@ -322,6 +359,7 @@
         "dialogs",
         "editors",
         "editlock",
+        "customerKeys",
         "otrs"
       ],
       "pad": 20
@@ -502,6 +540,19 @@
           432
         ]
       ]
+    },
+    {
+      "from": "customerKeys",
+      "to": "jiraPage",
+      "label": "Kennzeichen, Custom Field",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [
+        [
+          1160,
+          102
+        ]
+      ]
     }
   ],
   "cards": [
@@ -510,8 +561,8 @@
       "title": "Ausfuehrungskontexte",
       "items": [
         "Service-Worker haelt Tastenkuerzel, Kontextmenue und dynamisch registrierte Hosts",
-        "Elf Content-Scripts laden bei document_start in fester Reihenfolge, settings.js zuerst und content.js zuletzt",
-        "content.js startet Dialoge, editlock und den OTRS-Ablauf und verdrahtet alle Module ueber window"
+        "Dreizehn Content-Scripts laden bei document_start in fester Reihenfolge, settings.js zuerst und content.js zuletzt",
+        "content.js startet Dialoge, editlock, OTRS- und Schluessel-Ablauf und verdrahtet alle Module ueber window"
       ]
     },
     {
@@ -519,7 +570,7 @@
       "title": "Vertrauensgrenzen",
       "items": [
         "host_permissions nur https://*.atlassian.net/*, weitere Hosts per optional_host_permissions",
-        "scripting erlaubt programmatische Injektion der elf Content-Scripts in freigegebene Hosts",
+        "scripting erlaubt programmatische Injektion der dreizehn Content-Scripts in freigegebene Hosts",
         "Kein fetch, kein XMLHttpRequest - nur das DOM der offenen Seite",
         "Leere catch-Bloecke sind Absicht - Jira aendert das DOM staendig"
       ]
@@ -529,7 +580,7 @@
       "title": "Modulregeln",
       "items": [
         "ES5 ohne Bundler und ohne Runtime-Deps, jedes Modul als UMD mit module.exports und Global",
-        "converter.js bleibt DOM-frei und laeuft per importScripts auch im Service-Worker und in den Node-Tests",
+        "converter.js und mapping.js bleiben DOM-frei - converter.js laeuft per importScripts auch im Service-Worker",
         "Nur die Editoren von 9.12 LTS: textarea im Wiki-Feld und TinyMCE-Rahmen, ProseMirror ist ausser Scope"
       ]
     }

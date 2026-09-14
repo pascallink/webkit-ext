@@ -1,0 +1,322 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Kunden-Schluessel - Datenweg",
+    "output": "jira-markdown-converter/docs/architecture/kunden-schluessel.html",
+    "visual_preset": "blueprint",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      780
+    ]
+  },
+  "stages": [
+    {
+      "label": "Pflege"
+    },
+    {
+      "label": "Ablage"
+    },
+    {
+      "label": "Auswertung"
+    },
+    {
+      "label": "Drei Wege"
+    },
+    {
+      "label": "Jira-Seite"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "optionen",
+      "type": "frontend",
+      "label": "Optionsseite",
+      "sublabel": "Muster und Tabelle",
+      "stage": 0,
+      "row": 1,
+      "width": 108
+    },
+    {
+      "id": "datei",
+      "type": "external",
+      "label": "JSON-Datei",
+      "sublabel": "customer-keys.json",
+      "stage": 0,
+      "row": 3,
+      "width": 108
+    },
+    {
+      "id": "mapStore",
+      "type": "database",
+      "label": "storage.local",
+      "sublabel": "customerKeyMap",
+      "stage": 1,
+      "row": 0,
+      "width": 108
+    },
+    {
+      "id": "syncStore",
+      "type": "database",
+      "label": "storage.sync",
+      "sublabel": "Muster, Feldname",
+      "stage": 1,
+      "row": 2,
+      "width": 108
+    },
+    {
+      "id": "mapping",
+      "type": "backend",
+      "label": "mapping.js",
+      "sublabel": "enrich, findKeys",
+      "stage": 2,
+      "row": 1,
+      "width": 108,
+      "tag": "DOM-frei"
+    },
+    {
+      "id": "verworfen",
+      "type": "security",
+      "label": "Muster verworfen",
+      "sublabel": "Standard greift",
+      "stage": 2,
+      "row": 3,
+      "width": 108
+    },
+    {
+      "id": "ergaenzen",
+      "type": "backend",
+      "label": "Im Feld ergaenzen",
+      "sublabel": "Textarea und RTE",
+      "stage": 3,
+      "row": 0,
+      "width": 108
+    },
+    {
+      "id": "uebernehmen",
+      "type": "backend",
+      "label": "Aus Beschreibung",
+      "sublabel": "keysync.js",
+      "stage": 3,
+      "row": 2,
+      "width": 108
+    },
+    {
+      "id": "hervorheben",
+      "type": "backend",
+      "label": "Badge setzen",
+      "sublabel": "MutationObserver",
+      "stage": 3,
+      "row": 3,
+      "width": 108
+    },
+    {
+      "id": "feld",
+      "type": "external",
+      "label": "Editorfeld",
+      "sublabel": "Wert oder nodeValue",
+      "stage": 4,
+      "row": 0,
+      "width": 108
+    },
+    {
+      "id": "vorgang",
+      "type": "external",
+      "label": "Vorgangsfelder",
+      "sublabel": "AUI-Dialoge",
+      "stage": 4,
+      "row": 2,
+      "width": 108,
+      "tag": "kein HTTP"
+    },
+    {
+      "id": "leseansicht",
+      "type": "external",
+      "label": "Leseansicht",
+      "sublabel": "nur schreibgeschuetzt",
+      "stage": 4,
+      "row": 3,
+      "width": 108
+    }
+  ],
+  "flows": [
+    {
+      "from": "datei",
+      "to": "optionen",
+      "label": "Import",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "from": "optionen",
+      "to": "datei",
+      "label": "Export",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          176,
+          271
+        ],
+        [
+          176,
+          499
+        ]
+      ],
+      "labelAt": [
+        176,
+        385
+      ]
+    },
+    {
+      "from": "optionen",
+      "to": "mapStore",
+      "label": "Tabelle normalisiert",
+      "variant": "emphasis",
+      "labelAt": [
+        207,
+        200
+      ]
+    },
+    {
+      "from": "optionen",
+      "to": "syncStore",
+      "label": "Muster geprueft",
+      "variant": "emphasis",
+      "labelAt": [
+        260,
+        328
+      ]
+    },
+    {
+      "from": "mapStore",
+      "to": "mapping",
+      "label": "Zuordnung",
+      "variant": "emphasis",
+      "labelAt": [
+        422,
+        200
+      ]
+    },
+    {
+      "from": "syncStore",
+      "to": "mapping",
+      "label": "RegExp",
+      "variant": "emphasis",
+      "labelAt": [
+        422,
+        328
+      ]
+    },
+    {
+      "from": "syncStore",
+      "to": "verworfen",
+      "label": "ungueltig",
+      "variant": "security",
+      "labelAt": [
+        422,
+        542
+      ]
+    },
+    {
+      "from": "mapping",
+      "to": "ergaenzen",
+      "label": "enrich()",
+      "variant": "emphasis",
+      "labelAt": [
+        637,
+        200
+      ],
+      "route": "vertical-channel",
+      "channelX": 600
+    },
+    {
+      "from": "mapping",
+      "to": "uebernehmen",
+      "label": "findKeys()",
+      "variant": "emphasis",
+      "route": "vertical-channel",
+      "labelAt": [
+        637,
+        328
+      ],
+      "channelX": 637
+    },
+    {
+      "from": "mapping",
+      "to": "hervorheben",
+      "label": "compile()",
+      "variant": "emphasis",
+      "labelAt": [
+        637,
+        542
+      ],
+      "route": "vertical-channel",
+      "channelX": 675
+    },
+    {
+      "from": "ergaenzen",
+      "to": "feld",
+      "label": "ROV-1234 (JIRA-567)",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        853,
+        200
+      ]
+    },
+    {
+      "from": "uebernehmen",
+      "to": "vorgang",
+      "label": "Label und Custom Field",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        853,
+        428
+      ]
+    },
+    {
+      "from": "hervorheben",
+      "to": "leseansicht",
+      "label": "span.jmd-customer-key",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [
+        853,
+        542
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Was gepflegt wird",
+      "items": [
+        "customerKeyMap liegt in storage.local, nicht in sync: sync erlaubt nur 8192 Byte je Item, die Tabelle waere ein einziges",
+        "Muster, Feldname und der Schalter fuer die Hervorhebung sind kurz und bleiben in storage.sync",
+        "Import nimmt Array und kommaseparierten String, Export liefert die normalisierte Tabelle als customer-keys.json zurueck"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Das Muster ist Benutzereingabe",
+      "items": [
+        "normalizePattern() verwirft leer, laenger als 120 Zeichen, nicht kompilierbar und quantifizierte Gruppen wie (a+)+",
+        "compile() faellt dann auf (ROV|REFI)-\\d+ zurueck, die Hervorhebung entfernt stattdessen vorhandene Badges",
+        "Jeder Aufruf bekommt ein frisches RegExp, sonst haengt lastIndex zwischen zwei Durchlaeufen"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Was nie angefasst wird",
+      "items": [
+        "Anreicherung im Rich-Text-Editor schreibt nur nodeValue - kein innerHTML, kein neues Element, keine Tags in bearbeitbaren Text",
+        "Die Hervorhebung laeuft nur in Beschreibung und Kommentaren und bricht an textarea, input, contenteditable, mce- und jmd- ab",
+        "Ein Treffer ohne Zuordnung bleibt unveraendert, eine schon gesetzte Klammer wird nicht verdoppelt - enrich() ist idempotent"
+      ]
+    }
+  ]
+}
