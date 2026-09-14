@@ -110,26 +110,18 @@
    * ---------------------------------------------------------------- */
 
   /**
-   * Oeffnet den Shifter (Taste .), tippt query in #shifter-dialog-field -
-   * das input-Ereignis filtert die Vorschlagsliste - und waehlt den ersten
-   * sichtbaren Treffer per Klick, nicht per Enter: ein synthetisches
-   * KeyboardEvent loest in 9.12 keinen Formular-Submit aus. Loest mit dem
-   * per targetSelector gefundenen Folge-Dialog auf ({ visible: true }, die
-   * Legacy-Dialoge stehen dauerhaft im DOM).
+   * Duenne Klammer um JiraUi.shifterAction(): Shifter oeffnen, Suchbegriff
+   * tippen, passenden Treffer klicken, auf den Folge-Dialog warten. Die
+   * Mechanik liegt in jiraui.js, damit sie nur an einer Stelle gepflegt wird
+   * - der Shifter filtert im keyup-Handler und zeigt seine Vorschlaege schon
+   * vor der Eingabe, beides hat die frueheren Kopien hier auflaufen lassen.
    */
   function runShifterAction(query, targetSelector, doc, timeout) {
-    var ui = getUi();
-    ui.sendKey(doc.body, '.');
-    return ui.waitForElement('#shifter-dialog', { root: doc, visible: true, timeout: SHORTCUT_TIMEOUT })
-      .then(function () {
-        var field = doc.querySelector('#shifter-dialog-field');
-        ui.setValue(field, query);
-        return ui.waitForElement('#shifter-dialog-suggestions .aui-list-item', { root: doc, visible: true, timeout: timeout });
-      })
-      .then(function (suggestion) {
-        ui.click(suggestion);
-        return ui.waitForElement(targetSelector, { root: doc, visible: true, timeout: timeout });
-      });
+    return getUi().shifterAction(query, targetSelector, {
+      root: doc,
+      timeout: timeout,
+      shortcutTimeout: SHORTCUT_TIMEOUT
+    });
   }
 
   /**

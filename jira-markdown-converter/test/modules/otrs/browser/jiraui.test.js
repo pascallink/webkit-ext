@@ -312,4 +312,107 @@ describe('JiraUi gegen den Nachbau von 9.12 (JIRA912)', { skip: !hasPlaywright }
     assert.strictEqual(result.settledAfterOpen, true, 'waitForElement hat nach jira-dialog-open nicht aufgeloest');
     await page.close();
   });
+  /**
+   * Regressionsfall aus der Instanz (DBREFI-10549): der Shifter zeigt seine
+   * Trefferliste schon vor der Eingabe und filtert erst im keyup-Handler.
+   * Ein programmatisch gesetzter Wert allein aendert an der Liste nichts,
+   * und der erste Eintrag ist "Summary" - wer ihn blind klickt, oeffnet das
+   * falsche #modal-field-view und bricht die Kette ab.
+   */
+  test('shifterAction waehlt den Treffer zum Suchbegriff, nicht den ersten Eintrag', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage912(browser);
+    var result = await page.evaluate(function () {
+      return window.JiraUi.shifterAction('Kunden Referenz', '#modal-field-view', { timeout: 2000 })
+        .then(function (dialog) {
+          return {
+            titel: dialog.querySelector('#modal-field-view-title').textContent,
+            hatCustomField: !!dialog.querySelector('input[id^="customfield_"]'),
+            gewaehlt: window.__mock.log.filter(function (zeile) {
+              return zeile.indexOf('shifter ->') !== -1;
+            })
+          };
+        });
+    });
+    assert.deepStrictEqual(result.gewaehlt, ['shifter -> Kunden Referenz']);
+    assert.ok(/Kunden Referenz/.test(result.titel), 'falscher Dialog: ' + result.titel);
+    assert.strictEqual(result.hatCustomField, true);
+    await page.close();
+  });
+
+  test('shifterAction filtert die Liste - der Suchbegriff kommt als Tastendruck an', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage912(browser);
+    var result = await page.evaluate(function () {
+      return window.JiraUi.shifterAction('Link', '#link-issue-dialog', { timeout: 2000 })
+        .then(function () {
+          var sichtbar = Array.prototype.filter.call(
+            document.querySelectorAll('#shifter-dialog-suggestions .aui-list-item'),
+            function (li) { return li.style.display !== 'none'; }
+          ).map(function (li) { return li.textContent.trim(); });
+          return { feld: document.getElementById('shifter-dialog-field').value, sichtbar: sichtbar };
+        });
+    });
+    assert.strictEqual(result.feld, 'Link');
+    assert.deepStrictEqual(result.sichtbar, ['Link'], 'die Trefferliste wurde nicht gefiltert');
+    await page.close();
+  });
+
+  test('shifterAction faellt ohne abgeleitete Klasse auf den Text zurueck', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage912(browser);
+    var titel = await page.evaluate(function () {
+      // Instanz ohne die Klasse li.aui-list-item-li-<slug> (anderer Feldname,
+      // andere Ableitung): der Treffer muss ueber seinen Text gefunden werden.
+      document.getElementById('kunden-referenz-35').classList.remove('aui-list-item-li-kunden-referenz');
+      return window.JiraUi.shifterAction('Kunden Referenz', '#modal-field-view', { timeout: 800 })
+        .then(function (dialog) {
+          return dialog.querySelector('#modal-field-view-title').textContent;
+        });
+    });
+    assert.ok(/Kunden Referenz/.test(titel), 'falscher Dialog: ' + titel);
+    await page.close();
+  });
+
+  test('shifterAction lehnt ab, wenn kein Eintrag zum Suchbegriff passt', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage912(browser);
+    var fehler = await page.evaluate(function () {
+      return window.JiraUi.shifterAction('Gibt Es Nicht', '#modal-field-view', { timeout: 800 })
+        .then(function () { return null; })
+        .catch(function (error) { return error.message; });
+    });
+    assert.match(fehler, /Kein Shifter-Treffer/);
+    await page.close();
+  });
+
+  test('typeValue setzt den Wert und schickt einen echten Tastendruck hinterher', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage912(browser);
+    var result = await page.evaluate(function () {
+      // Der Shifter muss offen sein, sonst laeuft focus() auf ein per CSS
+      // verborgenes Feld und das Fenster behaelt den alten Fokus.
+      window.JiraUi.sendKey(document.body, '.');
+      var feld = document.getElementById('shifter-dialog-field');
+      var ereignisse = [];
+      ['input', 'change', 'keydown', 'keypress', 'keyup'].forEach(function (typ) {
+        feld.addEventListener(typ, function (event) {
+          ereignisse.push(typ + ':' + (event.key === undefined ? '' : event.key) + ':' + feld.value);
+        });
+      });
+      window.JiraUi.typeValue(feld, 'Link');
+      return { wert: feld.value, ereignisse: ereignisse, fokussiert: document.activeElement === feld };
+    });
+    assert.strictEqual(result.wert, 'Link');
+    assert.strictEqual(result.fokussiert, true);
+    // keyup traegt den vollstaendigen Feldwert - genau das liest der Filter.
+    assert.deepStrictEqual(result.ereignisse, [
+      'input::Link',
+      'change::Link',
+      'keydown:k:Link',
+      'keypress:k:Link',
+      'keyup:k:Link'
+    ]);
+    await page.close();
+  });
 });

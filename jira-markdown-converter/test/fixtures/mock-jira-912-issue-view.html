@@ -131,6 +131,9 @@
       Taste .: Shifter (#shifter-dialog) mit "Kunden Referenz" (oeffnet
       #modal-field-view mit input#customfield_10027) und "Link"
       (oeffnet #link-issue-dialog; Web Link ueber button#add-web-link-link).
+      Der Shifter filtert auf keyup (wie AUI) und zeigt seine Liste schon
+      vor der Eingabe - erster Eintrag ist "Summary", das dasselbe
+      #modal-field-view ohne Custom Field oeffnet.
     - Alle Jira-Handler protokollieren nach window.__mock.log und #mock-log.
 
   Zustand direkt anspringen: ?state=comment | description | edit | labels | link | shifter
@@ -403,9 +406,14 @@
   <div class="jira-dialog-content jira-dialog-core-content"><div class="aui-dialog-content">
     <form class="aui" action="#">
       <div class="form-body">
-        <div class="field-group">
+        <div class="field-group" data-mock-field="kunden-referenz">
           <input id="customfield_10027" class="textfield text long-field" name="customfield_10027" type="text" value="">
           <div id="customfield_10027-description" class="description"><p></p></div>
+        </div>
+        <!-- [belegt] Summary aus dem Shifter oeffnet dasselbe #modal-field-view, nur mit
+             anderem Rumpf: kein input[id^="customfield_"], darum kein Ziel fuer den Flow. -->
+        <div class="field-group" data-mock-field="summary">
+          <input id="summary" class="text long-field" name="summary" type="text" value="REFI PU 47.2 - Probleme mit ...">
         </div>
       </div>
       <div class="buttons-container form-footer">
@@ -425,13 +433,14 @@
       <div class="aui-list-scroll" role="presentation">
         <div class="shifter-group-heading"><h5>Edit fields</h5><span class="shifter-group-context"></span></div>
         <ul id="edit-fields" class="aui-list-section" role="listbox">
+          <li id="summary-1" class="aui-list-item aui-list-item-li-summary" role="option" data-mock-action="summary-field"><span class="aui-list-item-link" role="presentation">Summary</span></li>
           <li id="kunden-referenz-35" class="aui-list-item aui-list-item-li-kunden-referenz" role="option" data-mock-action="modal-field"><span class="aui-list-item-link" role="presentation">Kunden Referenz</span></li>
-          <li id="labels-40" class="aui-list-item" role="option" data-mock-action="labels"><span class="aui-list-item-link" role="presentation">Labels</span></li>
+          <li id="labels-40" class="aui-list-item aui-list-item-li-labels" role="option" data-mock-action="labels"><span class="aui-list-item-link" role="presentation">Labels</span></li>
         </ul>
         <div class="shifter-group-heading"><h5>Operations</h5><span class="shifter-group-context"></span></div>
         <ul id="operations" class="aui-list-section aui-last" role="listbox">
-          <li id="link-83" class="aui-list-item" role="option" data-mock-action="link"><span class="aui-list-item-link" role="presentation">Link</span></li>
-          <li id="edit-issue-1" class="aui-list-item" role="option" data-mock-action="edit"><span class="aui-list-item-link" role="presentation">Edit</span></li>
+          <li id="link-83" class="aui-list-item aui-list-item-li-link" role="option" data-mock-action="link"><span class="aui-list-item-link" role="presentation">Link</span></li>
+          <li id="edit-issue-1" class="aui-list-item aui-list-item-li-edit" role="option" data-mock-action="edit"><span class="aui-list-item-link" role="presentation">Edit</span></li>
         </ul>
       </div>
     </div>
@@ -1013,10 +1022,37 @@
   guardLink(document.getElementById('link-issue'), openLink);
 
   var fieldModal = document.getElementById('modal-field-view');
-  function openFieldModal() { openLegacy(fieldModal); document.getElementById('customfield_10027').focus(); note('modal-field-view opened (Kunden Referenz)'); }
+  var fieldBody = fieldModal.querySelector('.form-body');
+  // [belegt] Beide Feld-Dialoge teilen sich id und Titelknoten; unterschieden
+  // wird ueber den Rumpf. Der jeweils andere Rumpf steht gar nicht im DOM -
+  // im Summary-Dialog gibt es also kein input[id^="customfield_"].
+  var fieldGroups = {};
+  Array.prototype.forEach.call(fieldModal.querySelectorAll('[data-mock-field]'), function (group) {
+    fieldGroups[group.getAttribute('data-mock-field')] = group;
+    group.removeAttribute('style');
+  });
+  function showFieldGroup(name) {
+    Object.keys(fieldGroups).forEach(function (key) {
+      var group = fieldGroups[key];
+      if (key === name) { if (!group.parentNode) fieldBody.appendChild(group); }
+      else if (group.parentNode) group.parentNode.removeChild(group);
+    });
+  }
+  showFieldGroup('kunden-referenz');
+  function openFieldModal(feld) {
+    var name = feld === 'summary' ? 'summary' : 'kunden-referenz';
+    var titel = name === 'summary' ? 'Summary' : 'Kunden Referenz';
+    showFieldGroup(name);
+    fieldModal.querySelector('#modal-field-view-title').textContent = 'Edit ' + titel + ' for ' + 'DBREFI-10549';
+    openLegacy(fieldModal);
+    var focusable = fieldGroups[name].querySelector('input');
+    if (focusable) focusable.focus();
+    note('modal-field-view opened (' + titel + ')');
+  }
   fieldModal.querySelector('form').addEventListener('submit', function (event) {
     event.preventDefault();
-    window.__mock.saved.kundenReferenz = document.getElementById('customfield_10027').value;
+    var eingetragen = fieldGroups['kunden-referenz'].querySelector('input');
+    window.__mock.saved.kundenReferenz = eingetragen.parentNode ? eingetragen.value : null;
     note('kunden referenz SUBMIT: ' + JSON.stringify(window.__mock.saved.kundenReferenz));
     closeLegacy(fieldModal);
   });
@@ -1028,6 +1064,9 @@
   var suggestions = document.getElementById('shifter-dialog-suggestions');
   function openShifter() { shifter.classList.add('open'); shifterField.value = ''; filterShifter(); shifterField.focus(); note('shifter opened'); }
   function closeShifter() { shifter.classList.remove('open'); suggestions.style.display = 'none'; }
+  // [belegt] Die Trefferliste steht schon vor der Eingabe offen (der Auszug
+  // zeigt Summary, Release Notes ohne Suchbegriff) - wer blind den ersten
+  // .aui-list-item klickt, landet auf Summary statt auf dem gesuchten Feld.
   function filterShifter() {
     var q = shifterField.value.trim().toLowerCase();
     var first = null;
@@ -1038,17 +1077,21 @@
       if (hit && !first) first = li;
     });
     if (first) first.classList.add('active');
-    suggestions.style.display = q ? 'block' : 'none';
-    shifterField.setAttribute('aria-expanded', q ? 'true' : 'false');
+    suggestions.style.display = 'block';
+    shifterField.setAttribute('aria-expanded', 'true');
     if (first) shifterField.setAttribute('aria-activedescendant', first.id);
   }
-  shifterField.addEventListener('input', filterShifter);
+  // [belegt] AUI (QueryableDropdownSelect) filtert im keyup-Handler. Ein
+  // programmatisch gesetzter Wert mit blossem input-Ereignis laesst die
+  // Liste ungefiltert stehen - genau der Fehlerfall aus der Instanz.
+  shifterField.addEventListener('keyup', filterShifter);
   function runShifter(li) {
     closeShifter();
     var action = li.getAttribute('data-mock-action');
     note('shifter -> ' + li.textContent.trim());
     setTimeout(function () {
-      if (action === 'modal-field') openFieldModal();
+      if (action === 'modal-field') openFieldModal('kunden-referenz');
+      else if (action === 'summary-field') openFieldModal('summary');
       else if (action === 'labels') openLabels();
       else if (action === 'link') { openLink(); }
       else if (action === 'edit') openEdit();
