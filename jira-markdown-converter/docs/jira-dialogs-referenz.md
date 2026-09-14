@@ -68,6 +68,12 @@ Wichtig fuer die Automation:
 
 * Eingabe geht in `#shifter-dialog-field`, Treffer stehen in
   `#shifter-dialog-suggestions`.
+* **Die Liste steht schon vor der Eingabe offen** (oben "Summary"), und
+  **gefiltert wird im `keyup`-Handler** (AUI `QueryableDropdownSelect`) -
+  ein programmatisch gesetzter Wert mit blossem `input`-Ereignis aendert an
+  der Liste nichts. Automation: Wert setzen **und** einen Tastendruck
+  nachschicken (`JiraUi.typeValue`), dann den Treffer zum Suchbegriff
+  waehlen, nie den ersten Eintrag.
 * Zwei Gruppen: `ul#edit-fields` (Felder) und `ul#issue-actions` (Aktionen).
   Das Feld "Kunden Referenz" landet in `#edit-fields`, die Aktion "Link" in
   `#issue-actions`.

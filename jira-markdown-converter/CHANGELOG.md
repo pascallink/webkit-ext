@@ -7,6 +7,19 @@ festgehalten. Das Format orientiert sich an
 
 ## [Unveroeffentlicht]
 
+### Behoben
+
+- OTRS-Link-Helfer und Kunden-Schluessel-Abgleich brachen am Schritt
+  *Kunden Referenz* ab: der Shifter (Taste `.`) filtert seine Trefferliste
+  im `keyup`-Handler und zeigt sie schon vor der Eingabe. Der Suchbegriff
+  wurde nur programmatisch gesetzt, danach der erste Eintrag der
+  ungefilterten Liste geklickt - das oeffnete "Summary" statt des Feldes und
+  liess die Kette mit "Kunden Referenz konnte nicht gesetzt werden" stehen.
+  Der Begriff kommt jetzt als echter Tastendruck an, und gewaehlt wird der
+  Treffer zum Suchbegriff (`li.aui-list-item-li-<slug>`, sonst ueber den
+  Text). Die Shifter-Mechanik liegt dafuer einmal in `JiraUi` statt als
+  Kopie in `otrsflow.js` und `keysync.js`.
+
 ### Kosten
 
 - PR #205 "docs: zehn archify-spezifikationen fuer datenwege und ablaeufe": $28.8247 (1 Session, claude-opus-5, claude-sonnet-5, claude-haiku-4-5-20251001, <synthetic>)

@@ -5,7 +5,11 @@
  * Tastendruecke und Klicks nachbilden.
  *
  * Kennt OTRS nicht - reine DOM-Mechanik, wiederverwendbar fuer jeden
- * Automationsschritt gegen AUI-Dialoge.
+ * Automationsschritt gegen AUI-Dialoge. Dazu gehoert der Shifter (Taste .)
+ * als einziger Weg in ein Custom Field ohne Wert: shifterAction() tippt den
+ * Suchbegriff mit echten Tastatur-Ereignissen und waehlt den passenden
+ * Treffer - beides zusammen ersetzt die frueheren Kopien in otrsflow.js und
+ * keysync.js.
  */
 (function (root, factory) {
   'use strict';
@@ -20,6 +24,16 @@
   'use strict';
 
   var DEFAULT_TIMEOUT = 5000;
+  var DEFAULT_SHORTCUT_TIMEOUT = 1500;
+  // Erster Anlauf auf den Klassen-Anker: laesst der Slug den Treffer nicht
+  // finden, greift der Textabgleich nach dieser Frist statt erst nach dem
+  // vollen Budget - mit offenem Shifter ueber der Seite ist Leerlauf teuer.
+  var SUGGESTION_ANCHOR_TIMEOUT = 1500;
+
+  var SHIFTER_DIALOG = '#shifter-dialog';
+  var SHIFTER_FIELD = '#shifter-dialog-field';
+  var SHIFTER_SUGGESTIONS = '#shifter-dialog-suggestions';
+  var SHIFTER_ITEM = '.aui-list-item';
 
   var NAMED_KEY_CODES = {
     Enter: 13,
@@ -246,6 +260,20 @@
     }
   }
 
+  /**
+   * Schreibt einen Suchbegriff so in ein Feld, dass auch Widgets reagieren,
+   * die an Tastatur-Ereignissen haengen statt an input: der Shifter filtert
+   * seine Trefferliste im keyup-Handler (AUI QueryableDropdownSelect) und
+   * sieht ein blosses input-Ereignis nie. Der Nachschlag ist das letzte
+   * Zeichen des Begriffs - der Handler liest den Feldwert, nicht die Taste.
+   */
+  function typeValue(field, text) {
+    var value = String(text === undefined || text === null ? '' : text);
+    if (typeof field.focus === 'function') field.focus();
+    setValue(field, value);
+    if (value) sendKey(field, value.charAt(value.length - 1));
+  }
+
   /** Fokussiert und klickt ein Element echt (MouseEvent statt element.click()). */
   function click(element) {
     if (typeof element.focus === 'function') element.focus();
@@ -256,6 +284,105 @@
     return new Promise(function (resolve) {
       setTimeout(resolve, ms);
     });
+  }
+
+  /**
+   * 'Kunden Referenz' -> 'kunden-referenz': Jira leitet die Klasse eines
+   * Shifter-Treffers (li.aui-list-item-li-<slug>) aus dem Namen ab - der
+   * belastbarste Anker, stabiler als Position und id
+   * (siehe docs/jira-dialogs-referenz.md).
+   */
+  function slugify(text) {
+    return String(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+
+  /**
+   * Sichtbarer Shifter-Treffer zum Suchbegriff: exakter Text vor Teiltreffer.
+   * Ohne Treffer null - der Aufrufer entscheidet, ob das ein Fehler ist.
+   */
+  function matchSuggestion(root, query) {
+    var items = root.querySelectorAll(SHIFTER_SUGGESTIONS + ' ' + SHIFTER_ITEM);
+    var needle = String(query).trim().toLowerCase();
+    var partial = null;
+    for (var i = 0; i < items.length; i++) {
+      if (!visible(items[i])) continue;
+      var text = items[i].textContent.trim().toLowerCase();
+      if (text === needle) return items[i];
+      if (!partial && needle && text.indexOf(needle) !== -1) partial = items[i];
+    }
+    return partial;
+  }
+
+  /**
+   * Wartet auf den Treffer zum Suchbegriff - nie auf den ersten Eintrag der
+   * Liste: der Shifter zeigt seine Vorschlaege schon vor der Eingabe, ein
+   * blindes querySelector('.aui-list-item') greift damit den falschen
+   * (z.B. "Summary") und oeffnet den falschen Dialog.
+   *
+   * Reihenfolge: kurzer Anlauf auf den Klassen-Anker, dann Textabgleich,
+   * dann das Restbudget nochmal auf den Anker. Der Textabgleich braucht
+   * seinen fruehen Platz, weil slugify() jedes Zeichen ausserhalb [a-z0-9]
+   * wegwirft - ein Feldname mit Umlaut ergibt einen Slug, den Jira so nicht
+   * ableitet. Der zweite Wait bleibt, damit eine langsam aufgebaute
+   * Trefferliste nicht vorzeitig als "kein Treffer" gilt.
+   */
+  function waitForSuggestion(query, root, timeout) {
+    var slug = slugify(query);
+    if (!slug) {
+      var direkt = matchSuggestion(root, query);
+      if (direkt) return Promise.resolve(direkt);
+      return Promise.reject(new Error('Kein Shifter-Treffer fuer "' + query + '"'));
+    }
+
+    var selector = SHIFTER_SUGGESTIONS + ' li.aui-list-item-li-' + slug;
+    var ersteFrist = Math.min(timeout, SUGGESTION_ANCHOR_TIMEOUT);
+    var restFrist = timeout - ersteFrist;
+
+    function ueberText() {
+      var match = matchSuggestion(root, query);
+      if (!match) throw new Error('Kein Shifter-Treffer fuer "' + query + '"');
+      return match;
+    }
+
+    return waitForElement(selector, { root: root, visible: true, timeout: ersteFrist })
+      .catch(function () {
+        try {
+          return ueberText();
+        } catch (error) {
+          if (restFrist <= 0) throw error;
+          return waitForElement(selector, { root: root, visible: true, timeout: restFrist })
+            .catch(ueberText);
+        }
+      });
+  }
+
+  /**
+   * Oeffnet den Shifter (Taste .), tippt query in #shifter-dialog-field und
+   * waehlt den passenden Treffer per Klick, nicht per Enter: ein
+   * synthetisches KeyboardEvent loest in 9.12 keinen Formular-Submit aus.
+   * Loest mit dem per targetSelector gefundenen Folge-Dialog auf
+   * ({ visible: true }, die Legacy-Dialoge stehen dauerhaft im DOM).
+   * options = { root, timeout, shortcutTimeout }.
+   */
+  function shifterAction(query, targetSelector, options) {
+    var opts = options || {};
+    var root = opts.root || document;
+    var timeout = opts.timeout === undefined ? DEFAULT_TIMEOUT : opts.timeout;
+    var shortcutTimeout = opts.shortcutTimeout === undefined ? DEFAULT_SHORTCUT_TIMEOUT : opts.shortcutTimeout;
+    var body = root.body || (root.ownerDocument && root.ownerDocument.body) || root;
+
+    sendKey(body, '.');
+    return waitForElement(SHIFTER_DIALOG, { root: root, visible: true, timeout: shortcutTimeout })
+      .then(function () {
+        var field = findMatch(SHIFTER_FIELD, root, false);
+        if (!field) throw new Error('Shifter-Eingabefeld nicht gefunden');
+        typeValue(field, query);
+        return waitForSuggestion(query, root, timeout);
+      })
+      .then(function (suggestion) {
+        click(suggestion);
+        return waitForElement(targetSelector, { root: root, visible: true, timeout: timeout });
+      });
   }
 
   /** Formular zu element: erst element.form (Feld), dann Vorfahre, dann Nachfahre. */
@@ -295,7 +422,9 @@
     waitForElement: waitForElement,
     waitForGone: waitForGone,
     setValue: setValue,
+    typeValue: typeValue,
     sendKey: sendKey,
+    shifterAction: shifterAction,
     click: click,
     submitForm: submitForm,
     visible: visible,
