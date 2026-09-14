@@ -27,6 +27,7 @@ festgehalten. Das Format orientiert sich an
 - PR #228 "feat(jira): CustomerKey-Highlighting in Leseansicht (Issue #32)": $42.1943 (1 Session, claude-opus-5, claude-sonnet-5, claude-haiku-4-5-20251001)
 - PR #229 "docs(jira): kunden-schluessel in die architekturdiagramme aufnehmen": $8.5297 (1 Session, claude-opus-5)
 - PR #231 "chore(jira): release 1.5.0 vorbereiten und diagramme ausliefern": $7.0859 (1 Session, claude-opus-5)
+- PR #232 "fix(jira): OTRS-Link-Helfer bricht an der Kunden Referenz ab": $7.1756 (1 Session, claude-opus-5)
 
 ## [1.5.0] - 2026-09-14
 
