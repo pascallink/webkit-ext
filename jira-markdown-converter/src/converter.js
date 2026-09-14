@@ -265,6 +265,10 @@
       // Selbstenthaltung prueft den woertlichen Rumpf.
       var body = plain === null ? '' : plain;
       if (plain && /[{}]/.test(plain) && body.indexOf('{noformat}') === -1) {
+        // Bei Backslashes vor Escape-Zeichen (\{, \}) in noformat-Rumpf
+        // muss der Backslash erhalten bleiben, da sonst die Escapes
+        // nicht korrekt interpretiert werden.
+        body = body.replace(/\\([{}])/g, '\\\\$1');
         return '{noformat}' + body + '{noformat}';
       }
       return '{{' + text + '}}';
