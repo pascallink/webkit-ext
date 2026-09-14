@@ -6,6 +6,9 @@
   "homepage": "https://github.com/pascallink/webkit-ext",
   "private": true,
   "stableZipAlias": true,
+  "docsBundle": {
+    "exclude": ["testarchitektur.architecture.json"]
+  },
   "scripts": {
     "test": "node test/run.js",
     "test:all": "node test/run.js",

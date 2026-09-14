@@ -47,6 +47,18 @@ entstehenden Sidecars (`*.visual-check.*`) sind per `.gitignore` ausgeschlossen.
 Quellverweise geprueft wurden - `deliver` verifiziert jeden `sources`-Eintrag
 gegen diesen Stand und bricht bei Abweichung ab.
 
+## Auslieferung an den Nutzer
+
+Beim Tag-Push baut `release.yml` aus diesen Spezifikationen das Asset
+`jira-markdown-converter-docs-<version>.zip` (zusaetzlich als
+`jira-markdown-converter-docs.zip` fuer den Direktlink). Niemand muss die
+Diagramme selbst erzeugen, um sie zu lesen.
+
+Gesteuert wird das ueber `docsBundle` in der `package.json` des Projekts;
+`testarchitektur.architecture.json` steht dort in `exclude`, weil es den
+Testaufbau beschreibt und nicht das Produkt. Details in
+[`.github/CI.md`](../../../.github/CI.md).
+
 ## Weitere Spezifikationen (Dataflows, Workflows, Lifecycles)
 
 Nur `poweredit-runtime.html` liegt als erzeugtes HTML im Repo, weil es

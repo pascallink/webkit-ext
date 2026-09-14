@@ -30,6 +30,11 @@ und damit nie als ZIP ausgeliefert, ihre Aenderungen stecken hier mit drin.
   uebernehmen"); Kunden-Schluessel in der Leseansicht (Beschreibung,
   Kommentare) werden zusaetzlich optisch als Badge hervorgehoben, nie in
   einem Editor oder einem bearbeitbaren Feld.
+- Die Architekturdiagramme liegen dem Release als
+  `jira-markdown-converter-docs-<version>.zip` bei: fertig erzeugte,
+  eigenstaendige HTML-Dateien mit einer `index.html` als Einstieg, die ohne
+  Internetzugang laufen. Die Erweiterung selbst bleibt unveraendert schlank -
+  das Buendel ist ein eigenes Asset, kein Bestandteil des Pakets.
 
 ### Geaendert
 
