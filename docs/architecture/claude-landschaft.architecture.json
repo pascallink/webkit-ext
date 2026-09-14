@@ -13,7 +13,7 @@
     "repository": {
       "url": "https://github.com/pascallink/webkit-ext",
       "provider": "github",
-      "revision": "a9ae0864cee3cf57875006d5614a1da16a2464e5"
+      "revision": "ee1ca4d16895928bf203a675153e7707fe265dbf"
     }
   },
   "components": [
