@@ -79,9 +79,14 @@ jobs:
             exit 1
           fi
 
+      # fetch-depth: 0 ist Pflicht, nicht Bequemlichkeit: das Diagramm-Buendel
+      # prueft je architecture-Spezifikation die in meta.repository.revision
+      # gepinnte Historie (git cat-file). In einem flachen Klon fehlt dieser
+      # Commit und deliver bricht ab.
       - uses: actions/checkout@v5
         with:
           ref: ${{ steps.meta.outputs.tag }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -155,6 +160,21 @@ jobs:
             if jq -e '.stableZipAlias == true' "$dir/package.json" >/dev/null 2>&1; then
               cp "release/$dir-$version.zip" "release/$dir.zip"
               echo "$dir: Alias $dir.zip mitgebaut."
+            fi
+
+            # Diagramme als eigenes Asset, nicht im Erweiterungs-ZIP: der
+            # Store bekommt weiterhin nur Laufzeitcode, der Nutzer laedt die
+            # Dokumentation zur Version daneben herunter. Ohne "docsBundle"
+            # in der package.json bleibt der Zielordner leer.
+            docs="docs-bundle/$dir"
+            rm -rf "$docs"
+            node scripts/build-docs-bundle.mjs "$dir" "$docs"
+            if [ -f "$docs/index.html" ]; then
+              (cd "$docs" && zip -rq "$GITHUB_WORKSPACE/release/$dir-docs-$version.zip" .)
+              if jq -e '.stableZipAlias == true' "$dir/package.json" >/dev/null 2>&1; then
+                cp "release/$dir-docs-$version.zip" "release/$dir-docs.zip"
+              fi
+              echo "$dir: Diagramm-Buendel gepackt."
             fi
 
             echo "::endgroup::"

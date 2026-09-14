@@ -9,7 +9,7 @@ an der CI, nicht in jeder Sitzung.
 | --- | --- | --- |
 | `build-extension.yml` | Push auf `main`, jeder PR | Install, Lint, Test je Projekt - **keine ZIPs** |
 | `version-bump.yml` | Push auf `main` | Hebt die Patch-Stelle beruehrter Projekte an und schreibt sie zurueck |
-| `release.yml` | Push eines Tags `x.y.0` oder `vx.y.0` | Baut die ZIPs und legt das Release damit an - nur bei einer neuen Minor-Version `x.y.0` |
+| `release.yml` | Push eines Tags `x.y.0` oder `vx.y.0` | Baut die ZIPs samt Diagramm-Buendel und legt das Release damit an - nur bei einer neuen Minor-Version `x.y.0` |
 | `commitlint.yml` | Jeder PR | Prueft die Commit-Konvention |
 | `ai-build-checker.yml` | `workflow_run` nach rotem `Build Extensions` | Baut nichts selbst: analysiert das Log des fehlgeschlagenen Jobs und postet es als PR-Kommentar |
 | `haiku-pr-summary.yml` | PR `synchronize` | Fuehrt den Stand-Block im PR-Body nach - **nicht beim Oeffnen**, dort traegt die Vorlage die Beschreibung |
@@ -152,6 +152,37 @@ sondern die naechste Minor-Version: `x.y+1.0` setzen, taggen, pushen.
 - Die rollierende Release `latest` ist Geschichte: sie ist immutable, ihre
   Assets lassen sich nicht mehr ersetzen. Deshalb `/releases/latest/download/`
   statt `/releases/download/latest/`.
+
+### Diagramm-Buendel im Release
+
+Die Diagramme gehen als **eigenes Asset** raus, nicht im Erweiterungs-ZIP:
+`<projekt>-docs-<version>.zip`, bei gesetztem `stableZipAlias` zusaetzlich als
+`<projekt>-docs.zip`. Der Store bekommt damit weiterhin nur Laufzeitcode - die
+rund 8 MB HTML wuerden sonst in jedem Install und jeder Pruefung mitreisen.
+
+Teilnahme ist eine Entscheidung des Projekts, wie bei `stableZipAlias`: ohne
+`docsBundle` in der `package.json` entsteht kein Buendel. Als Objekt nimmt das
+Feld `exclude` - Dateinamen, die draussen bleiben, weil sie den Entwicklungs-
+aufbau beschreiben statt das Produkt:
+
+```json
+"docsBundle": { "exclude": ["testarchitektur.architecture.json"] }
+```
+
+Gebaut wird das in `release.yml` ueber `scripts/build-docs-bundle.mjs`: je
+Spezifikation unter `<projekt>/docs/architecture/` eine eigenstaendige HTML
+plus eine `index.html` als Einstieg. Der Typ kommt aus dem Dateinamen
+(`<name>.<typ>.json`), `ARCHIFY_UPDATE_CHECK_DISABLED=1` setzt das Skript
+selbst. Archify liegt ohne Abhaengigkeiten im Repo, es ist also kein Install
+noetig; der Lauf dauert wenige Sekunden.
+
+Ein Detail, das nicht verhandelbar ist: der Checkout in `release.yml` braucht
+`fetch-depth: 0`. Jede `architecture`-Spezifikation prueft ihre Quellverweise
+gegen den in `meta.repository.revision` gepinnten Commit (`git cat-file`) - in
+einem flachen Klon fehlt der, und `deliver` bricht ab.
+
+Im Repo liegt weiterhin nur die JSON. Einzige Ausnahme bleibt
+`poweredit-runtime.html`, weil sie verlinkt ist.
 
 ### Action-Versionen
 
