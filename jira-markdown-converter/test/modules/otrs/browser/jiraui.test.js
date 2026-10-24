@@ -39,10 +39,10 @@ async function loadPage(browser) {
  * liegen die Legacy-Dialoge dauerhaft im DOM und werden nur per Klasse
  * jira-dialog-open sichtbar (siehe docs/jira-dialogs-referenz.md).
  */
-async function loadPage912(browser) {
+async function loadPage912(browser, query) {
   var context = await browser.newContext();
   var page = await context.newPage();
-  await page.goto(JIRA912_FIXTURE);
+  await page.goto(JIRA912_FIXTURE + (query ? '?' + query : ''));
   await page.addScriptTag({ content: browserLib.readSource('src/jiraui.js') });
   return page;
 }
@@ -267,7 +267,9 @@ describe('JiraUi gegen den Nachbau von 9.12 (JIRA912)', { skip: !hasPlaywright }
       var dialog = document.getElementById('edit-labels-dialog');
       dialog.classList.add('jira-dialog-open');
       var textarea = document.getElementById('labels-textarea');
-      window.JiraUi.setValue(textarea, 'wartung');
+      // Abgeschickt wird select#labels, nicht die Textarea - der Wert muss
+      // ueber den Picker hinein.
+      window.JiraUi.fillMultiSelect(textarea, 'wartung');
       // dialog ist selbst nicht formularassoziiert und kein Vorfahre des
       // Formulars - das ist der Fall, den submitForm() ueber
       // element.querySelector('form') abdecken muss.
@@ -413,6 +415,69 @@ describe('JiraUi gegen den Nachbau von 9.12 (JIRA912)', { skip: !hasPlaywright }
       'keypress:k:Link',
       'keyup:k:Link'
     ]);
+    await page.close();
+  });
+  /**
+   * Der Label-Picker haengt wie der Shifter an Tastatur-Ereignissen, und
+   * abgeschickt wird allein select#labels - die Textarea traegt kein
+   * name-Attribut (docs/jira-dialogs-referenz.md). Ein Wert nur im Feld
+   * kommt also nie im Vorgang an.
+   */
+  test('fillMultiSelect traegt den Wert als Option in select#labels ein', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage912(browser);
+    var result = await page.evaluate(function () {
+      document.getElementById('edit-labels-dialog').classList.add('jira-dialog-open');
+      var uebernommen = window.JiraUi.fillMultiSelect(document.getElementById('labels-textarea'), '2026070710000078');
+      return {
+        uebernommen: uebernommen,
+        optionen: Array.prototype.map.call(document.getElementById('labels').options, function (option) {
+          return option.value + ':' + option.selected;
+        }),
+        lozenge: document.querySelector('#labels-multi-select .representation .items').textContent,
+        feld: document.getElementById('labels-textarea').value
+      };
+    });
+    assert.strictEqual(result.uebernommen, true);
+    assert.deepStrictEqual(result.optionen, ['2026070710000078:true']);
+    assert.strictEqual(result.lozenge, '2026070710000078', 'der Picker hat keinen Lozenge gesetzt');
+    assert.strictEqual(result.feld, '', 'das Feld wurde nach der Uebernahme nicht geleert');
+    await page.close();
+  });
+
+  test('fillMultiSelect traegt nach, wenn der Picker die Taste ignoriert', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage912(browser, 'labels=stumm');
+    var result = await page.evaluate(function () {
+      document.getElementById('edit-labels-dialog').classList.add('jira-dialog-open');
+      var uebernommen = window.JiraUi.fillMultiSelect(document.getElementById('labels-textarea'), 'ROV-4711');
+      window.JiraUi.submitForm(document.getElementById('edit-labels-dialog'));
+      return { uebernommen: uebernommen, gespeichert: window.__mock.saved.labels };
+    });
+    assert.strictEqual(result.uebernommen, true);
+    assert.strictEqual(result.gespeichert, 'ROV-4711', 'der Nachtrag ins select hat gefehlt');
+    await page.close();
+  });
+
+  test('sendKey schickt keyup auch, wenn ein Handler keydown unterdrueckt', async function () {
+    var browser = await browserPromise;
+    var page = await loadPage912(browser);
+    var ereignisse = await page.evaluate(function () {
+      // Genau das macht AUI am Label-Picker: Enter wird die Default-Action
+      // genommen, damit das Formular nicht absendet. keypress entfaellt
+      // dadurch (wie im Browser), keyup muss trotzdem kommen.
+      var feld = document.getElementById('labels-textarea');
+      var gesehen = [];
+      ['keydown', 'keypress', 'keyup'].forEach(function (typ) {
+        feld.addEventListener(typ, function (event) {
+          gesehen.push(typ);
+          if (typ === 'keydown') event.preventDefault();
+        });
+      });
+      window.JiraUi.sendKey(feld, 'Enter');
+      return gesehen;
+    });
+    assert.deepStrictEqual(ereignisse, ['keydown', 'keyup']);
     await page.close();
   });
 });

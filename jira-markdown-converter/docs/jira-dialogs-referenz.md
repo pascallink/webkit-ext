@@ -122,8 +122,12 @@ Wichtig fuer die Automation:
 </div>
 ```
 
-* Geschrieben wird in `#labels-textarea`, **nicht** in `select#labels` - das
-  fuellt die Multi-Select-Mechanik selbst.
+* Getippt wird in `#labels-textarea`. **Abgeschickt wird aber allein
+  `select#labels`** - die Textarea traegt kein `name`-Attribut. Das select
+  fuellt der Picker (`AJS.MultiSelect`), und der haengt wie der Shifter an
+  Tastatur-Ereignissen. Automation: `JiraUi.fillMultiSelect()` tippt, drueckt
+  Enter und prueft danach, ob der Wert als gewaehlte Option im select steht -
+  sonst steht er nur im Feld und kommt im Vorgang nie an.
 * Bestaetigt wird mit `#edit-labels-dialog #submit`.
 * `#send-notifications` bleibt unberuehrt (Standard: nicht gesetzt).
 
