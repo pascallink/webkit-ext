@@ -9,6 +9,17 @@ festgehalten. Das Format orientiert sich an
 
 ### Behoben
 
+- Kennzeichen-Schritt beider Ablaeufe haertet nachgezogen: abgeschickt wird
+  im Label-Dialog allein `select#labels`, die Textarea traegt kein
+  `name`-Attribut. Der Wert wurde nur ins Feld geschrieben und mit Enter dem
+  Picker ueberlassen - ob der ihn uebernimmt, war nicht geprueft.
+  `JiraUi.fillMultiSelect()` tippt jetzt mit echten Tastatur-Ereignissen,
+  bestaetigt und traegt den Wert notfalls selbst als gewaehlte Option nach;
+  bleibt er aus, bricht der Schritt mit einer Meldung ab statt stumm ein
+  leeres Kennzeichen zu speichern. Dazu schickt `JiraUi.sendKey()` das
+  `keyup` jetzt auch dann, wenn ein Handler `keydown` die Default-Action
+  nimmt - genau das macht AUI am Picker, und jeder `keyup`-Handler dahinter
+  wurde so nie erreicht.
 - OTRS-Link-Helfer und Kunden-Schluessel-Abgleich brachen am Schritt
   *Kunden Referenz* ab: der Shifter (Taste `.`) filtert seine Trefferliste
   im `keyup`-Handler und zeigt sie schon vor der Eingabe. Der Suchbegriff

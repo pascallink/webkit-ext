@@ -191,8 +191,13 @@
     } else {
       field.value = value;
     }
-    field.dispatchEvent(new Event('input', { bubbles: true }));
-    field.dispatchEvent(new Event('change', { bubbles: true }));
+    fireChange(field);
+  }
+
+  /** input und change als bubbelnde Events - Jiras Handler haengen an beiden. */
+  function fireChange(element) {
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   /**
@@ -232,17 +237,22 @@
    * seine Tastaturkuerzel (l, . ...) an keydown am document auf. keydown/
    * keyup bekommen den Layout-Keycode, keypress den Literal-Code des
    * Zeichens - ein expliziter options.keyCode ueberschreibt beide Faelle
-   * gleich, so wie zuvor. Bricht die Kette ab, sobald dispatchEvent false
-   * liefert (ein Handler hat preventDefault() aufgerufen) - der Browser
-   * wuerde in diesem Fall die folgenden Tastatur-Ereignisse ebenfalls nicht
-   * mehr feuern.
+   * gleich.
+   *
+   * preventDefault() auf keydown unterdrueckt genau wie im Browser nur
+   * keypress - das ist dessen Default-Action -, keyup kommt trotzdem. Die
+   * ganze Kette abzubrechen war falsch: AUI nimmt dem Enter im Label-Picker
+   * die Default-Action (sonst schickt das Formular ab), und jeder
+   * keyup-Handler dahinter wurde so nie erreicht.
    */
   function sendKey(target, key, options) {
     var opts = options || {};
     var code = opts.code || codeFor(key);
     var types = ['keydown', 'keypress', 'keyup'];
+    var keydownPrevented = false;
     for (var i = 0; i < types.length; i++) {
       var type = types[i];
+      if (type === 'keypress' && keydownPrevented) continue;
       var keyCode = opts.keyCode !== undefined ? opts.keyCode :
         (type === 'keypress' ? charKeyCode(key) : layoutKeyCode(key));
       var dispatched = target.dispatchEvent(new KeyboardEvent(type, {
@@ -256,7 +266,7 @@
         shiftKey: !!opts.shiftKey,
         altKey: !!opts.altKey
       }));
-      if (!dispatched) return;
+      if (type === 'keydown' && !dispatched) keydownPrevented = true;
     }
   }
 
@@ -284,6 +294,79 @@
     return new Promise(function (resolve) {
       setTimeout(resolve, ms);
     });
+  }
+
+  /**
+   * Das abgeschickte <select multiple> zum Picker-Feld. In 9.12 steht es als
+   * Geschwister des Picker-Containers in derselben .field-group
+   * (select#labels.multi-select-select, siehe docs/jira-dialogs-referenz.md).
+   */
+  function findMultiSelectTarget(field) {
+    var scope = typeof field.closest === 'function'
+      ? (field.closest('.field-group') || field.closest('form'))
+      : null;
+    if (!scope) scope = field.parentNode;
+    if (!scope || !scope.querySelector) return null;
+    return scope.querySelector('select.multi-select-select, select[multiple]');
+  }
+
+  function isSelected(select, value) {
+    for (var i = 0; i < select.options.length; i++) {
+      if (select.options[i].value === value && select.options[i].selected) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Waehlt die Option zum Wert und legt sie an, wenn sie fehlt - ohne die
+   * bereits gewaehlten zu verlieren (multiple).
+   */
+  function selectOption(select, value) {
+    for (var i = 0; i < select.options.length; i++) {
+      if (select.options[i].value === value) {
+        select.options[i].selected = true;
+        fireChange(select);
+        return;
+      }
+    }
+    var option = (select.ownerDocument || document).createElement('option');
+    option.value = value;
+    option.textContent = value;
+    option.selected = true;
+    select.appendChild(option);
+    fireChange(select);
+  }
+
+  /** Lozenge zum Wert - die sichtbare Uebernahme des Pickers. */
+  function hasLozenge(field, value) {
+    var container = typeof field.closest === 'function' ? field.closest('.jira-multi-select') : null;
+    var representation = container && container.querySelector('.representation');
+    return !!representation && representation.textContent.indexOf(value) !== -1;
+  }
+
+  /**
+   * Traegt value in einen AUI-MultiSelect-Picker ein (das Label-Feld in
+   * 9.12): tippen mit echten Tastatur-Ereignissen, dann Enter fuer den
+   * Lozenge. Abgeschickt wird nicht die Textarea - die traegt kein
+   * name-Attribut -, sondern das versteckte <select multiple> daneben.
+   * Darum bleibt es nicht beim Tastendruck: steht der Wert danach nicht als
+   * gewaehlte Option im <select>, wird er dort nachgetragen, sonst gehen
+   * Feld und Formular auseinander und das Kennzeichen kommt nie an.
+   * Liefert true, wenn der Wert am Ende abgeschickt wuerde.
+   */
+  function fillMultiSelect(field, value, select) {
+    var text = String(value);
+    typeValue(field, text);
+    sendKey(field, 'Enter');
+
+    var target = select || findMultiSelectTarget(field);
+    if (!target) {
+      // Kein <select>: dann traegt nur der Picker selbst, der Lozenge ist
+      // der einzige Beleg - sonst bleibt der Feldwert als letzter Anker.
+      return hasLozenge(field, text) || String(field.value).indexOf(text) !== -1;
+    }
+    if (!isSelected(target, text)) selectOption(target, text);
+    return isSelected(target, text);
   }
 
   /**
@@ -423,6 +506,7 @@
     waitForGone: waitForGone,
     setValue: setValue,
     typeValue: typeValue,
+    fillMultiSelect: fillMultiSelect,
     sendKey: sendKey,
     shifterAction: shifterAction,
     click: click,
