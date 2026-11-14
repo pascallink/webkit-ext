@@ -143,8 +143,11 @@
         return ui.waitForElement('#labels-textarea', { root: doc, timeout: timeout });
       })
       .then(function (textarea) {
-        ui.setValue(textarea, key);
-        ui.sendKey(textarea, 'Enter');
+        // Der Picker fuellt select#labels, und nur das wird abgeschickt -
+        // fillMultiSelect() tippt, bestaetigt und traegt notfalls selbst ein.
+        if (!ui.fillMultiSelect(textarea, key)) {
+          throw new Error('Kennzeichen "' + key + '" wurde nicht uebernommen');
+        }
         var dialog = doc.querySelector('#edit-labels-dialog');
         if (!ui.submitForm(dialog)) {
           throw new Error('Formular des Labels-Dialogs nicht gefunden');

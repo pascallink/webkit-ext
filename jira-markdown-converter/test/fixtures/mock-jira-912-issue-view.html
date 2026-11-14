@@ -127,7 +127,10 @@
       pre.noformat.panel, div.plain.panel > panel-title, blockquote, tt.
     - Der Umschalter Text/Visuell konvertiert ueber einen kleinen
       Wiki<->HTML-Konverter (Teilmenge dessen, was Jira serverseitig macht).
-    - Taste l: Label-Dialog (#edit-labels-dialog, Legacy-JiraDialog).
+    - Taste l: Label-Dialog (#edit-labels-dialog, Legacy-JiraDialog). Der
+      Picker filtert auf keyup, Enter legt den Lozenge und die Option in
+      select#labels - nur dieses select wird abgeschickt.
+      ?labels=stumm: Picker ignoriert Enter (Testknopf).
       Taste .: Shifter (#shifter-dialog) mit "Kunden Referenz" (oeffnet
       #modal-field-view mit input#customfield_10027) und "Link"
       (oeffnet #link-issue-dialog; Web Link ueber button#add-web-link-link).
@@ -356,6 +359,9 @@
             <div id="labels-suggestions" class="aui-list"></div>
             <div class="representation"><ul class="items" role="listbox"></ul></div>
           </div>
+          <!-- [belegt] Nur dieses select wird abgeschickt: die Textarea oben traegt kein
+               name-Attribut, der Picker traegt seine Lozenges hier als Optionen ein. -->
+          <select id="labels" class="multi-select hidden long-field edit-labels-inline multi-select-select" multiple="multiple" name="labels"></select>
           <div class="description">Begin typing to find and create labels or press down to select a suggested label.</div>
         </div>
         <fieldset class="group"><div class="field-group"><input id="send-notifications" class="checkbox" name="sendNotification" type="checkbox" value="true" checked><label for="send-notifications">Send notifications</label></div></fieldset>
@@ -982,10 +988,64 @@
   function openLegacy(d) { d.classList.add('jira-dialog-open'); blanket.classList.add('visible'); }
   function closeLegacy(d) { d.classList.remove('jira-dialog-open'); if (!document.querySelector('.jira-dialog-open') && editDialog.getAttribute('aria-hidden') === 'true') blanket.classList.remove('visible'); }
   var labelsDialog = document.getElementById('edit-labels-dialog');
-  function openLabels() { openLegacy(labelsDialog); document.getElementById('labels-textarea').focus(); note('labels dialog opened'); }
+  var labelsField = document.getElementById('labels-textarea');
+  var labelsSelect = document.getElementById('labels');
+  var labelsSuggestions = document.getElementById('labels-suggestions');
+  var labelsItems = labelsDialog.querySelector('#labels-multi-select .representation .items');
+  function openLabels() { openLegacy(labelsDialog); labelsField.focus(); note('labels dialog opened'); }
+  // [belegt] Der Picker (AJS.MultiSelect) baut seine Vorschlagsliste im
+  // keyup-Handler. Ein programmatisch gesetzter Wert mit blossem
+  // input-Ereignis laesst ihn kalt.
+  labelsField.addEventListener('keyup', function () {
+    var q = labelsField.value.trim();
+    labelsSuggestions.textContent = '';
+    if (q) {
+      var ul = document.createElement('ul');
+      ul.className = 'aui-list-section';
+      ul.setAttribute('role', 'listbox');
+      var li = document.createElement('li');
+      li.className = 'aui-list-item active';
+      li.setAttribute('role', 'option');
+      li.textContent = q;
+      ul.appendChild(li);
+      labelsSuggestions.appendChild(ul);
+    }
+    labelsField.setAttribute('aria-expanded', q ? 'true' : 'false');
+  });
+  // [belegt] Enter erzeugt den Lozenge und traegt ihn als Option in
+  // select#labels ein; AUI nimmt dem Ereignis die Default-Action, sonst
+  // schickt das Formular mit ab.
+  // [Testknopf] ?labels=stumm laesst den Picker synthetische Tasten
+  // ignorieren - deckt den Nachtrag ins select ab, keine Aussage ueber die
+  // Instanz.
+  var labelsPickerStumm = params.get('labels') === 'stumm';
+  labelsField.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    if (labelsPickerStumm) { note('labels picker ignoriert Enter (Testknopf)'); return; }
+    var wert = labelsField.value.trim();
+    if (!wert) return;
+    var option = document.createElement('option');
+    option.value = wert;
+    option.textContent = wert;
+    option.selected = true;
+    labelsSelect.appendChild(option);
+    var lozenge = document.createElement('li');
+    lozenge.className = 'item';
+    lozenge.textContent = wert;
+    labelsItems.appendChild(lozenge);
+    labelsField.value = '';
+    labelsSuggestions.textContent = '';
+    note('label lozenge: ' + wert);
+  });
   labelsDialog.querySelector('form').addEventListener('submit', function (event) {
     event.preventDefault();
-    var v = document.getElementById('labels-textarea').value.trim();
+    // [belegt] Abgeschickt wird select#labels, nicht die Textarea.
+    var v = Array.prototype.filter.call(labelsSelect.options, function (option) {
+      return option.selected;
+    }).map(function (option) {
+      return option.value;
+    }).join(' ');
     window.__mock.saved.labels = v;
     document.getElementById('labels-48410-value').textContent = v || 'None';
     note('labels SUBMIT: ' + JSON.stringify(v));
